@@ -15,7 +15,7 @@ export default function DisclaimerScreen() {
     if (!session?.user?.id) return;
     await supabase.from('profiles').update({ disclaimer_accepted: true, disclaimer_accepted_at: new Date().toISOString() }).eq('id', session.user.id);
     await fetchProfile(session.user.id);
-    router.replace('/(tabs)/');
+    router.replace('/(auth)/profile-setup');
   };
 
   return <View style={styles.c}><Text style={styles.h}>Disclaimer</Text><ScrollView style={styles.box}><Text style={styles.t}>{Copy.disclaimerFull}</Text></ScrollView><Pressable style={styles.b} onPress={onAccept}><Text style={styles.bt}>I Understand and Accept</Text></Pressable></View>;

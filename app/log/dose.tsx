@@ -111,7 +111,7 @@ export default function DoseLogScreen() {
         disabled={saving}
         style={{ backgroundColor: Colors.accent, borderRadius: 10, padding: 14, alignItems: 'center' }}
       >
-        {saving ? <ActivityIndicator color={Colors.white} /> : <Text style={{ color: Colors.white, fontWeight: '600' }}>Save Log</Text>}
+        {saving ? <ActivityIndicator color={Colors.white} /> : <Text style={{ color: Colors.white, fontWeight: '600' }}>Save Dose</Text>}
       </Pressable>
     </SafeAreaView>
   );
