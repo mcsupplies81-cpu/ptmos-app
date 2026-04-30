@@ -54,7 +54,7 @@ export default function ProtocolsScreen() {
           const adherence = calcAdherence(item, doseLogs);
           const adherenceColor = adherence >= 80 ? Colors.success : adherence >= 50 ? Colors.warning : Colors.error;
           return (
-            <Pressable key={item.id} style={styles.card} onPress={() => router.push(`/protocol/${item.id}`)}>
+            <Pressable key={item.id} style={styles.card} onPress={() => router.push(`/log/protocol-detail?protocolId=${item.id}` as any)}>
               <View style={styles.avatar}><Text style={styles.avatarText}>{item.name.charAt(0).toUpperCase()}</Text></View>
               <View style={{ flex: 1 }}>
                 <Text style={styles.cardTitle}>{item.name}</Text>
