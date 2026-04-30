@@ -7,7 +7,7 @@ import { useProfileStore } from '@/stores/profileStore';
 export default function RootLayout() {
   const router = useRouter();
   const segments = useSegments();
-  const { session, setSession, setLoading } = useAuthStore();
+  const { session, loading, setSession, setLoading } = useAuthStore();
   const { profile, fetchProfile } = useProfileStore();
 
   useEffect(() => {
@@ -28,19 +28,27 @@ export default function RootLayout() {
   }, [session?.user?.id]);
 
   useEffect(() => {
+    // Don't redirect until we know auth state
+    if (loading) return;
+
     const inAuth = segments[0] === '(auth)';
+
     if (!session) {
-      if (!inAuth || segments[1] !== 'welcome') router.replace('/(auth)/welcome');
+      if (!inAuth) router.replace('/(auth)/welcome');
       return;
     }
+
+    if (profile === undefined) return; // still fetching profile
+
     if (profile !== null && !profile.disclaimer_accepted) {
       if (!inAuth || segments[1] !== 'disclaimer') router.replace('/(auth)/disclaimer');
       return;
     }
+
     if (profile?.disclaimer_accepted && inAuth) {
       router.replace('/(tabs)/');
     }
-  }, [session, profile?.disclaimer_accepted, segments]);
+  }, [loading, session, profile, segments]);
 
   return <Stack screenOptions={{ headerShown: false }} />;
 }

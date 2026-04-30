@@ -70,7 +70,7 @@ export default function DashboardScreen() {
     ? Math.round(activeProtocols.reduce((sum, protocol) => sum + calcAdherence(protocol, doseLogs), 0) / activeProtocols.length)
     : null;
 
-  const latestLifestyle = lifestyleLogs[lifestyleLogs.length - 1];
+  const latestLifestyle = lifestyleLogs[0]; // store ordered DESC, newest first
 
   return (
     <SafeAreaView style={styles.safeArea}>
@@ -114,7 +114,7 @@ export default function DashboardScreen() {
 
         <View style={styles.card}>
           <Text style={styles.sectionTitle}>TODAY OVERVIEW</Text>
-          {[['🦶', 'Steps', latestLifestyle?.steps], ['😴', 'Sleep', latestLifestyle?.sleep_hours], ['⚖️', 'Weight', latestLifestyle?.weight]]
+          {[['🦶', 'Steps', latestLifestyle?.steps], ['😴', 'Sleep', latestLifestyle?.sleep_hours], ['⚖️', 'Weight', latestLifestyle?.weight_lbs]]
             .map(([icon, label, value], idx) => (
               <View key={String(label)} style={[styles.overviewRow, idx === 2 && { borderBottomWidth: 0 }]}> 
                 <Text style={styles.title}>{icon} {label}</Text>
