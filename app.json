@@ -1,0 +1,5 @@
+{
+  "version": "1.0.0",
+  "ios": { "bundleIdentifier": "com.ptmos.app", "buildNumber": "1" },
+  "android": { "package": "com.ptmos.app", "versionCode": 1 }
+}
