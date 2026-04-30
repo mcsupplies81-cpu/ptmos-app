@@ -30,7 +30,7 @@ export default function SignUpScreen() {
     }
 
     if (data.user) {
-      const { error: profileError } = await supabase.from('profiles').insert({
+      const { error: profileError } = await supabase.from('profiles').upsert({
         id: data.user.id,
         full_name: trimmedFullName,
         email: trimmedEmail,
@@ -43,7 +43,8 @@ export default function SignUpScreen() {
       }
     }
 
-    router.replace('/(auth)/sign-in');
+    // Let _layout.tsx handle routing — it will redirect to /(auth)/disclaimer
+    // once it detects the new session + profile with disclaimer_accepted: false
   };
 
   return (
