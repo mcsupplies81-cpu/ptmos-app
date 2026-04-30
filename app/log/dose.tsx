@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useRouter } from 'expo-router';
-import { Pressable, SafeAreaView, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { ActivityIndicator, Pressable, SafeAreaView, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 
 import Colors from '@/constants/Colors';
 import { useAuthStore } from '@/stores/authStore';
@@ -19,15 +19,19 @@ export default function DoseLogScreen() {
   const router = useRouter();
   const { addDoseLog } = useDoseLogStore();
   const user = useAuthStore((state) => state.user);
+  const [peptideName, setPeptideName] = useState('');
   const [amount, setAmount] = useState('');
   const [selectedSite, setSelectedSite] = useState<string | null>(null);
   const [showSites, setShowSites] = useState(false);
   const [mood, setMood] = useState<string | null>(null);
   const [notes, setNotes] = useState('');
+  const [saving, setSaving] = useState(false);
 
   const handleSave = async () => {
     if (!user?.id) return;
-    await addDoseLog({ protocol_id: null, peptide_name: null, amount: Number(amount) || 0, unit: 'mcg', logged_at: new Date().toISOString(), injection_site: selectedSite, mood, notes: notes || null }, user.id);
+    setSaving(true);
+    await addDoseLog({ protocol_id: null, peptide_name: peptideName.trim() || null, amount: Number(amount) || 0, unit: 'mcg', logged_at: new Date().toISOString(), injection_site: selectedSite, mood, notes: notes || null }, user.id);
+    setSaving(false);
     router.back();
   };
 
@@ -43,7 +47,13 @@ export default function DoseLogScreen() {
         <View style={styles.selectRow}>
           <View style={styles.icon} />
           <View style={{ flex: 1 }}>
-            <Text style={{ fontSize: 16, fontWeight: '600', color: Colors.text }}>Select peptide</Text>
+            <TextInput
+              value={peptideName}
+              onChangeText={setPeptideName}
+              placeholder="Peptide name"
+              placeholderTextColor={Colors.textSecondary}
+              style={{ fontSize: 16, fontWeight: '600', color: Colors.text }}
+            />
             {!!amount && <Text style={{ fontSize: 12, color: Colors.textSecondary }}>{amount} mcg</Text>}
           </View>
         </View>
@@ -74,7 +84,9 @@ export default function DoseLogScreen() {
         </View>
 
         <View style={{ paddingHorizontal: 16 }}>
-          <Pressable style={styles.primaryBtn} onPress={handleSave}><Text style={styles.primaryText}>Save Dose</Text></Pressable>
+          <Pressable style={styles.primaryBtn} onPress={handleSave} disabled={saving}>
+            {saving ? <ActivityIndicator color={Colors.white} /> : <Text style={styles.primaryText}>Save Dose</Text>}
+          </Pressable>
         </View>
       </ScrollView>
     </SafeAreaView>

@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { ActivityIndicator, Pressable, SafeAreaView, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { router } from 'expo-router';
 import Colors from '@/constants/Colors';
 import Copy from '@/constants/Copy';
 import { supabase } from '@/lib/supabase';
@@ -20,6 +21,7 @@ export default function DisclaimerScreen() {
       .eq('id', session.user.id);
     await fetchProfile(session.user.id);
     setLoading(false);
+    router.replace('/(auth)/profile-setup');
   };
 
   return (
