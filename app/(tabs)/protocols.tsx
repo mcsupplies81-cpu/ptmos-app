@@ -51,13 +51,16 @@ export default function ProtocolsScreen() {
             const adherenceColor = pct >= 80 ? Colors.success : pct >= 50 ? Colors.warning : Colors.error;
 
             return (
-              <View style={{ borderRadius: 12, padding: 12, backgroundColor: Colors.card, marginBottom: 8 }}>
+              <Pressable
+                onPress={() => router.push(`/log/protocol-detail?protocolId=${item.id}`)}
+                style={{ borderRadius: 12, padding: 12, backgroundColor: Colors.card, marginBottom: 8 }}
+              >
                 <Text style={{ color: Colors.text }}>{item.name}</Text>
                 <Text style={{ color: Colors.textSecondary }}>{item.dose_amount} {item.dose_unit} • {item.frequency}</Text>
                 <Text style={{ color: Colors.textSecondary }}>{item.status}</Text>
                 <Text style={{ color: Colors.textSecondary }}>Next dose: {item.time_of_day}</Text>
                 <Text style={{ fontSize: 12, color: adherenceColor }}>{pct}% adherence</Text>
-              </View>
+              </Pressable>
             );
           }}
         />
