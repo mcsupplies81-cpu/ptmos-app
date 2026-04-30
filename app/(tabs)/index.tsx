@@ -1,53 +1,133 @@
-import { useCallback, useMemo, useState } from 'react';
-import { Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { useEffect, useMemo } from 'react';
+import { router } from 'expo-router';
+import { Pressable, SafeAreaView, ScrollView, StyleSheet, Text, View } from 'react-native';
+
+import { Copy } from '@/constants/Copy';
 import Colors from '@/constants/Colors';
-import Theme from '@/constants/Theme';
 import { useAuthStore } from '@/stores/authStore';
+import { useDoseLogStore } from '@/stores/doseLogStore';
 import { useProfileStore } from '@/stores/profileStore';
+import { useProtocolStore } from '@/stores/protocolStore';
 
 export default function DashboardScreen() {
-  const [refreshing, setRefreshing] = useState(false);
-  const { session } = useAuthStore();
-  const { profile, fetchProfile } = useProfileStore();
+  const user = useAuthStore((state) => state.user);
+  const profile = useProfileStore((state) => state.profile);
 
-  const firstName = useMemo(() => profile?.full_name?.split(' ')[0] ?? 'there', [profile?.full_name]);
-  const hour = new Date().getHours();
-  const greeting = hour < 12 ? 'Good morning' : hour < 18 ? 'Good afternoon' : 'Good evening';
+  const doseLogs = useDoseLogStore((state) => state.doseLogs);
+  const fetchDoseLogs = useDoseLogStore((state) => state.fetchDoseLogs);
+  const protocols = useProtocolStore((state) => state.protocols);
+  const fetchProtocols = useProtocolStore((state) => state.fetchProtocols);
 
-  const onRefresh = useCallback(async () => {
-    if (!session?.user?.id) return;
-    setRefreshing(true);
-    await fetchProfile(session.user.id);
-    setRefreshing(false);
-  }, [session?.user?.id, fetchProfile]);
+  useEffect(() => {
+    if (user?.id) {
+      fetchProtocols(user.id);
+      fetchDoseLogs(user.id);
+    }
+  }, [fetchDoseLogs, fetchProtocols, user?.id]);
+
+  const greeting = useMemo(() => {
+    const hour = new Date().getHours();
+    if (hour < 12) return 'Good morning';
+    if (hour < 17) return 'Good afternoon';
+    return 'Good evening';
+  }, []);
+
+  const recentDoses = [...doseLogs]
+    .sort((a, b) => new Date(b.logged_at).getTime() - new Date(a.logged_at).getTime())
+    .slice(0, 3);
+
+  const activeProtocols = protocols.filter((protocol) => protocol.status === 'active');
 
   return (
-    <ScrollView contentContainerStyle={styles.container} refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}>
-      <Text style={styles.greeting}>{greeting}, {firstName}</Text>
-      <View style={styles.row}><Badge title="Active Protocols" value="0"/><Badge title="Inventory" value="0"/></View>
-      <Card title="Next Dose" subtitle="No protocols yet — add your first protocol" cta="Add Protocol" />
-      <Card title="Last Dose" subtitle="No doses logged yet" />
-      <Card title="Protocol Adherence" subtitle="—%" />
-      <Card title="Today Overview" custom={<View style={styles.row}><Mini label="Steps"/><Mini label="Sleep"/><Mini label="Weight"/></View>} />
-    </ScrollView>
+    <SafeAreaView style={styles.safeArea}>
+      <ScrollView contentContainerStyle={styles.container}>
+        <Text style={styles.greeting}>
+          {greeting}, {profile?.full_name ?? 'there'}
+        </Text>
+
+        <Text style={styles.sectionHeader}>TODAY'S DOSES</Text>
+        {recentDoses.length === 0 ? (
+          <Text style={styles.emptyText}>No doses logged today</Text>
+        ) : (
+          recentDoses.map((dose) => (
+            <View key={dose.id} style={styles.row}>
+              <Text style={styles.rowTitle}>{dose.peptide_name || 'Unnamed'}</Text>
+              <Text style={styles.rowDetail}>
+                {dose.amount} {dose.unit} • {new Date(dose.logged_at).toLocaleTimeString()}
+              </Text>
+            </View>
+          ))
+        )}
+
+        <Text style={styles.sectionHeader}>ACTIVE PROTOCOLS</Text>
+        <Text style={styles.rowTitle}>{activeProtocols.length} active protocol(s)</Text>
+        {activeProtocols.length === 0 ? (
+          <Text style={styles.emptyText}>No active protocols. Tap + on Protocols to add one.</Text>
+        ) : null}
+
+        <Text style={styles.sectionHeader}>QUICK ACTIONS</Text>
+        <View style={styles.quickActionsRow}>
+          <Pressable style={styles.quickActionButton} onPress={() => router.push('/log/dose')}>
+            <Text style={styles.quickActionText}>Log Dose</Text>
+          </Pressable>
+          <Pressable
+            style={styles.quickActionButton}
+            onPress={() => router.push('/log/calculator')}
+          >
+            <Text style={styles.quickActionText}>Calculator</Text>
+          </Pressable>
+          <Pressable
+            style={styles.quickActionButton}
+            onPress={() => router.push('/more/inventory')}
+          >
+            <Text style={styles.quickActionText}>Inventory</Text>
+          </Pressable>
+          <Pressable
+            style={styles.quickActionButton}
+            onPress={() => router.push('/log/symptoms')}
+          >
+            <Text style={styles.quickActionText}>Symptoms</Text>
+          </Pressable>
+        </View>
+
+        <Text style={styles.disclaimer}>{Copy.disclaimerShort}</Text>
+      </ScrollView>
+    </SafeAreaView>
   );
 }
 
-function Card({ title, subtitle, cta, custom }: { title: string; subtitle?: string; cta?: string; custom?: React.ReactNode }) {
-  return <View style={styles.card}><Text style={styles.cardTitle}>{title}</Text>{subtitle ? <Text style={styles.sub}>{subtitle}</Text> : null}{custom}{cta ? <Pressable><Text style={styles.cta}>{cta}</Text></Pressable> : null}</View>;
-}
-function Badge({ title, value }: { title: string; value: string }) { return <View style={[styles.card, styles.badge]}><Text style={styles.sub}>{title}</Text><Text style={styles.badgeValue}>{value}</Text></View>; }
-function Mini({ label }: { label: string }) { return <Pressable style={styles.mini}><Text style={styles.sub}>{label}</Text><Text style={styles.cta}>Tap to log</Text></Pressable>; }
-
 const styles = StyleSheet.create({
-  container: { padding: 16, backgroundColor: Colors.background, gap: 12 },
-  greeting: { fontSize: 28, fontWeight: '700', marginBottom: 8, color: Colors.text },
-  row: { flexDirection: 'row', gap: 12 },
-  card: { backgroundColor: Colors.card, borderRadius: 12, padding: 14, ...Theme.shadow.card },
-  cardTitle: { fontSize: 16, fontWeight: '700', color: Colors.text, marginBottom: 4 },
-  sub: { color: Colors.mutedText },
-  cta: { marginTop: 10, color: Colors.accent, fontWeight: '700' },
-  badge: { flex: 1 },
-  badgeValue: { fontSize: 22, fontWeight: '800', color: Colors.accent, marginTop: 6 },
-  mini: { flex: 1, backgroundColor: '#fff', borderRadius: 10, padding: 10 },
+  safeArea: { flex: 1, backgroundColor: Colors.background },
+  container: { padding: 16, paddingBottom: 24 },
+  greeting: { color: Colors.text, fontSize: 22, fontWeight: '700' },
+  sectionHeader: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: Colors.textSecondary,
+    textTransform: 'uppercase',
+    marginBottom: 8,
+    marginTop: 20,
+  },
+  row: {
+    backgroundColor: Colors.card,
+    borderColor: Colors.border,
+    borderWidth: 1,
+    borderRadius: 10,
+    padding: 12,
+    marginBottom: 8,
+  },
+  rowTitle: { color: Colors.text, fontWeight: '600' },
+  rowDetail: { color: Colors.textSecondary, marginTop: 4 },
+  emptyText: { color: Colors.textSecondary },
+  quickActionsRow: { flexDirection: 'row', marginHorizontal: -4 },
+  quickActionButton: {
+    flex: 1,
+    backgroundColor: Colors.card,
+    borderRadius: 10,
+    padding: 12,
+    alignItems: 'center',
+    margin: 4,
+  },
+  quickActionText: { color: Colors.text, fontWeight: '600', fontSize: 12 },
+  disclaimer: { color: Colors.textSecondary, fontSize: 12, marginTop: 20 },
 });
