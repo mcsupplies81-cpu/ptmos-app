@@ -37,6 +37,25 @@ export default function DashboardScreen() {
     .slice(0, 3);
 
   const activeProtocols = protocols.filter((protocol) => protocol.status === 'active');
+  const nextProtocol = useMemo(() => {
+    if (activeProtocols.length === 0) return null;
+
+    const now = new Date();
+    const nowMinutes = now.getHours() * 60 + now.getMinutes();
+
+    const withDelta = activeProtocols
+      .map((protocol) => {
+        const [hour, minute] = protocol.time_of_day.split(':').map(Number);
+        const protocolMinutes = hour * 60 + minute;
+        const delta = protocolMinutes >= nowMinutes
+          ? protocolMinutes - nowMinutes
+          : 1440 - nowMinutes + protocolMinutes;
+        return { protocol, delta };
+      })
+      .sort((a, b) => a.delta - b.delta);
+
+    return withDelta[0]?.protocol ?? null;
+  }, [activeProtocols]);
 
   return (
     <SafeAreaView style={styles.safeArea}>
@@ -44,6 +63,20 @@ export default function DashboardScreen() {
         <Text style={styles.greeting}>
           {greeting}, {profile?.full_name ?? 'there'}
         </Text>
+
+        <View style={styles.row}>
+          <Text style={styles.sectionHeader}>NEXT DOSE</Text>
+          {nextProtocol ? (
+            <View>
+              <Text style={styles.rowTitle}>{nextProtocol.name}</Text>
+              <Text style={styles.rowDetail}>
+                {nextProtocol.dose_amount} {nextProtocol.dose_unit} · {nextProtocol.time_of_day}
+              </Text>
+            </View>
+          ) : (
+            <Text style={styles.emptyText}>No active protocols</Text>
+          )}
+        </View>
 
         <Text style={styles.sectionHeader}>TODAY'S DOSES</Text>
         {recentDoses.length === 0 ? (

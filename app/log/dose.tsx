@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { ActivityIndicator, Pressable, SafeAreaView, Text, TextInput } from 'react-native';
+import { ActivityIndicator, Pressable, SafeAreaView, ScrollView, Text, TextInput, View } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useDoseLogStore } from '@/stores/doseLogStore';
 import { useAuthStore } from '@/stores/authStore';
@@ -12,6 +12,11 @@ export default function DoseLogScreen() {
   const [peptideName, setPeptideName] = useState('');
   const [amount, setAmount] = useState('');
   const [saving, setSaving] = useState(false);
+  const [selectedSite, setSelectedSite] = useState<string | null>(null);
+  const [selectedMood, setSelectedMood] = useState<string | null>(null);
+  const [notes, setNotes] = useState('');
+  const injectionSites = ['Abdomen L', 'Abdomen R', 'Thigh L', 'Thigh R', 'Glute L', 'Glute R', 'Arm L', 'Arm R', 'Other'];
+  const moodOptions = ['😞', '😕', '😐', '🙂', '😄'];
 
   const handleSave = async () => {
     if (!user?.id) return;
@@ -22,9 +27,9 @@ export default function DoseLogScreen() {
       amount: Number(amount) || 0,
       unit: 'mg',
       logged_at: new Date().toISOString(),
-      injection_site: null,
-      notes: null,
-      mood: null,
+      injection_site: selectedSite ?? null,
+      notes: notes.trim() || null,
+      mood: selectedMood ?? null,
     }, user.id);
     setSaving(false);
     router.back();
@@ -47,6 +52,59 @@ export default function DoseLogScreen() {
         onChangeText={setAmount}
         keyboardType="decimal-pad"
         style={{ borderWidth: 1, borderColor: Colors.border, borderRadius: 8, padding: 10, marginBottom: 24, color: Colors.text }}
+      />
+      <Text style={{ fontSize: 14, color: Colors.textSecondary, marginBottom: 6 }}>Injection Site</Text>
+      <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 16 }}>
+        <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 16 }}>
+          {injectionSites.map((site) => {
+            const selected = selectedSite === site;
+            return (
+              <Pressable
+                key={site}
+                onPress={() => setSelectedSite(site)}
+                style={{ backgroundColor: selected ? Colors.accent : Colors.card, paddingHorizontal: 12, paddingVertical: 8, borderRadius: 999 }}
+              >
+                <Text style={{ color: selected ? Colors.white : Colors.text }}>{site}</Text>
+              </Pressable>
+            );
+          })}
+        </View>
+      </ScrollView>
+
+      <Text style={{ fontSize: 14, color: Colors.textSecondary, marginBottom: 6 }}>Mood</Text>
+      <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 16 }}>
+        {moodOptions.map((mood, index) => {
+          const selected = selectedMood === mood;
+          return (
+            <Pressable
+              key={mood}
+              onPress={() => setSelectedMood(mood)}
+              accessibilityLabel={`Mood ${index + 1}`}
+              style={{ padding: 8, borderRadius: 999, backgroundColor: selected ? Colors.accent : 'transparent' }}
+            >
+              <Text style={{ fontSize: 24 }}>{mood}</Text>
+            </Pressable>
+          );
+        })}
+      </View>
+
+      <Text style={{ fontSize: 14, color: Colors.textSecondary, marginBottom: 6 }}>Notes</Text>
+      <TextInput
+        value={notes}
+        onChangeText={setNotes}
+        multiline
+        placeholder="Notes (optional)"
+        placeholderTextColor={Colors.textSecondary}
+        style={{
+          borderWidth: 1,
+          borderColor: Colors.border,
+          borderRadius: 8,
+          padding: 10,
+          minHeight: 90,
+          textAlignVertical: 'top',
+          marginBottom: 24,
+          color: Colors.text,
+        }}
       />
       <Pressable
         onPress={handleSave}
