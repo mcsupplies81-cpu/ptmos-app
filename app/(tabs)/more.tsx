@@ -11,6 +11,15 @@ export default function MoreTabScreen() {
       <Pressable style={styles.navItem} onPress={() => router.push('/more/injection-sites')}>
         <Text style={styles.label}>Injection Sites</Text>
       </Pressable>
+      <Pressable style={styles.navItem} onPress={() => router.push('/log/lifestyle')}>
+        <Text style={styles.label}>🏃 Lifestyle Log</Text>
+      </Pressable>
+      <Pressable style={styles.navItem} onPress={() => router.push('/log/symptoms')}>
+        <Text style={styles.label}>🩺 Symptoms Log</Text>
+      </Pressable>
+      <Pressable style={styles.navItem} onPress={() => router.push('/settings')}>
+        <Text style={styles.label}>Settings</Text>
+      </Pressable>
     </View>
   );
 }

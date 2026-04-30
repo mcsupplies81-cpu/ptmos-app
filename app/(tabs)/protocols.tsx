@@ -41,7 +41,19 @@ export default function ProtocolsScreen() {
         <Pressable onPress={() => router.push('/protocol/create')}><Text style={{ color: Colors.text }}>+</Text></Pressable>
       </View>
       {filtered.length === 0 ? (
-        <Text style={{ color: Colors.textSecondary }}>No protocols yet. Tap + to add your first one.</Text>
+        <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 24 }}>
+          <Text style={{ fontSize: 56, marginBottom: 10 }}>💊</Text>
+          <Text style={{ color: Colors.text, fontSize: 20, fontWeight: '700', marginBottom: 6 }}>No protocols yet</Text>
+          <Text style={{ color: Colors.textSecondary, textAlign: 'center', marginBottom: 16 }}>
+            Tap ＋ New to add your first protocol
+          </Text>
+          <Pressable
+            onPress={() => router.push('/protocol/create')}
+            style={{ backgroundColor: '#2D6A4F', borderRadius: 10, paddingHorizontal: 16, paddingVertical: 10 }}
+          >
+            <Text style={{ color: 'white', fontWeight: '700' }}>＋ New Protocol</Text>
+          </Pressable>
+        </View>
       ) : (
         <FlatList
           data={filtered}

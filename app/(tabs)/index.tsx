@@ -8,22 +8,28 @@ import { useAuthStore } from '@/stores/authStore';
 import { useDoseLogStore } from '@/stores/doseLogStore';
 import { useProfileStore } from '@/stores/profileStore';
 import { useProtocolStore } from '@/stores/protocolStore';
+import { useLifestyleStore } from '@/stores/lifestyleStore';
 
 export default function DashboardScreen() {
   const user = useAuthStore((state) => state.user);
   const profile = useProfileStore((state) => state.profile);
 
   const doseLogs = useDoseLogStore((state) => state.doseLogs);
+  const doseLogsLoading = useDoseLogStore((state) => state.loading);
   const fetchDoseLogs = useDoseLogStore((state) => state.fetchDoseLogs);
   const protocols = useProtocolStore((state) => state.protocols);
+  const protocolsLoading = useProtocolStore((state) => state.loading);
   const fetchProtocols = useProtocolStore((state) => state.fetchProtocols);
+  const lifestyleLogs = useLifestyleStore((state) => state.logs);
+  const fetchLifestyleLogs = useLifestyleStore((state) => state.fetchLogs);
 
   useEffect(() => {
     if (user?.id) {
       fetchProtocols(user.id);
       fetchDoseLogs(user.id);
+      fetchLifestyleLogs(user.id);
     }
-  }, [fetchDoseLogs, fetchProtocols, user?.id]);
+  }, [fetchDoseLogs, fetchLifestyleLogs, fetchProtocols, user?.id]);
 
   const greeting = useMemo(() => {
     const hour = new Date().getHours();
@@ -37,6 +43,7 @@ export default function DashboardScreen() {
     .slice(0, 3);
 
   const activeProtocols = protocols.filter((protocol) => protocol.status === 'active');
+  const todayLifestyle = lifestyleLogs.find((log) => log.date === new Date().toISOString().slice(0, 10));
   const nextProtocol = useMemo(() => {
     if (activeProtocols.length === 0) return null;
 
@@ -79,7 +86,9 @@ export default function DashboardScreen() {
         </View>
 
         <Text style={styles.sectionHeader}>TODAY'S DOSES</Text>
-        {recentDoses.length === 0 ? (
+        {doseLogsLoading && doseLogs.length === 0 ? (
+          <View style={styles.skeletonBox} />
+        ) : recentDoses.length === 0 ? (
           <Text style={styles.emptyText}>No doses logged today</Text>
         ) : (
           recentDoses.map((dose) => (
@@ -92,9 +101,21 @@ export default function DashboardScreen() {
           ))
         )}
 
+        <Text style={styles.sectionHeader}>TODAY OVERVIEW</Text>
+        <View style={styles.row}>
+          <Text style={styles.rowTitle}>Steps</Text>
+          <Text style={styles.rowDetail}>{todayLifestyle?.steps != null ? todayLifestyle.steps.toLocaleString() : '--'}</Text>
+          <Text style={styles.rowTitle}>Sleep</Text>
+          <Text style={styles.rowDetail}>{todayLifestyle?.sleep_hours != null ? `${todayLifestyle.sleep_hours}h` : '--'}</Text>
+          <Text style={styles.rowTitle}>Weight</Text>
+          <Text style={styles.rowDetail}>{todayLifestyle?.weight_lbs != null ? `${todayLifestyle.weight_lbs} lbs` : '--'}</Text>
+        </View>
+
         <Text style={styles.sectionHeader}>ACTIVE PROTOCOLS</Text>
         <Text style={styles.rowTitle}>{activeProtocols.length} active protocol(s)</Text>
-        {activeProtocols.length === 0 ? (
+        {protocolsLoading && protocols.length === 0 ? (
+          <View style={styles.skeletonBox} />
+        ) : activeProtocols.length === 0 ? (
           <Text style={styles.emptyText}>No active protocols. Tap + on Protocols to add one.</Text>
         ) : null}
 
@@ -120,6 +141,12 @@ export default function DashboardScreen() {
             onPress={() => router.push('/log/symptoms')}
           >
             <Text style={styles.quickActionText}>Symptoms</Text>
+          </Pressable>
+          <Pressable
+            style={styles.quickActionButton}
+            onPress={() => router.push('/log/lifestyle')}
+          >
+            <Text style={styles.quickActionText}>Lifestyle</Text>
           </Pressable>
         </View>
 
@@ -152,7 +179,7 @@ const styles = StyleSheet.create({
   rowTitle: { color: Colors.text, fontWeight: '600' },
   rowDetail: { color: Colors.textSecondary, marginTop: 4 },
   emptyText: { color: Colors.textSecondary },
-  quickActionsRow: { flexDirection: 'row', marginHorizontal: -4 },
+  quickActionsRow: { flexDirection: 'row', marginHorizontal: -4, flexWrap: 'wrap' },
   quickActionButton: {
     flex: 1,
     backgroundColor: Colors.card,
@@ -162,5 +189,6 @@ const styles = StyleSheet.create({
     margin: 4,
   },
   quickActionText: { color: Colors.text, fontWeight: '600', fontSize: 12 },
+  skeletonBox: { backgroundColor: Colors.card, height: 80, borderRadius: 12, marginBottom: 8 },
   disclaimer: { color: Colors.textSecondary, fontSize: 12, marginTop: 20 },
 });

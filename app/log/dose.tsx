@@ -3,26 +3,37 @@ import { ActivityIndicator, Pressable, SafeAreaView, ScrollView, Text, TextInput
 import { useRouter } from 'expo-router';
 import { useDoseLogStore } from '@/stores/doseLogStore';
 import { useAuthStore } from '@/stores/authStore';
+import { useProtocolStore } from '@/stores/protocolStore';
 import Colors from '@/constants/Colors';
 
 export default function DoseLogScreen() {
   const router = useRouter();
   const { addDoseLog } = useDoseLogStore();
   const { user } = useAuthStore();
+  const protocols = useProtocolStore((state) => state.protocols);
+  const fetchProtocols = useProtocolStore((state) => state.fetchProtocols);
   const [peptideName, setPeptideName] = useState('');
   const [amount, setAmount] = useState('');
   const [saving, setSaving] = useState(false);
   const [selectedSite, setSelectedSite] = useState<string | null>(null);
   const [selectedMood, setSelectedMood] = useState<string | null>(null);
+  const [selectedProtocolId, setSelectedProtocolId] = useState<string | null>(null);
   const [notes, setNotes] = useState('');
   const injectionSites = ['Abdomen L', 'Abdomen R', 'Thigh L', 'Thigh R', 'Glute L', 'Glute R', 'Arm L', 'Arm R', 'Other'];
   const moodOptions = ['😞', '😕', '😐', '🙂', '😄'];
+  const activeProtocols = protocols.filter((protocol) => protocol.status === 'active');
+
+  React.useEffect(() => {
+    if (user?.id) {
+      fetchProtocols(user.id);
+    }
+  }, [fetchProtocols, user?.id]);
 
   const handleSave = async () => {
     if (!user?.id) return;
     setSaving(true);
     await addDoseLog({
-      protocol_id: null,
+      protocol_id: selectedProtocolId,
       peptide_name: peptideName.trim() || null,
       amount: Number(amount) || 0,
       unit: 'mg',
@@ -46,6 +57,27 @@ export default function DoseLogScreen() {
         onChangeText={setPeptideName}
         style={{ borderWidth: 1, borderColor: Colors.border, borderRadius: 8, padding: 10, marginBottom: 16, color: Colors.text }}
       />
+      {activeProtocols.length > 0 ? (
+        <>
+          <Text style={{ fontSize: 14, color: Colors.textSecondary, marginBottom: 6 }}>Protocol</Text>
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 16 }}>
+            <View style={{ flexDirection: 'row', gap: 8 }}>
+              {activeProtocols.map((protocol) => {
+                const selected = selectedProtocolId === protocol.id;
+                return (
+                  <Pressable
+                    key={protocol.id}
+                    onPress={() => setSelectedProtocolId(protocol.id)}
+                    style={{ backgroundColor: selected ? Colors.accent : Colors.card, paddingHorizontal: 12, paddingVertical: 8, borderRadius: 999 }}
+                  >
+                    <Text style={{ color: selected ? Colors.white : Colors.text }}>{protocol.name}</Text>
+                  </Pressable>
+                );
+              })}
+            </View>
+          </ScrollView>
+        </>
+      ) : null}
       <Text style={{ color: Colors.textSecondary }}>Amount (mg)</Text>
       <TextInput
         value={amount}
