@@ -1,6 +1,6 @@
 import React, { useMemo, useState } from 'react';
 import { Pressable, SafeAreaView, Text, TextInput, View } from 'react-native';
-import { Copy } from '../../constants/Copy';
+import { Copy } from '@/constants/Copy';
 
 export default function CalculatorScreen() {
   const [peptideMg, setPeptideMg] = useState('');
