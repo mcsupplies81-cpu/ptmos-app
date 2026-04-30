@@ -1,5 +1,5 @@
 import { useEffect } from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { Pressable, SafeAreaView, StyleSheet, Text, View } from 'react-native';
 import Colors from '@/constants/Colors';
 import { useAuthStore } from '@/stores/authStore';
 import { useInjectionSiteStore } from '@/stores/injectionSiteStore';
@@ -14,7 +14,7 @@ export default function InjectionSitesScreen() {
     if (user?.id) fetchSites(user.id);
   }, [fetchSites, user?.id]);
 
-  return <View style={styles.container}>
+  return <SafeAreaView style={styles.container}>
     <Text style={styles.title}>Injection Sites</Text>
     <Text style={styles.subtitle}>Tap a site to mark it used today.</Text>
     <View style={styles.grid}>
@@ -26,7 +26,7 @@ export default function InjectionSitesScreen() {
         </Pressable>;
       })}
     </View>
-  </View>;
+  </SafeAreaView>;
 }
 
 const styles = StyleSheet.create({ container: { flex: 1, padding: 16, backgroundColor: Colors.background }, title: { color: Colors.text, fontWeight: '700', fontSize: 24 }, subtitle: { color: Colors.textSecondary, marginTop: 6, marginBottom: 16 }, grid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 }, site: { width: '48%', backgroundColor: Colors.card, borderColor: Colors.border, borderWidth: 1, borderRadius: 10, padding: 12 }, siteTitle: { color: Colors.text, fontWeight: '600' }, siteMeta: { color: Colors.textSecondary, marginTop: 4 } });

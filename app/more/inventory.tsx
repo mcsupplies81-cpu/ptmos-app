@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { FlatList, Modal, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
+import { FlatList, Modal, Pressable, SafeAreaView, StyleSheet, Text, TextInput, View } from 'react-native';
 import Colors from '@/constants/Colors';
 import { useAuthStore } from '@/stores/authStore';
 import { useInventoryStore } from '@/stores/inventoryStore';
@@ -25,7 +25,7 @@ export default function InventoryScreen() {
     setName(''); setConcentration(''); setVolume(''); setExpiryDate(''); setNotes('');
   };
 
-  return <View style={styles.container}>
+  return <SafeAreaView style={styles.container}>
     <View style={styles.header}>
       <Text style={styles.title}>Inventory</Text>
       <Pressable style={styles.addButton} onPress={() => setOpen(true)}><Text style={styles.addText}>+ Add Vial</Text></Pressable>
@@ -50,7 +50,7 @@ export default function InventoryScreen() {
         <Pressable onPress={() => setOpen(false)}><Text style={styles.cancel}>Cancel</Text></Pressable>
       </View></View>
     </Modal>
-  </View>;
+  </SafeAreaView>;
 }
 
 const styles = StyleSheet.create({ container: { flex: 1, padding: 16, backgroundColor: Colors.background }, header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }, title: { color: Colors.text, fontSize: 24, fontWeight: '700' }, addButton: { backgroundColor: '#2D6A4F', paddingHorizontal: 12, paddingVertical: 8, borderRadius: 10 }, addText: { color: '#fff', fontWeight: '700' }, card: { backgroundColor: Colors.card, borderWidth: 1, borderColor: Colors.border, borderRadius: 10, padding: 12, marginBottom: 10 }, name: { color: Colors.text, fontSize: 16, fontWeight: '600' }, meta: { color: Colors.textSecondary, marginTop: 2 }, empty: { color: Colors.textSecondary, textAlign: 'center', marginTop: 50 }, overlay: { flex: 1, justifyContent: 'flex-end', backgroundColor: '#00000088' }, modal: { backgroundColor: Colors.background, borderTopLeftRadius: 18, borderTopRightRadius: 18, padding: 16, gap: 8 }, modalTitle: { color: Colors.text, fontSize: 20, fontWeight: '700', marginBottom: 8 }, input: { borderWidth: 1, borderColor: Colors.border, backgroundColor: Colors.card, color: Colors.text, borderRadius: 8, padding: 10 }, primary: { backgroundColor: '#2D6A4F', borderRadius: 8, padding: 12, alignItems: 'center' }, primaryText: { color: 'white', fontWeight: '700' }, cancel: { color: Colors.textSecondary, textAlign: 'center', marginTop: 10 } });
