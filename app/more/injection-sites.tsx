@@ -1,9 +1,32 @@
-import { useEffect, useMemo, useState } from 'react';
-import { FlatList, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
+import { useEffect } from 'react';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
 import Colors from '@/constants/Colors';
-import { Copy } from '@/constants/Copy';
-import { useInjectionSiteStore } from '@/stores/injectionSiteStore';
 import { useAuthStore } from '@/stores/authStore';
-const sites=['Abdomen L','Abdomen R','Thigh L','Thigh R','Glute L','Glute R','Arm L','Arm R','Other'];
-export default function InjectionSitesScreen(){const{user}=useAuthStore();const{logs,fetchLogs,addLog}=useInjectionSiteStore();const[selected,setSelected]=useState<string|null>(null);const[notes,setNotes]=useState('');useEffect(()=>{if(user?.id)fetchLogs(user.id);},[user?.id,fetchLogs]);const bySite=useMemo(()=>Object.fromEntries(sites.map(s=>[s,logs.filter(l=>l.site===s)])),[logs]);const color=(site:string)=>{const latest=bySite[site]?.[0];if(!latest)return Colors.accent;const hours=(Date.now()-new Date(latest.logged_at).getTime())/36e5; if(hours<24)return (Colors as any).danger??Colors.accent; if(hours<72)return (Colors as any).warning??Colors.accent; return (Colors as any).success??Colors.accent;};const save=async()=>{if(!selected||!user?.id)return;await addLog({site:selected,logged_at:new Date().toISOString(),notes:notes||null,dose_log_id:null},user.id);setNotes('');};return <View style={styles.c}><Text style={styles.d}>{Copy.injectionSiteDisclaimer}</Text><View style={styles.g}>{sites.map(s=><Pressable key={s} style={[styles.b,{backgroundColor:color(s)}]} onPress={()=>setSelected(s)}><Text style={styles.t}>{s}</Text></Pressable>)}</View>{selected&&<View><Text style={styles.t}>Log: {selected}</Text><TextInput style={styles.i} placeholder="Notes" placeholderTextColor={Colors.muted} value={notes} onChangeText={setNotes}/><Pressable style={styles.s} onPress={save}><Text style={styles.t}>Save Site Log</Text></Pressable><FlatList data={(bySite[selected]||[]).slice(0,5)} keyExtractor={(i)=>i.id} renderItem={({item})=><Text style={styles.t}>{new Date(item.logged_at).toLocaleString()} {item.notes??''}</Text>} /></View>}</View>;}
-const styles=StyleSheet.create({c:{flex:1,padding:16,backgroundColor:Colors.background},d:{color:Colors.text,marginBottom:12},g:{flexDirection:'row',flexWrap:'wrap',gap:8},b:{width:'31%',padding:10,borderRadius:8},t:{color:Colors.text},i:{borderWidth:1,borderColor:Colors.border,backgroundColor:Colors.card,color:Colors.text,padding:10,borderRadius:8,marginVertical:8},s:{backgroundColor:Colors.accent,padding:10,borderRadius:8,alignItems:'center'}});
+import { useInjectionSiteStore } from '@/stores/injectionSiteStore';
+
+const siteMap = ['Left Deltoid', 'Right Deltoid', 'Left Glute', 'Right Glute', 'Left Quad', 'Right Quad', 'Abdomen'];
+
+export default function InjectionSitesScreen() {
+  const user = useAuthStore((state) => state.user);
+  const { sites, fetchSites, markSiteUsed } = useInjectionSiteStore();
+
+  useEffect(() => {
+    if (user?.id) fetchSites(user.id);
+  }, [fetchSites, user?.id]);
+
+  return <View style={styles.container}>
+    <Text style={styles.title}>Injection Sites</Text>
+    <Text style={styles.subtitle}>Tap a site to mark it used today.</Text>
+    <View style={styles.grid}>
+      {siteMap.map((siteName) => {
+        const site = sites.find((entry) => entry.site_name === siteName);
+        return <Pressable key={siteName} style={styles.site} onPress={() => user?.id && markSiteUsed(siteName, user.id)}>
+          <Text style={styles.siteTitle}>{siteName}</Text>
+          <Text style={styles.siteMeta}>Last: {site?.last_used_at ? new Date(site.last_used_at).toLocaleDateString() : 'Never'}</Text>
+        </Pressable>;
+      })}
+    </View>
+  </View>;
+}
+
+const styles = StyleSheet.create({ container: { flex: 1, padding: 16, backgroundColor: Colors.background }, title: { color: Colors.text, fontWeight: '700', fontSize: 24 }, subtitle: { color: Colors.textSecondary, marginTop: 6, marginBottom: 16 }, grid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 }, site: { width: '48%', backgroundColor: Colors.card, borderColor: Colors.border, borderWidth: 1, borderRadius: 10, padding: 12 }, siteTitle: { color: Colors.text, fontWeight: '600' }, siteMeta: { color: Colors.textSecondary, marginTop: 4 } });

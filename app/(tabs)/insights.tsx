@@ -1,79 +1,49 @@
-import { useEffect } from 'react';
-import {
-  ActivityIndicator,
-  FlatList,
-  SafeAreaView,
-  StyleSheet,
-  Text,
-  View,
-} from 'react-native';
-
-import { Copy } from '@/constants/Copy';
+import { useEffect, useMemo } from 'react';
+import { ScrollView, StyleSheet, Text, View } from 'react-native';
+import { BarChart, LineChart } from 'react-native-chart-kit';
 import Colors from '@/constants/Colors';
 import { useAuthStore } from '@/stores/authStore';
-import { useInsightStore } from '@/stores/insightStore';
+import { useDoseLogStore } from '@/stores/doseLogStore';
+import { useLifestyleStore } from '@/stores/lifestyleStore';
+
+const width = 340;
 
 export default function InsightsScreen() {
   const user = useAuthStore((state) => state.user);
-  const insights = useInsightStore((state) => state.insights);
-  const loading = useInsightStore((state) => state.loading);
-  const fetchInsights = useInsightStore((state) => state.fetchInsights);
+  const { doseLogs, fetchDoseLogs } = useDoseLogStore();
+  const { logs, fetchLogs } = useLifestyleStore();
 
   useEffect(() => {
-    if (user?.id) {
-      fetchInsights(user.id);
-    }
-  }, [fetchInsights, user?.id]);
+    if (!user?.id) return;
+    fetchDoseLogs(user.id);
+    fetchLogs(user.id);
+  }, [fetchDoseLogs, fetchLogs, user?.id]);
 
-  return (
-    <SafeAreaView style={styles.safeArea}>
-      <View style={styles.container}>
-        {loading ? (
-          <ActivityIndicator color={Colors.tabActive} />
-        ) : (
-          <FlatList
-            data={insights}
-            keyExtractor={(item) => item.id}
-            ListEmptyComponent={
-              <Text style={styles.emptyText}>
-                No insights yet. Keep logging to unlock your first insight.
-              </Text>
-            }
-            contentContainerStyle={
-              insights.length === 0 ? styles.emptyContainer : undefined
-            }
-            renderItem={({ item }) => (
-              <View style={styles.card}>
-                <Text style={styles.cardTitle}>{item.title}</Text>
-                <Text style={styles.cardBody}>{item.body}</Text>
-                <Text style={styles.cardDate}>
-                  {new Date(item.generated_at).toLocaleDateString()}
-                </Text>
-              </View>
-            )}
-          />
-        )}
-        <Text style={styles.disclaimer}>{Copy.disclaimerShort}</Text>
-      </View>
-    </SafeAreaView>
-  );
+  const adherence = useMemo(() => {
+    const days = Array.from({ length: 7 }).map((_, i) => {
+      const d = new Date(); d.setDate(d.getDate() - (6 - i));
+      const key = d.toISOString().slice(0, 10);
+      const hasDose = doseLogs.some((log) => log.logged_at.slice(0, 10) === key);
+      return { label: `${d.getMonth() + 1}/${d.getDate()}`, value: hasDose ? 1 : 0 };
+    });
+    return days;
+  }, [doseLogs]);
+
+  const last30 = useMemo(() => {
+    return logs.slice().sort((a, b) => a.date.localeCompare(b.date)).slice(-30);
+  }, [logs]);
+
+  const chartConfig = { backgroundGradientFrom: Colors.card, backgroundGradientTo: Colors.card, color: (o = 1) => `rgba(45,106,79,${o})`, labelColor: () => Colors.textSecondary, decimalPlaces: 1 };
+
+  return <ScrollView style={styles.container} contentContainerStyle={styles.content}>
+    <Text style={styles.title}>Insights</Text>
+    <Text style={styles.section}>7-Day Adherence</Text>
+    <BarChart data={{ labels: adherence.map((d) => d.label), datasets: [{ data: adherence.map((d) => d.value), colors: adherence.map((d) => () => (d.value ? '#2D6A4F' : '#9CA3AF')) }] }} width={width} height={220} yAxisLabel="" yAxisSuffix="" fromZero chartConfig={chartConfig} showValuesOnTopOfBars />
+    <Text style={styles.section}>Weight Trend (30 Days)</Text>
+    <LineChart data={{ labels: last30.map((d) => d.date.slice(5)), datasets: [{ data: last30.map((d) => d.weight_lbs ?? 0) }] }} width={width} height={220} chartConfig={chartConfig} bezier />
+    <Text style={styles.section}>Sleep Trend (30 Days)</Text>
+    <LineChart data={{ labels: last30.map((d) => d.date.slice(5)), datasets: [{ data: last30.map((d) => d.sleep_hours ?? 0) }] }} width={width} height={220} chartConfig={chartConfig} bezier />
+  </ScrollView>;
 }
 
-const styles = StyleSheet.create({
-  safeArea: { flex: 1, backgroundColor: Colors.background },
-  container: { flex: 1, padding: 16 },
-  card: {
-    backgroundColor: Colors.card,
-    borderWidth: 1,
-    borderColor: Colors.border,
-    borderRadius: 10,
-    padding: 12,
-    marginBottom: 10,
-  },
-  cardTitle: { color: Colors.text, fontWeight: '700', marginBottom: 4 },
-  cardBody: { color: Colors.text, marginBottom: 8 },
-  cardDate: { color: Colors.textSecondary, fontSize: 12 },
-  emptyContainer: { flexGrow: 1, justifyContent: 'center' },
-  emptyText: { color: Colors.textSecondary, textAlign: 'center' },
-  disclaimer: { color: Colors.textSecondary, fontSize: 12, marginTop: 12 },
-});
+const styles = StyleSheet.create({ container: { flex: 1, backgroundColor: Colors.background }, content: { padding: 16, gap: 10 }, title: { color: Colors.text, fontWeight: '700', fontSize: 24 }, section: { color: Colors.text, fontWeight: '600', fontSize: 16, marginTop: 8 } });
