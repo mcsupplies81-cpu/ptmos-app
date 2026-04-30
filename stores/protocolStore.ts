@@ -19,6 +19,30 @@ export interface Protocol {
   status: ProtocolStatus;
 }
 
+export function calcAdherence(
+  protocol: Protocol,
+  doseLogs: { protocol_id: string | null; logged_at: string }[],
+): number {
+  const start = new Date(protocol.start_date);
+  const today = new Date();
+  const daysSinceStart = Math.max(1, Math.floor((today.getTime() - start.getTime()) / 86400000));
+  const windowDays = Math.min(daysSinceStart, 30);
+
+  let expectedPerDay = 1;
+  if (protocol.frequency === 'Weekly') expectedPerDay = 1 / 7;
+  if (protocol.frequency === 'Specific Days') {
+    expectedPerDay = (protocol.days_of_week.length || 1) / 7;
+  }
+  const expected = Math.max(1, Math.round(expectedPerDay * windowDays));
+
+  const windowStart = new Date(today.getTime() - windowDays * 86400000);
+  const actual = doseLogs.filter(
+    (log) => log.protocol_id === protocol.id && new Date(log.logged_at) >= windowStart,
+  ).length;
+
+  return Math.min(100, Math.round((actual / expected) * 100));
+}
+
 interface ProtocolState {
   protocols: Protocol[];
   loading: boolean;
