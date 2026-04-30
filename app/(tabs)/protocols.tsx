@@ -50,6 +50,17 @@ export default function ProtocolsScreen() {
           })}
         </View>
 
+        {filtered.length === 0 && (
+          <View style={styles.emptyState}>
+            <Text style={styles.emptyEmoji}>💊</Text>
+            <Text style={styles.emptyTitle}>No protocols yet</Text>
+            <Text style={styles.emptySub}>Tap ＋ New to add your first protocol</Text>
+            <Pressable style={styles.emptyBtn} onPress={() => router.push('/protocol/create')}>
+              <Text style={styles.emptyBtnText}>＋ New Protocol</Text>
+            </Pressable>
+          </View>
+        )}
+
         {filtered.map((item) => {
           const adherence = calcAdherence(item, doseLogs);
           const adherenceColor = adherence >= 80 ? Colors.success : adherence >= 50 ? Colors.warning : Colors.error;
@@ -90,4 +101,10 @@ const styles = StyleSheet.create({
   cardSub: { fontSize: 13, color: Colors.textSecondary },
   adherence: { fontSize: 15, fontWeight: '700' },
   chev: { fontSize: 20, color: Colors.textSecondary },
+  emptyState: { alignItems: 'center', paddingVertical: 48 },
+  emptyEmoji: { fontSize: 56, marginBottom: 12 },
+  emptyTitle: { fontSize: 20, fontWeight: '700', color: Colors.text, marginBottom: 6 },
+  emptySub: { color: Colors.textSecondary, textAlign: 'center', marginBottom: 20 },
+  emptyBtn: { backgroundColor: Colors.accent, borderRadius: 10, paddingHorizontal: 18, paddingVertical: 10 },
+  emptyBtnText: { color: Colors.white, fontWeight: '700' },
 });

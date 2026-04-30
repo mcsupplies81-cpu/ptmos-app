@@ -5,6 +5,8 @@ import Colors from '@/constants/Colors';
 const items = [
   { label: '📦  Inventory', path: '/more/inventory' },
   { label: '💉  Injection Sites', path: '/more/injection-sites' },
+  { label: '🏃  Lifestyle Log', path: '/log/lifestyle' },
+  { label: '🩺  Symptoms Log', path: '/log/symptoms' },
   { label: '⚙️  Settings', path: '/settings' },
 ];
 

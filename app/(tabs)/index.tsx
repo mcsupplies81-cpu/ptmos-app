@@ -14,8 +14,10 @@ export default function DashboardScreen() {
   const user = useAuthStore((state) => state.user);
   const profile = useProfileStore((state) => state.profile);
   const protocols = useProtocolStore((state) => state.protocols);
+  const protocolsLoading = useProtocolStore((state) => state.loading);
   const fetchProtocols = useProtocolStore((state) => state.fetchProtocols);
   const doseLogs = useDoseLogStore((state) => state.doseLogs);
+  const doseLogsLoading = useDoseLogStore((state) => state.loading);
   const fetchDoseLogs = useDoseLogStore((state) => state.fetchDoseLogs);
   const lifestyleLogs = useLifestyleStore((state) => state.logs);
   const fetchLifestyleLogs = useLifestyleStore((state) => state.fetchLogs);
@@ -81,6 +83,9 @@ export default function DashboardScreen() {
         </View>
 
         <Text style={styles.sectionLabel}>NEXT DOSE</Text>
+        {protocolsLoading && protocols.length === 0 ? (
+          <View style={styles.skeleton} />
+        ) : (
         <View style={styles.card}>
           {nextDose ? (
             <View style={styles.nextDoseRow}>
@@ -94,8 +99,12 @@ export default function DashboardScreen() {
             </View>
           ) : <Text style={styles.sub}>No active protocols</Text>}
         </View>
+        )}
 
         <Text style={styles.sectionLabel}>LAST DOSE</Text>
+        {doseLogsLoading && doseLogs.length === 0 ? (
+          <View style={styles.skeleton} />
+        ) : (
         <View style={styles.card}>
           {latestDose ? (
             <>
@@ -105,6 +114,7 @@ export default function DashboardScreen() {
             </>
           ) : <Text style={styles.sub}>No doses logged yet</Text>}
         </View>
+        )}
 
         <Text style={styles.sectionLabel}>PROTOCOL ADHERENCE</Text>
         <View style={[styles.card, styles.center]}>
@@ -114,18 +124,21 @@ export default function DashboardScreen() {
 
         <View style={styles.card}>
           <Text style={styles.sectionTitle}>TODAY OVERVIEW</Text>
-          {[['🦶', 'Steps', latestLifestyle?.steps], ['😴', 'Sleep', latestLifestyle?.sleep_hours], ['⚖️', 'Weight', latestLifestyle?.weight_lbs]]
-            .map(([icon, label, value], idx) => (
-              <View key={String(label)} style={[styles.overviewRow, idx === 2 && { borderBottomWidth: 0 }]}> 
+          {([
+            ['🦶', 'Steps', latestLifestyle?.steps != null ? latestLifestyle.steps.toLocaleString() : '--'],
+            ['😴', 'Sleep', latestLifestyle?.sleep_hours != null ? `${latestLifestyle.sleep_hours}h` : '--'],
+            ['⚖️', 'Weight', latestLifestyle?.weight_lbs != null ? `${latestLifestyle.weight_lbs} lbs` : '--'],
+          ] as [string, string, string][]).map(([icon, label, display], idx) => (
+              <View key={label} style={[styles.overviewRow, idx === 2 && { borderBottomWidth: 0 }]}>
                 <Text style={styles.title}>{icon} {label}</Text>
-                <Text style={styles.sub}>{value ?? '--'}</Text>
+                <Text style={styles.sub}>{display}</Text>
               </View>
             ))}
         </View>
 
         <Text style={styles.sectionLabel}>QUICK ACTIONS</Text>
         <View style={styles.quickGrid}>
-          {[['💉', 'Log Dose', '/log/dose'], ['🧮', 'Calculator', '/log/calculator'], ['📦', 'Inventory', '/more/inventory'], ['🩺', 'Symptoms', '/log/symptoms']].map(([icon, label, path]) => (
+          {[['💉', 'Log Dose', '/log/dose'], ['🧮', 'Calculator', '/log/calculator'], ['📦', 'Inventory', '/more/inventory'], ['🩺', 'Symptoms', '/log/symptoms'], ['🏃', 'Lifestyle', '/log/lifestyle']].map(([icon, label, path]) => (
             <Pressable key={String(label)} style={[styles.card, styles.quickAction]} onPress={() => router.push(path as '/log/dose')}>
               <Text style={{ fontSize: 24 }}>{icon}</Text>
               <Text style={styles.quickLabel}>{label}</Text>
@@ -159,5 +172,6 @@ const styles = StyleSheet.create({
   quickGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
   quickAction: { flexBasis: '47%', alignItems: 'center', paddingVertical: 18 },
   quickLabel: { marginTop: 8, fontSize: 12, fontWeight: '600', color: Colors.text },
+  skeleton: { backgroundColor: Colors.card, height: 80, borderRadius: 16, marginBottom: 12 },
   disclaimer: { fontSize: 11, color: Colors.textSecondary, textAlign: 'center', paddingVertical: 16 },
 });

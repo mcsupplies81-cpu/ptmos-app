@@ -1,10 +1,11 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useRouter } from 'expo-router';
 import { ActivityIndicator, Pressable, SafeAreaView, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 
 import Colors from '@/constants/Colors';
 import { useAuthStore } from '@/stores/authStore';
 import { useDoseLogStore } from '@/stores/doseLogStore';
+import { useProtocolStore } from '@/stores/protocolStore';
 
 const moodOptions = [
   { emoji: '😄', label: 'Great' },
@@ -19,6 +20,10 @@ export default function DoseLogScreen() {
   const router = useRouter();
   const { addDoseLog } = useDoseLogStore();
   const user = useAuthStore((state) => state.user);
+  const protocols = useProtocolStore((state) => state.protocols);
+  const fetchProtocols = useProtocolStore((state) => state.fetchProtocols);
+  const activeProtocols = protocols.filter((p) => p.status === 'active');
+  const [selectedProtocolId, setSelectedProtocolId] = useState<string | null>(null);
   const [peptideName, setPeptideName] = useState('');
   const [amount, setAmount] = useState('');
   const [selectedSite, setSelectedSite] = useState<string | null>(null);
@@ -27,10 +32,14 @@ export default function DoseLogScreen() {
   const [notes, setNotes] = useState('');
   const [saving, setSaving] = useState(false);
 
+  useEffect(() => {
+    if (user?.id) fetchProtocols(user.id);
+  }, [fetchProtocols, user?.id]);
+
   const handleSave = async () => {
     if (!user?.id) return;
     setSaving(true);
-    await addDoseLog({ protocol_id: null, peptide_name: peptideName.trim() || null, amount: Number(amount) || 0, unit: 'mcg', logged_at: new Date().toISOString(), injection_site: selectedSite, mood, notes: notes || null }, user.id);
+    await addDoseLog({ protocol_id: selectedProtocolId, peptide_name: peptideName.trim() || null, amount: Number(amount) || 0, unit: 'mcg', logged_at: new Date().toISOString(), injection_site: selectedSite, mood, notes: notes || null }, user.id);
     setSaving(false);
     router.back();
   };
@@ -57,6 +66,25 @@ export default function DoseLogScreen() {
             {!!amount && <Text style={{ fontSize: 12, color: Colors.textSecondary }}>{amount} mcg</Text>}
           </View>
         </View>
+
+        {activeProtocols.length > 0 && (
+          <View style={styles.protocolRow}>
+            <Text style={styles.label}>Protocol</Text>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginTop: 8 }}>
+              <View style={{ flexDirection: 'row', gap: 8 }}>
+                {activeProtocols.map((p) => {
+                  const sel = selectedProtocolId === p.id;
+                  return (
+                    <Pressable key={p.id} onPress={() => setSelectedProtocolId(sel ? null : p.id)}
+                      style={[styles.siteChip, sel && { backgroundColor: Colors.accent }]}>
+                      <Text style={{ color: sel ? Colors.white : Colors.text, fontSize: 13, fontWeight: '600' }}>{p.name}</Text>
+                    </Pressable>
+                  );
+                })}
+              </View>
+            </ScrollView>
+          </View>
+        )}
 
         <View style={styles.field}><Text style={styles.label}>Amount</Text><View style={styles.inline}><TextInput value={amount} onChangeText={setAmount} keyboardType="decimal-pad" placeholder="0" placeholderTextColor={Colors.textSecondary} style={styles.input} /><Text style={styles.value}>mcg</Text></View></View>
         <View style={styles.field}><Text style={styles.label}>Date</Text><Text style={styles.value}>{new Date().toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}</Text></View>
@@ -107,6 +135,7 @@ const styles = StyleSheet.create({
   inline: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   sitesWrap: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, padding: 16, backgroundColor: Colors.backgroundSecondary },
   siteChip: { paddingHorizontal: 12, paddingVertical: 6, borderRadius: 999, backgroundColor: Colors.card },
+  protocolRow: { paddingHorizontal: 16, paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: Colors.border },
   mood: { alignItems: 'center', borderRadius: 12, padding: 8 },
   primaryBtn: { backgroundColor: Colors.accent, borderRadius: 14, padding: 16, alignItems: 'center' },
   primaryText: { color: Colors.white, fontWeight: '700', fontSize: 16 },
