@@ -27,6 +27,8 @@ export default function TabsLayout() {
       <Tabs.Screen name="research" options={{ title: 'Research', tabBarIcon: () => <Text>🔬</Text> }} />
       <Tabs.Screen name="providers" options={{ title: 'Providers', tabBarIcon: () => <Text>🏥</Text> }} />
       <Tabs.Screen name="more" options={{ title: 'More', tabBarIcon: () => <Text>☰</Text> }} />
+      <Tabs.Screen name="insights" options={{ href: null }} />
+      <Tabs.Screen name="settings" options={{ href: null }} />
     </Tabs>
   );
 }
