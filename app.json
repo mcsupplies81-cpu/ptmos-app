@@ -13,13 +13,15 @@
     },
     "ios": {
       "supportsTablet": false,
-      "bundleIdentifier": "com.ptmos.app"
+      "bundleIdentifier": "com.ptmos.app",
+      "buildNumber": "1"
     },
     "android": {
       "adaptiveIcon": {
         "backgroundColor": "#FFFFFF"
       },
-      "package": "com.ptmos.app"
+      "package": "com.ptmos.app",
+      "versionCode": 1
     },
     "web": {
       "bundler": "metro"
