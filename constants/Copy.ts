@@ -10,5 +10,4 @@ export const Copy = {
   researchDisclaimer:
     'This information is for research purposes only and is not intended as medical advice.',
 };
-
 export default Copy;
