@@ -1,11 +1,12 @@
 import { useState } from 'react';
-import { Pressable, SafeAreaView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { Pressable, SafeAreaView, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import Slider from '@react-native-community/slider';
 import { Picker } from '@react-native-picker/picker';
 import { router } from 'expo-router';
 import Colors from '@/constants/Colors';
 import { SymptomType, useSymptomStore } from '@/stores/symptomStore';
 import { useAuthStore } from '@/stores/authStore';
+import ScreenHeader from '@/components/ScreenHeader';
 
 export default function SymptomsScreen() {
   const user = useAuthStore((state) => state.user);
@@ -21,6 +22,8 @@ export default function SymptomsScreen() {
   };
 
   return <SafeAreaView style={styles.container}>
+    <ScreenHeader title="Log Symptom" />
+    <ScrollView contentContainerStyle={{ padding: 16 }}>
     <Text style={styles.label}>Symptom Type</Text>
     <View style={styles.pickerWrap}><Picker selectedValue={type} onValueChange={(value) => setType(value as SymptomType)} style={styles.picker}><Picker.Item label="fatigue" value="fatigue" /><Picker.Item label="headache" value="headache" /><Picker.Item label="nausea" value="nausea" /><Picker.Item label="joint pain" value="joint pain" /><Picker.Item label="other" value="other" /></Picker></View>
     <Text style={styles.label}>Severity: {severity}</Text>
@@ -28,6 +31,7 @@ export default function SymptomsScreen() {
     <Text style={styles.label}>Notes</Text>
     <TextInput style={styles.input} value={notes} onChangeText={setNotes} placeholder="Optional notes" placeholderTextColor={Colors.textSecondary} multiline />
     <Pressable style={styles.button} onPress={save}><Text style={styles.buttonText}>Save Symptom</Text></Pressable>
+    </ScrollView>
   </SafeAreaView>;
 }
 

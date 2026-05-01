@@ -3,6 +3,7 @@ import { Pressable, SafeAreaView, StyleSheet, Text, View } from 'react-native';
 import Colors from '@/constants/Colors';
 import { useAuthStore } from '@/stores/authStore';
 import { useInjectionSiteStore } from '@/stores/injectionSiteStore';
+import ScreenHeader from '@/components/ScreenHeader';
 
 const siteMap = ['Left Deltoid', 'Right Deltoid', 'Left Glute', 'Right Glute', 'Left Quad', 'Right Quad', 'Abdomen'];
 
@@ -15,6 +16,7 @@ export default function InjectionSitesScreen() {
   }, [fetchSites, user?.id]);
 
   return <SafeAreaView style={styles.container}>
+    <ScreenHeader title="Injection Sites" />
     <Text style={styles.title}>Injection Sites</Text>
     <Text style={styles.subtitle}>Tap a site to mark it used today.</Text>
     <View style={styles.grid}>

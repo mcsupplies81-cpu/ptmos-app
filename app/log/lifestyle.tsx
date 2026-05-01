@@ -4,6 +4,7 @@ import { router } from 'expo-router';
 import Colors from '@/constants/Colors';
 import { useLifestyleStore } from '@/stores/lifestyleStore';
 import { useAuthStore } from '@/stores/authStore';
+import ScreenHeader from '@/components/ScreenHeader';
 
 function todayDate() {
   return new Date().toISOString().slice(0, 10);
@@ -51,6 +52,7 @@ export default function LifestyleScreen() {
 
   return (
     <SafeAreaView style={styles.container}>
+      <ScreenHeader title="Lifestyle Log" />
       <Text style={styles.title}>Lifestyle Log</Text>
 
       <Text style={styles.label}>Date (YYYY-MM-DD)</Text>

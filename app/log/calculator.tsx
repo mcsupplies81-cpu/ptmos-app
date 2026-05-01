@@ -3,6 +3,7 @@ import { Pressable, SafeAreaView, ScrollView, StyleSheet, Text, TextInput, View 
 
 import Colors from '@/constants/Colors';
 import { Copy } from '@/constants/Copy';
+import ScreenHeader from '@/components/ScreenHeader';
 
 export default function CalculatorScreen() {
   const [activeTab, setActiveTab] = useState<'reconstitution' | 'dose'>('reconstitution');
@@ -28,6 +29,7 @@ export default function CalculatorScreen() {
 
   return (
     <SafeAreaView style={styles.safeArea}>
+      <ScreenHeader title="Calculator" />
       <ScrollView contentContainerStyle={styles.container}>
         <View style={styles.header}><Text style={styles.title}>Dosage Calculator</Text><Pressable><Text style={{ fontSize: 20 }}>ℹ️</Text></Pressable></View>
 

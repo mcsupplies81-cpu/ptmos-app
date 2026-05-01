@@ -26,6 +26,10 @@ export default function DoseLogScreen() {
   const [selectedProtocolId, setSelectedProtocolId] = useState<string | null>(null);
   const [peptideName, setPeptideName] = useState('');
   const [amount, setAmount] = useState('');
+  const [unit, setUnit] = useState<'mcg' | 'mg' | 'IU' | 'ml'>('mcg');
+  const now = new Date();
+  const [logDate, setLogDate] = useState(now.toISOString().slice(0, 10));
+  const [logTime, setLogTime] = useState(now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false }));
   const [selectedSite, setSelectedSite] = useState<string | null>(null);
   const [showSites, setShowSites] = useState(false);
   const [mood, setMood] = useState<string | null>(null);
@@ -39,7 +43,8 @@ export default function DoseLogScreen() {
   const handleSave = async () => {
     if (!user?.id) return;
     setSaving(true);
-    await addDoseLog({ protocol_id: selectedProtocolId, peptide_name: peptideName.trim() || null, amount: Number(amount) || 0, unit: 'mcg', logged_at: new Date().toISOString(), injection_site: selectedSite, mood, notes: notes || null }, user.id);
+    const logged_at = new Date(`${logDate}T${logTime}:00`).toISOString();
+    await addDoseLog({ protocol_id: selectedProtocolId, peptide_name: peptideName.trim() || null, amount: Number(amount) || 0, unit, logged_at, injection_site: selectedSite, mood, notes: notes || null }, user.id);
     setSaving(false);
     router.back();
   };
@@ -86,9 +91,19 @@ export default function DoseLogScreen() {
           </View>
         )}
 
-        <View style={styles.field}><Text style={styles.label}>Amount</Text><View style={styles.inline}><TextInput value={amount} onChangeText={setAmount} keyboardType="decimal-pad" placeholder="0" placeholderTextColor={Colors.textSecondary} style={styles.input} /><Text style={styles.value}>mcg</Text></View></View>
-        <View style={styles.field}><Text style={styles.label}>Date</Text><Text style={styles.value}>{new Date().toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}</Text></View>
-        <View style={styles.field}><Text style={styles.label}>Time</Text><Text style={styles.value}>{new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</Text></View>
+        <View style={styles.field}>
+          <Text style={styles.label}>Amount</Text>
+          <View style={styles.inline}>
+            <TextInput value={amount} onChangeText={setAmount} keyboardType="decimal-pad" placeholder="0" placeholderTextColor={Colors.textSecondary} style={styles.input} />
+            {(['mcg', 'mg', 'IU', 'ml'] as const).map((u) => (
+              <Pressable key={u} onPress={() => setUnit(u)} style={[styles.unitChip, unit === u && { backgroundColor: Colors.accent }]}>
+                <Text style={{ color: unit === u ? Colors.white : Colors.textSecondary, fontSize: 12, fontWeight: '600' }}>{u}</Text>
+              </Pressable>
+            ))}
+          </View>
+        </View>
+        <View style={styles.field}><Text style={styles.label}>Date</Text><TextInput value={logDate} onChangeText={setLogDate} placeholder="YYYY-MM-DD" placeholderTextColor={Colors.textSecondary} style={[styles.input, { textAlign: 'right' }]} keyboardType="numbers-and-punctuation" /></View>
+        <View style={styles.field}><Text style={styles.label}>Time</Text><TextInput value={logTime} onChangeText={setLogTime} placeholder="HH:MM" placeholderTextColor={Colors.textSecondary} style={[styles.input, { textAlign: 'right' }]} keyboardType="numbers-and-punctuation" /></View>
         <Pressable style={styles.field} onPress={() => setShowSites((v) => !v)}><Text style={styles.label}>Injection Site</Text><Text style={[styles.value, !selectedSite && { color: Colors.textSecondary }]}>{selectedSite || 'Select site'}</Text></Pressable>
         <View style={styles.field}><Text style={styles.label}>Notes</Text><TextInput value={notes} onChangeText={setNotes} placeholder="Add notes..." placeholderTextColor={Colors.textSecondary} multiline style={[styles.input, { minWidth: 180, minHeight: 54 }]} /></View>
 
@@ -136,6 +151,7 @@ const styles = StyleSheet.create({
   sitesWrap: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, padding: 16, backgroundColor: Colors.backgroundSecondary },
   siteChip: { paddingHorizontal: 12, paddingVertical: 6, borderRadius: 999, backgroundColor: Colors.card },
   protocolRow: { paddingHorizontal: 16, paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: Colors.border },
+  unitChip: { paddingHorizontal: 8, paddingVertical: 4, borderRadius: 6, backgroundColor: Colors.card, marginLeft: 4 },
   mood: { alignItems: 'center', borderRadius: 12, padding: 8 },
   primaryBtn: { backgroundColor: Colors.accent, borderRadius: 14, padding: 16, alignItems: 'center' },
   primaryText: { color: Colors.white, fontWeight: '700', fontSize: 16 },

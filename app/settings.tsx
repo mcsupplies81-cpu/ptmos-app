@@ -6,6 +6,7 @@ import Colors from '@/constants/Colors';
 import { supabase } from '@/lib/supabase';
 import { useAuthStore } from '@/stores/authStore';
 import { useProfileStore } from '@/stores/profileStore';
+import ScreenHeader from '@/components/ScreenHeader';
 
 export default function SettingsScreen() {
   const router = useRouter();
@@ -20,6 +21,7 @@ export default function SettingsScreen() {
 
   return (
     <SafeAreaView style={styles.safeArea}>
+      <ScreenHeader title="Settings" />
       <View style={styles.container}>
         <Text style={styles.heading}>Settings</Text>
 

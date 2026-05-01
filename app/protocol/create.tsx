@@ -4,6 +4,7 @@ import { useRouter } from 'expo-router';
 import { useProtocolStore } from '@/stores/protocolStore';
 import { useAuthStore } from '@/stores/authStore';
 import Colors from '@/constants/Colors';
+import ScreenHeader from '@/components/ScreenHeader';
 
 const DOSE_UNITS = ['mcg', 'mg', 'IU', 'ml'] as const;
 const FREQUENCY_OPTIONS = ['Daily', 'Every Other Day', '3x/week', 'Weekly'] as const;
@@ -41,6 +42,7 @@ export default function CreateProtocolScreen() {
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: Colors.background }}>
+      <ScreenHeader title="Create Protocol" />
       <ScrollView contentContainerStyle={{ padding: 16, paddingBottom: 28 }}>
         <Text style={{ fontSize: 20, fontWeight: '700', marginVertical: 16, color: Colors.text }}>Create Protocol</Text>
 

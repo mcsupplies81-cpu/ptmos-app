@@ -3,6 +3,7 @@ import { FlatList, Modal, Pressable, SafeAreaView, StyleSheet, Text, TextInput, 
 import Colors from '@/constants/Colors';
 import { useAuthStore } from '@/stores/authStore';
 import { useInventoryStore } from '@/stores/inventoryStore';
+import ScreenHeader from '@/components/ScreenHeader';
 
 export default function InventoryScreen() {
   const user = useAuthStore((state) => state.user);
@@ -26,6 +27,7 @@ export default function InventoryScreen() {
   };
 
   return <SafeAreaView style={styles.container}>
+    <ScreenHeader title="Inventory" rightLabel="+ Add" onRightPress={() => setOpen(true)} />
     <View style={styles.header}>
       <Text style={styles.title}>Inventory</Text>
       <Pressable style={styles.addButton} onPress={() => setOpen(true)}><Text style={styles.addText}>+ Add Vial</Text></Pressable>
