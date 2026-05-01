@@ -86,6 +86,17 @@ export default function DashboardScreen() {
     () => [...doseLogs].sort((a, b) => new Date(b.logged_at).getTime() - new Date(a.logged_at).getTime())[0] ?? null,
     [doseLogs],
   );
+  const streakDays = useMemo(() => {
+    const logged = new Set(doseLogs.map((l) => l.logged_at.slice(0, 10)));
+    let streak = 0;
+    const d = new Date();
+    d.setDate(d.getDate() - 1);
+    while (logged.has(d.toISOString().slice(0, 10))) {
+      streak++;
+      d.setDate(d.getDate() - 1);
+    }
+    return streak;
+  }, [doseLogs]);
 
   const firstName = useMemo(() => profile?.full_name?.split(' ')[0] ?? 'there', [profile?.full_name]);
 
@@ -164,6 +175,23 @@ export default function DashboardScreen() {
           </View>
         </View>
 
+        <View style={{ flexDirection: 'row', gap: 10, paddingHorizontal: 16, marginBottom: 4 }}>
+          <View style={{ flex: 1, backgroundColor: Colors.accentLight, borderRadius: 12, padding: 12, flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+            <Text style={{ fontSize: 22 }}>🔥</Text>
+            <View>
+              <Text style={{ fontSize: 14, fontWeight: '700', color: Colors.accent }}>{streakDays} day streak</Text>
+              <Text style={{ fontSize: 11, color: Colors.accent, opacity: 0.8 }}>Keep it up!</Text>
+            </View>
+          </View>
+          <View style={{ flex: 1, backgroundColor: Colors.card, borderRadius: 12, padding: 12, flexDirection: 'row', alignItems: 'center', gap: 10, borderWidth: 1, borderColor: Colors.border }}>
+            <Text style={{ fontSize: 22 }}>💊</Text>
+            <View>
+              <Text style={{ fontSize: 14, fontWeight: '700', color: Colors.text }}>{activeProtocols.length} active</Text>
+              <Text style={{ fontSize: 11, color: Colors.textSecondary }}>protocols</Text>
+            </View>
+          </View>
+        </View>
+
         {/* Last Dose */}
         <View style={{ flexDirection: 'row', justifyContent: 'space-between', paddingHorizontal: 20, paddingVertical: 10 }}>
           <Text style={{ color: Colors.textSecondary, fontSize: 11, fontWeight: '600', letterSpacing: 1 }}>LAST DOSE</Text>
@@ -216,6 +244,27 @@ export default function DashboardScreen() {
               <Text style={{ fontSize: 14, fontWeight: '600', color: Colors.text }}>{row.value}</Text>
             </View>
           ))}
+        </View>
+        <View style={{ height: 1, backgroundColor: Colors.border, marginHorizontal: 20 }} />
+        <View style={{ padding: 16, paddingTop: 16 }}>
+          <Text style={{ fontSize: 10, fontWeight: '600', color: Colors.textSecondary, letterSpacing: 1.5, marginBottom: 12 }}>QUICK ACTIONS</Text>
+          <View style={{ flexDirection: 'row', gap: 10 }}>
+            {[
+              { emoji: '💉', label: 'Log Dose', path: '/log/dose' },
+              { emoji: '🧮', label: 'Calculator', path: '/log/calculator' },
+              { emoji: '📦', label: 'Inventory', path: '/more/inventory' },
+              { emoji: '🩺', label: 'Symptoms', path: '/log/symptoms' },
+            ].map((action) => (
+              <Pressable
+                key={action.label}
+                style={{ flex: 1, backgroundColor: Colors.card, borderRadius: 12, padding: 12, alignItems: 'center', gap: 6, borderWidth: 1, borderColor: Colors.border }}
+                onPress={() => router.push(action.path as any)}
+              >
+                <Text style={{ fontSize: 24 }}>{action.emoji}</Text>
+                <Text style={{ fontSize: 12, fontWeight: '600', color: Colors.text, textAlign: 'center' }}>{action.label}</Text>
+              </Pressable>
+            ))}
+          </View>
         </View>
 
       </ScrollView>
