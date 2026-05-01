@@ -7,6 +7,8 @@ const items = [
   { label: '💉  Injection Sites', path: '/more/injection-sites' },
   { label: '🏃  Lifestyle Log', path: '/log/lifestyle' },
   { label: '🩺  Symptoms Log', path: '/log/symptoms' },
+  { label: '🔬  Research Library', path: '/research' },
+  { label: '🏥  Find Providers', path: '/providers' },
   { label: '⚙️  Settings', path: '/settings' },
 ];
 

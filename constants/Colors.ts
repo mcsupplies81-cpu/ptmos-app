@@ -11,6 +11,7 @@ const Colors = {
   text: '#111827',
   textSecondary: '#6B7280',
   muted: '#9CA3AF',
+  textMuted: '#9CA3AF',
 
   // Brand
   accent: '#2D6A4F',
