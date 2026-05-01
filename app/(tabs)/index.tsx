@@ -258,7 +258,7 @@ export default function DashboardScreen() {
               <Pressable
                 key={action.label}
                 style={{ flex: 1, backgroundColor: Colors.card, borderRadius: 12, padding: 12, alignItems: 'center', gap: 6, borderWidth: 1, borderColor: Colors.border }}
-                onPress={() => router.push(action.path)}
+                onPress={() => router.push(action.path as any)}
               >
                 <Text style={{ fontSize: 24 }}>{action.emoji}</Text>
                 <Text style={{ fontSize: 12, fontWeight: '600', color: Colors.text, textAlign: 'center' }}>{action.label}</Text>
