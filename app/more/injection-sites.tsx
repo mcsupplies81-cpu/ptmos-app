@@ -1,11 +1,11 @@
 import { useState, useEffect } from 'react';
-import { FlatList, Pressable, StyleSheet, Text, View, Dimensions } from 'react-native';
+import { FlatList, Pressable, SafeAreaView, StyleSheet, Text, View, Dimensions } from 'react-native';
 import { router } from 'expo-router';
 import Svg, { Ellipse, Path, Circle, G } from 'react-native-svg';
 import Colors from '@/constants/Colors';
 import { useInjectionSiteStore } from '@/stores/injectionSiteStore';
 import { useAuthStore } from '@/stores/authStore';
-import { ScreenHeader } from '@/components/ScreenHeader';
+import ScreenHeader from '@/components/ScreenHeader';
 
 const SCREEN_W = Dimensions.get('window').width;
 const BODY_W = SCREEN_W - 32;
@@ -24,18 +24,18 @@ const SITE_ZONES = [
 
 export default function InjectionSitesScreen() {
   const { user } = useAuthStore();
-  const { logs, fetchLogs, addLog } = useInjectionSiteStore();
+  const { sites, fetchSites, markSiteUsed } = useInjectionSiteStore();
   const [tab, setTab] = useState<'map' | 'history'>('map');
 
   useEffect(() => {
-    if (user?.id) fetchLogs(user.id);
-  }, [user?.id, fetchLogs]);
+    if (user?.id) fetchSites(user.id);
+  }, [user?.id, fetchSites]);
 
   const bySite = SITE_ZONES.map((z) => {
-    const siteLogs = logs.filter((l) => l.site === z.id).sort((a, b) => +new Date(b.logged_at) - +new Date(a.logged_at));
+    const entry = sites.find((s) => s.site_name === z.id);
     return {
       id: z.id,
-      last_used_at: siteLogs[0]?.logged_at ?? null,
+      last_used_at: entry?.last_used_at ?? null,
     };
   });
 
@@ -47,10 +47,6 @@ export default function InjectionSitesScreen() {
     return Colors.success;
   };
 
-  const markSiteUsed = async (site: string, userId: string) => {
-    await addLog({ site, logged_at: new Date().toISOString(), notes: null, dose_log_id: null }, userId);
-  };
-
   const historyData = [...bySite].sort((a, b) => {
     if (!a.last_used_at && !b.last_used_at) return a.id.localeCompare(b.id);
     if (!a.last_used_at) return 1;
@@ -59,7 +55,7 @@ export default function InjectionSitesScreen() {
   });
 
   return (
-    <View style={styles.container}>
+    <SafeAreaView style={styles.container}>
       <ScreenHeader title="Injection Sites" />
 
       <View style={styles.tabs}>
@@ -96,7 +92,7 @@ export default function InjectionSitesScreen() {
                 <Pressable
                   key={zone.id}
                   style={[styles.dotPressable, { left: zone.fx * BODY_W - 12, top: zone.fy * BODY_H - 12 }]}
-                  onPress={() => user?.id && markSiteUsed(zone.id, user.id)}
+                  onPress={() => user?.id && markSiteUsed(zone.id, user.id).catch(() => {})}
                 >
                   <View style={[styles.dot, { backgroundColor: dotColor }]} />
                 </Pressable>
@@ -130,7 +126,7 @@ export default function InjectionSitesScreen() {
           )}
         />
       )}
-    </View>
+    </SafeAreaView>
   );
 }
 

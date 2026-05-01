@@ -2,9 +2,9 @@ import { useMemo } from 'react'
 import { Pressable, SafeAreaView, ScrollView, StyleSheet, Text, View } from 'react-native'
 import { useLocalSearchParams } from 'expo-router'
 
-import Copy from '@/constants/Copy'
+import { Copy } from '@/constants/Copy'
 import Colors from '@/constants/Colors'
-import { ScreenHeader } from '@/components/ScreenHeader'
+import ScreenHeader from '@/components/ScreenHeader'
 import { useAuthStore } from '@/stores/authStore'
 import { useResearchStore } from '@/stores/researchStore'
 

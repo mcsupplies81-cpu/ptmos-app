@@ -38,7 +38,7 @@ export default function CalculatorScreen() {
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: Colors.background }}>
-      <ScreenHeader title="Calculator" subtitle="Reconstitution & dose tools" />
+      <ScreenHeader title="Dosage Calculator" />
 
       <View
         style={{

@@ -3,7 +3,7 @@ import { Pressable, SafeAreaView, ScrollView, StyleSheet, Text, View } from 'rea
 import { useLocalSearchParams } from 'expo-router'
 import { openBrowserAsync } from 'expo-web-browser'
 
-import { ScreenHeader } from '@/components/ScreenHeader'
+import ScreenHeader from '@/components/ScreenHeader'
 import Colors from '@/constants/Colors'
 import { useAuthStore } from '@/stores/authStore'
 import { useProviderStore } from '@/stores/providerStore'

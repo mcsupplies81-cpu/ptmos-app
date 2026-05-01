@@ -12,7 +12,7 @@ import {
 } from 'react-native'
 import { router } from 'expo-router'
 
-import { ScreenHeader } from '@/components/ScreenHeader'
+import ScreenHeader from '@/components/ScreenHeader'
 import { Copy } from '@/constants/Copy'
 import Colors from '@/constants/Colors'
 import { useAuthStore } from '@/stores/authStore'

@@ -26,7 +26,7 @@ export default function DoseLogScreen() {
   const [selectedProtocolId, setSelectedProtocolId] = useState<string | null>(null);
   const [peptideName, setPeptideName] = useState('');
   const [amount, setAmount] = useState('');
-  const [unit, setUnit] = useState<'mcg' | 'mg' | 'IU' | 'ml'>('mcg');
+  const [unit, setUnit] = useState<'mcg' | 'mg' | 'IU' | 'mL'>('mcg');
   const now = new Date();
   const [logDate, setLogDate] = useState(now.toISOString().slice(0, 10));
   const [logTime, setLogTime] = useState(now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false }));
@@ -95,7 +95,7 @@ export default function DoseLogScreen() {
           <Text style={styles.label}>Amount</Text>
           <View style={styles.inline}>
             <TextInput value={amount} onChangeText={setAmount} keyboardType="decimal-pad" placeholder="0" placeholderTextColor={Colors.textSecondary} style={styles.input} />
-            {(['mcg', 'mg', 'IU', 'ml'] as const).map((u) => (
+            {(['mcg', 'mg', 'IU', 'mL'] as const).map((u) => (
               <Pressable key={u} onPress={() => setUnit(u)} style={[styles.unitChip, unit === u && { backgroundColor: Colors.accent }]}>
                 <Text style={{ color: unit === u ? Colors.white : Colors.textSecondary, fontSize: 12, fontWeight: '600' }}>{u}</Text>
               </Pressable>
