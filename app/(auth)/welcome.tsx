@@ -1,105 +1,114 @@
 import { useRouter } from 'expo-router';
-import { Pressable, SafeAreaView, StyleSheet, Text, View } from 'react-native';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
 
-import { Copy } from '@/constants/Copy';
 import Colors from '@/constants/Colors';
 
 export default function WelcomeScreen() {
   const router = useRouter();
 
   return (
-    <SafeAreaView style={styles.container}>
-      <View style={styles.hero}>
-        <View style={styles.monogramCircle}>
-          <Text style={styles.monogram}>PT</Text>
+    <View style={styles.container}>
+      <View style={styles.topSection}>
+        <View style={styles.logoContainer}>
+          <Text style={styles.logoText}>P</Text>
         </View>
-        <Text style={styles.appName}>PTMOS</Text>
-        <Text style={styles.tagline}>Your peptide protocol companion</Text>
+        <Text style={styles.brandText}>PTMOS</Text>
+        <Text style={styles.subtitleText}>All-in-one peptide{`\n`}tracking and optimization platform.</Text>
       </View>
 
-      <View style={styles.actions}>
-        <Pressable style={styles.primaryButton} onPress={() => router.replace('/(auth)/sign-up')}>
+      <View style={styles.bottomSection}>
+        <Pressable style={styles.primaryButton} onPress={() => router.replace('/(auth)/disclaimer')}>
           <Text style={styles.primaryButtonText}>Get Started</Text>
         </Pressable>
+
         <Pressable style={styles.secondaryButton} onPress={() => router.replace('/(auth)/sign-in')}>
           <Text style={styles.secondaryButtonText}>Sign In</Text>
         </Pressable>
-      </View>
 
-      <Text style={styles.disclaimer}>{Copy.disclaimerShort}</Text>
-    </SafeAreaView>
+        <Text style={styles.legalText}>By continuing you agree to our Terms & Privacy Policy.</Text>
+      </View>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: Colors.background,
-    paddingHorizontal: 24,
-    paddingBottom: 20,
   },
-  hero: {
-    flex: 1,
-    alignItems: 'center',
+  topSection: {
+    flex: 1.3,
+    backgroundColor: '#1B3A2F',
     justifyContent: 'center',
-    gap: 10,
+    alignItems: 'center',
   },
-  monogramCircle: {
-    width: 150,
-    height: 150,
-    borderRadius: 75,
+  logoContainer: {
+    width: 80,
+    height: 80,
     backgroundColor: '#2D6A4F',
-    alignItems: 'center',
+    borderRadius: 20,
     justifyContent: 'center',
-    marginBottom: 12,
+    alignItems: 'center',
   },
-  monogram: {
-    color: '#FFFFFF',
+  logoText: {
     fontSize: 48,
-    fontWeight: '800',
-    letterSpacing: 1,
+    fontWeight: '900',
+    color: '#FFFFFF',
   },
-  appName: {
-    color: Colors.text,
-    fontSize: 36,
+  brandText: {
+    marginTop: 12,
+    fontSize: 28,
     fontWeight: '800',
-    letterSpacing: 2,
+    color: '#FFFFFF',
+    letterSpacing: 0.5,
   },
-  tagline: {
-    color: Colors.textSecondary,
-    fontSize: 16,
+  subtitleText: {
+    marginTop: 10,
+    fontSize: 14,
+    color: 'rgba(255,255,255,0.72)',
     textAlign: 'center',
+    lineHeight: 21,
+    maxWidth: 240,
   },
-  actions: {
-    gap: 12,
-    marginBottom: 16,
+  bottomSection: {
+    flex: 1,
+    backgroundColor: '#FFFFFF',
+    borderTopLeftRadius: 28,
+    borderTopRightRadius: 28,
+    padding: 28,
+    paddingTop: 36,
   },
   primaryButton: {
-    backgroundColor: '#2D6A4F',
-    borderRadius: 12,
+    width: '100%',
+    backgroundColor: Colors.accent,
+    borderRadius: 14,
+    height: 52,
+    justifyContent: 'center',
     alignItems: 'center',
-    paddingVertical: 15,
+    marginBottom: 14,
   },
   primaryButtonText: {
     color: '#FFFFFF',
-    fontSize: 17,
+    fontSize: 16,
     fontWeight: '700',
   },
   secondaryButton: {
+    width: '100%',
     borderWidth: 1.5,
-    borderColor: '#2D6A4F',
-    borderRadius: 12,
+    borderColor: Colors.accent,
+    borderRadius: 14,
+    height: 52,
+    justifyContent: 'center',
     alignItems: 'center',
-    paddingVertical: 15,
   },
   secondaryButtonText: {
-    color: '#2D6A4F',
-    fontSize: 17,
-    fontWeight: '700',
+    color: Colors.accent,
+    fontSize: 16,
+    fontWeight: '600',
   },
-  disclaimer: {
+  legalText: {
+    marginTop: 28,
+    fontSize: 11,
     color: Colors.textSecondary,
-    fontSize: 12,
     textAlign: 'center',
   },
 });
