@@ -1,46 +1,63 @@
 import { create } from 'zustand';
 import { supabase } from '@/lib/supabase';
 
-export interface InjectionSiteLog {
+export interface InjectionSite {
   id: string;
   user_id: string;
-  site: string;
-  logged_at: string;
-  notes: string | null;
-  dose_log_id: string | null;
+  site_name: string;
+  last_used_at: string;
+  total_uses: number;
 }
 
-type AddInjectionSiteLog = Omit<InjectionSiteLog, 'id' | 'user_id'>;
-
 interface InjectionSiteStore {
-  logs: InjectionSiteLog[];
+  sites: InjectionSite[];
   loading: boolean;
-  fetchLogs: (userId: string) => Promise<void>;
-  addLog: (log: AddInjectionSiteLog, userId: string) => Promise<void>;
+  error: string | null;
+  fetchSites: (userId: string) => Promise<void>;
+  markSiteUsed: (siteName: string, userId: string) => Promise<void>;
 }
 
 export const useInjectionSiteStore = create<InjectionSiteStore>((set, get) => ({
-  logs: [],
+  sites: [],
   loading: false,
-  fetchLogs: async (userId) => {
-    set({ loading: true });
+  error: null,
+  fetchSites: async (userId) => {
+    set({ loading: true, error: null });
     const { data, error } = await supabase
-      .from('injection_site_logs')
+      .from('injection_sites')
       .select('*')
       .eq('user_id', userId)
-      .order('logged_at', { ascending: false });
-    set({ loading: false });
-    if (error) throw error;
-    set({ logs: (data ?? []) as InjectionSiteLog[] });
+      .order('site_name', { ascending: true });
+
+    if (error) {
+      set({ loading: false, error: error.message });
+      return;
+    }
+
+    set({ sites: (data as InjectionSite[]) ?? [], loading: false });
   },
-  addLog: async (log, userId) => {
+  markSiteUsed: async (siteName, userId) => {
+    const current = get().sites.find((site) => site.site_name === siteName);
     const { data, error } = await supabase
-      .from('injection_site_logs')
-      .insert({ ...log, user_id: userId })
+      .from('injection_sites')
+      .upsert(
+        {
+          user_id: userId,
+          site_name: siteName,
+          last_used_at: new Date().toISOString(),
+          total_uses: (current?.total_uses ?? 0) + 1,
+        },
+        { onConflict: 'user_id,site_name' },
+      )
       .select('*')
-      .eq('user_id', userId)
       .single();
-    if (error) throw error;
-    set({ logs: [data as InjectionSiteLog, ...get().logs] });
+
+    if (error) {
+      set({ error: error.message });
+      return;
+    }
+
+    const next = get().sites.filter((site) => site.site_name !== siteName);
+    set({ sites: [...next, data as InjectionSite] });
   },
 }));

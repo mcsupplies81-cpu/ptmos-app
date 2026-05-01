@@ -9,14 +9,14 @@ export type Profile = {
 };
 
 type ProfileState = {
-  profile: Profile | null;
+  profile: Profile | null | undefined; // undefined = not yet fetched
   loading: boolean;
   fetchProfile: (userId: string) => Promise<void>;
   setProfile: (profile: Profile | null) => void;
 };
 
 export const useProfileStore = create<ProfileState>((set) => ({
-  profile: null,
+  profile: undefined, // undefined means "not fetched yet"
   loading: false,
   setProfile: (profile) => set({ profile }),
   fetchProfile: async (userId) => {

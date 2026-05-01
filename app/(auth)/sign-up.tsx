@@ -1,7 +1,7 @@
-import { Link, useRouter } from 'expo-router';
+import { useRouter } from 'expo-router';
 import { useState } from 'react';
-import { ActivityIndicator, Alert, Pressable, StyleSheet, Text, TextInput } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { Pressable, SafeAreaView, StyleSheet, Text, TextInput, View } from 'react-native';
+
 import Colors from '@/constants/Colors';
 import { supabase } from '@/lib/supabase';
 
@@ -10,49 +10,140 @@ export default function SignUpScreen() {
   const [fullName, setFullName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
 
   const onCreate = async () => {
-    if (!fullName.trim() || !email.trim() || !password.trim()) {
-      return Alert.alert('Missing fields', 'Please fill in all fields.');
-    }
-    setLoading(true);
-    const { data, error } = await supabase.auth.signUp({
-      email,
+    setError('');
+
+    const trimmedFullName = fullName.trim();
+    const trimmedEmail = email.trim();
+
+    const { data, error: signUpError } = await supabase.auth.signUp({
+      email: trimmedEmail,
       password,
-      options: { data: { full_name: fullName } },
+      options: { data: { full_name: trimmedFullName } },
     });
-    setLoading(false);
-    if (error) return Alert.alert('Sign up failed', error.message);
+
+    if (signUpError) {
+      setError(signUpError.message);
+      return;
+    }
+
     if (data.user) {
-      await supabase.from('profiles').upsert({
+      const { error: profileError } = await supabase.from('profiles').upsert({
         id: data.user.id,
-        full_name: fullName,
+        full_name: trimmedFullName,
+        email: trimmedEmail,
         disclaimer_accepted: false,
       });
-      router.replace('/(auth)/disclaimer');
+
+      if (profileError) {
+        setError(profileError.message);
+        return;
+      }
     }
+
+    // Let _layout.tsx handle routing — it will redirect to /(auth)/disclaimer
+    // once it detects the new session + profile with disclaimer_accepted: false
   };
 
   return (
-    <SafeAreaView style={styles.c}>
-      <Text style={styles.h}>Create account</Text>
-      <TextInput placeholder="Full name" style={styles.i} value={fullName} onChangeText={setFullName} />
-      <TextInput placeholder="Email" style={styles.i} value={email} onChangeText={setEmail} autoCapitalize="none" keyboardType="email-address" />
-      <TextInput placeholder="Password (min 6 chars)" style={styles.i} value={password} onChangeText={setPassword} secureTextEntry />
-      <Pressable style={styles.b} onPress={onCreate} disabled={loading}>
-        {loading ? <ActivityIndicator color="#fff" /> : <Text style={styles.bt}>Create Account</Text>}
+    <SafeAreaView style={styles.container}>
+      <View>
+        <Text style={styles.heading}>Create account</Text>
+        <Text style={styles.subheading}>Start tracking your peptide protocols</Text>
+      </View>
+
+      <View style={styles.form}>
+        <TextInput
+          style={styles.input}
+          placeholder="Full Name"
+          placeholderTextColor={Colors.textSecondary}
+          value={fullName}
+          onChangeText={setFullName}
+        />
+        <TextInput
+          style={styles.input}
+          placeholder="Email"
+          placeholderTextColor={Colors.textSecondary}
+          autoCapitalize="none"
+          keyboardType="email-address"
+          autoCorrect={false}
+          value={email}
+          onChangeText={setEmail}
+        />
+        <TextInput
+          style={styles.input}
+          placeholder="Password"
+          placeholderTextColor={Colors.textSecondary}
+          secureTextEntry
+          value={password}
+          onChangeText={setPassword}
+        />
+        <Pressable style={styles.primaryButton} onPress={onCreate}>
+          <Text style={styles.primaryButtonText}>Create Account</Text>
+        </Pressable>
+        {error ? <Text style={styles.errorText}>{error}</Text> : null}
+      </View>
+
+      <Pressable onPress={() => router.replace('/(auth)/sign-in')}>
+        <Text style={styles.linkText}>Already have an account? Sign in</Text>
       </Pressable>
-      <Link href="/(auth)/sign-in" style={styles.l}>Already have an account? Sign In</Link>
     </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  c: { flex: 1, padding: 24, justifyContent: 'center', backgroundColor: Colors.background },
-  h: { fontSize: 28, fontWeight: '700', marginBottom: 24, color: Colors.text },
-  i: { borderWidth: 1, borderColor: Colors.border, borderRadius: 10, padding: 12, marginBottom: 12, fontSize: 16 },
-  b: { backgroundColor: Colors.accent, borderRadius: 10, padding: 14, alignItems: 'center', marginTop: 8 },
-  bt: { color: '#fff', fontWeight: '700', fontSize: 16 },
-  l: { marginTop: 18, color: Colors.accent, textAlign: 'center' },
+  container: {
+    flex: 1,
+    backgroundColor: Colors.background,
+    padding: 24,
+    justifyContent: 'center',
+    gap: 24,
+  },
+  heading: {
+    fontSize: 34,
+    fontWeight: '800',
+    color: Colors.text,
+    marginBottom: 8,
+  },
+  subheading: {
+    fontSize: 16,
+    color: Colors.textSecondary,
+  },
+  form: {
+    gap: 12,
+  },
+  input: {
+    borderWidth: 1,
+    borderColor: Colors.border,
+    backgroundColor: Colors.card,
+    borderRadius: 12,
+    paddingHorizontal: 14,
+    paddingVertical: 13,
+    fontSize: 16,
+    color: Colors.text,
+  },
+  primaryButton: {
+    backgroundColor: '#2D6A4F',
+    borderRadius: 12,
+    alignItems: 'center',
+    paddingVertical: 14,
+    marginTop: 4,
+  },
+  primaryButtonText: {
+    color: '#FFFFFF',
+    fontSize: 16,
+    fontWeight: '700',
+  },
+  errorText: {
+    color: '#B42318',
+    fontSize: 14,
+    marginTop: 2,
+  },
+  linkText: {
+    color: '#2D6A4F',
+    textAlign: 'center',
+    fontWeight: '600',
+  },
 });

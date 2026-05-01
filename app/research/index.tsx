@@ -12,6 +12,7 @@ import {
 } from 'react-native'
 import { router } from 'expo-router'
 
+import ScreenHeader from '@/components/ScreenHeader'
 import { Copy } from '@/constants/Copy'
 import Colors from '@/constants/Colors'
 import { useAuthStore } from '@/stores/authStore'
@@ -26,7 +27,7 @@ const CATEGORY_COLORS: Record<string, { bg: string; text: string }> = {
   Other: { bg: '#F3F4F6', text: '#374151' },
 }
 
-export default function ResearchScreen() {
+export default function ResearchIndexScreen() {
   const [activeTab, setActiveTab] = useState<(typeof tabs)[number]>('All')
   const [search, setSearch] = useState('')
   const { user } = useAuthStore()
@@ -49,7 +50,7 @@ export default function ResearchScreen() {
 
   return (
     <SafeAreaView style={styles.container}>
-      <Text style={styles.header}>Research Library</Text>
+      <ScreenHeader title="Research Library" />
       <TextInput value={search} onChangeText={setSearch} placeholder="Search research" style={styles.search} />
 
       <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.tabsContent}>
@@ -98,7 +99,6 @@ export default function ResearchScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: Colors.background },
-  header: { fontSize: 28, fontWeight: '800', color: Colors.text, padding: 16, paddingBottom: 8 },
   search: {
     margin: 16,
     marginTop: 0,
