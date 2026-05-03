@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { Alert, SafeAreaView, FlatList, Pressable, StyleSheet, Text, View, ScrollView } from 'react-native';
 import { router } from 'expo-router';
 import Colors from '@/constants/Colors';
-import useProtocolStore from '@/stores/protocolStore';
+import { useProtocolStore } from '@/stores/protocolStore';
 import { useAuthStore } from '@/stores/authStore';
 import ScreenHeader from '@/components/ScreenHeader';
 import EmptyState from '@/components/EmptyState';
@@ -12,8 +12,7 @@ type Filter = 'all' | 'active' | 'completed';
 
 export default function ProtocolsScreen() {
   const user = useAuthStore((state) => state.user);
-  const protocols = useProtocolStore((state) => state.protocols);
-  const fetchProtocols = useProtocolStore((state) => state.fetchProtocols);
+  const { protocols, fetchProtocols } = useProtocolStore();
   const [filter, setFilter] = useState<Filter>('all');
 
   useEffect(() => {
