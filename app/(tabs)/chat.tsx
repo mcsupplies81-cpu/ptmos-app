@@ -253,14 +253,15 @@ export default function ChatScreen() {
     }
 
     if (aiResult && aiResult.type === 'action' && aiResult.intent) {
-      const intents = ['log_dose','log_symptom','log_weight','log_sleep','log_lifestyle','update_inventory','ask_adherence','ask_last_dose','ask_next_dose','ask_inventory'] as const;
-      type IntentType = typeof intents[number] | 'unknown';
-      const intent = intents.includes(aiResult.intent as IntentType) ? aiResult.intent as IntentType : 'unknown';
+      const validIntents: ParsedIntent['intent'][] = ['log_dose','log_symptom','log_weight','log_sleep','log_lifestyle','update_inventory','ask_adherence','ask_last_dose','ask_next_dose','ask_inventory'];
+      const resolvedIntent: ParsedIntent['intent'] = validIntents.includes(aiResult.intent as ParsedIntent['intent'])
+        ? (aiResult.intent as ParsedIntent['intent'])
+        : 'log_dose';
       const parsed: ParsedIntent = {
-        intent: intent as ParsedIntent['intent'],
+        intent: resolvedIntent,
         payload: (aiResult.payload ?? {}) as Record<string, string | number | null>,
         confidence: 'high',
-        displaySummary: buildSummary(intent, (aiResult.payload ?? {}) as Record<string, string | number | null>),
+        displaySummary: buildSummary(resolvedIntent, (aiResult.payload ?? {}) as Record<string, string | number | null>),
       };
       addMessage({ role: 'confirmation', text: parsed.displaySummary, parsedIntent: parsed, status: 'pending' });
       return;
