@@ -4,6 +4,7 @@ import Colors from '@/constants/Colors';
 import { useAuthStore } from '@/stores/authStore';
 import { useInventoryStore } from '@/stores/inventoryStore';
 import ScreenHeader from '@/components/ScreenHeader';
+import EmptyState from '@/components/EmptyState';
 
 export default function InventoryScreen() {
   const user = useAuthStore((state) => state.user);
@@ -46,11 +47,13 @@ export default function InventoryScreen() {
         keyExtractor={(item) => item.id}
         contentContainerStyle={styles.listContent}
         ListEmptyComponent={
-          <View style={styles.emptyState}>
-            <Text style={styles.emptyEmoji}>💊</Text>
-            <Text style={styles.emptyTitle}>No vials yet</Text>
-            <Text style={styles.emptySub}>Tap + Add to log your first vial</Text>
-          </View>
+          <EmptyState
+            emoji="📦"
+            title="No vials yet"
+            subtitle="Tap + Add to track your first vial."
+            actionLabel="Add Vial"
+            onAction={() => setOpen(true)}
+          />
         }
         renderItem={({ item }) => {
           const expired = item.expiry_date < today;
@@ -178,10 +181,6 @@ export default function InventoryScreen() {
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: Colors.background },
   listContent: { padding: 16, paddingBottom: 32 },
-  emptyState: { alignItems: 'center', marginTop: 80 },
-  emptyEmoji: { fontSize: 48 },
-  emptyTitle: { fontSize: 18, fontWeight: '700', color: Colors.text, marginTop: 12 },
-  emptySub: { fontSize: 14, color: Colors.textSecondary, marginTop: 6 },
   card: { backgroundColor: Colors.card, borderWidth: 1, borderColor: Colors.border, borderRadius: 14, padding: 14, marginBottom: 10 },
   cardRow: { flexDirection: 'row', alignItems: 'center', gap: 12 },
   vialIcon: { width: 48, height: 48, borderRadius: 12, backgroundColor: Colors.accentLight, justifyContent: 'center', alignItems: 'center' },

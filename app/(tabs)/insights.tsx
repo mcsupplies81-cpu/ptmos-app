@@ -4,6 +4,7 @@ import { Pressable, SafeAreaView, ScrollView, StyleSheet, Text, View } from 'rea
 import Svg, { Circle, Rect } from 'react-native-svg';
 
 import ScreenHeader from '@/components/ScreenHeader';
+import EmptyState from '@/components/EmptyState';
 import Colors from '@/constants/Colors';
 import { useAuthStore } from '@/stores/authStore';
 import { useDoseLogStore } from '@/stores/doseLogStore';
@@ -97,6 +98,21 @@ export default function InsightsScreen() {
   }, [lifestyleLogs]);
 
   const summaryText = `You've taken doses on ${adherencePct}% of days this week${streakDays > 0 ? ` and are on a ${streakDays}-day streak` : ''}. ${recentSymptoms.length > 0 ? `You logged ${recentSymptoms.length} symptom${recentSymptoms.length > 1 ? 's' : ''} this week.` : 'No symptoms logged this week.'} ${avgSleep !== '—' ? `Average sleep was ${avgSleep}.` : ''}`;
+
+  if (doseLogs.length === 0 && lifestyleLogs.length === 0) {
+    return (
+      <SafeAreaView style={styles.safeArea}>
+        <ScreenHeader />
+        <EmptyState
+          emoji="📊"
+          title="No data yet"
+          subtitle="Start logging doses, weight, and sleep to see your insights here."
+          actionLabel="Log a Dose"
+          onAction={() => router.push('/log/dose')}
+        />
+      </SafeAreaView>
+    );
+  }
 
   return (
     <SafeAreaView style={styles.safeArea}>
