@@ -1,5 +1,6 @@
 import { useEffect, useMemo } from 'react';
-import { SafeAreaView, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { router } from 'expo-router';
+import { Pressable, SafeAreaView, ScrollView, StyleSheet, Text, View } from 'react-native';
 import Svg, { Circle, Rect } from 'react-native-svg';
 
 import ScreenHeader from '@/components/ScreenHeader';
@@ -199,6 +200,14 @@ export default function InsightsScreen() {
           )}
         </View>
 
+
+        <View style={styles.historyLinkWrap}>
+          <Pressable style={styles.historyLinkCard} onPress={() => router.push('/log/history')}>
+            <Text style={styles.historyLinkText}>📋 Dose History</Text>
+            <Text style={styles.historyLinkArrow}>View Full History →</Text>
+          </Pressable>
+        </View>
+
         <View style={styles.aiCard}>
           <View style={styles.aiHeader}>
             <Text style={styles.aiEmoji}>✨</Text>
@@ -280,6 +289,20 @@ const styles = StyleSheet.create({
   },
   symptomType: { fontSize: 14, color: Colors.text },
   symptomSeverity: { fontSize: 13, fontWeight: '700' },
+
+  historyLinkWrap: { paddingHorizontal: 16, marginBottom: 4 },
+  historyLinkCard: {
+    backgroundColor: Colors.card,
+    borderRadius: 12,
+    padding: 14,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: Colors.border,
+  },
+  historyLinkText: { fontSize: 15, fontWeight: '600', color: Colors.text },
+  historyLinkArrow: { fontSize: 13, fontWeight: '600', color: Colors.accent },
   aiCard: {
     margin: 16,
     backgroundColor: '#F0F9F4',
