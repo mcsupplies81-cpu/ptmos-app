@@ -1,10 +1,14 @@
 import { useMemo, useState } from 'react';
-import { ActivityIndicator, Alert, Pressable, SafeAreaView, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Pressable, SafeAreaView, ScrollView, StyleSheet, Text, View } from 'react-native';
+import Svg, { Circle } from 'react-native-svg';
 import { router, useLocalSearchParams } from 'expo-router';
+import ScreenHeader from '@/components/ScreenHeader';
 import Colors from '@/constants/Colors';
 import { useDoseLogStore } from '@/stores/doseLogStore';
 import { calcAdherence, useProtocolStore } from '@/stores/protocolStore';
 import { useAuthStore } from '@/stores/authStore';
+
+const CIRC = 2 * Math.PI * 22;
 
 export default function ProtocolDetailScreen() {
   const { protocolId } = useLocalSearchParams<{ protocolId?: string }>();
@@ -17,105 +21,205 @@ export default function ProtocolDetailScreen() {
   const protocol = useMemo(() => protocols.find((item) => item.id === protocolId), [protocolId, protocols]);
 
   const recentLogs = useMemo(
-    () => doseLogs.filter((log) => log.protocol_id === protocolId).slice(0, 7),
+    () =>
+      doseLogs
+        .filter((log) => log.protocol_id === protocolId)
+        .sort((a, b) => b.logged_at.localeCompare(a.logged_at))
+        .slice(0, 6),
     [doseLogs, protocolId],
   );
 
   if (!protocol) {
     return (
       <SafeAreaView style={styles.container}>
-        <Pressable onPress={() => router.back()}><Text style={styles.back}>← Back</Text></Pressable>
-        <Text style={styles.empty}>Protocol not found.</Text>
+        <ScreenHeader title="Protocol" />
+        <View style={styles.notFoundWrap}>
+          <Text style={styles.empty}>Protocol not found.</Text>
+          <Pressable onPress={() => router.back()}>
+            <Text style={styles.backLink}>Go back</Text>
+          </Pressable>
+        </View>
       </SafeAreaView>
     );
   }
 
   const adherence = calcAdherence(protocol, doseLogs);
+  const boundedAdherence = Math.max(0, Math.min(100, adherence));
   const isActive = protocol.status === 'active';
 
   const handleMarkComplete = async () => {
     if (!user?.id) return;
-    try {
-      setSaving(true);
-      await upsertProtocol({ ...protocol, status: 'completed' }, user.id);
-      Alert.alert('Updated', 'Protocol marked as completed.');
-    } finally {
-      setSaving(false);
-    }
+    setSaving(true);
+    await upsertProtocol({ ...protocol, status: 'completed' }, user.id);
+    setSaving(false);
+  };
+
+  const handleReactivate = async () => {
+    if (!user?.id) return;
+    setSaving(true);
+    await upsertProtocol({ ...protocol, status: 'active' }, user.id);
+    setSaving(false);
   };
 
   return (
     <SafeAreaView style={styles.container}>
+      <ScreenHeader title={protocol?.name ?? 'Protocol Detail'} />
+
       <ScrollView contentContainerStyle={styles.content}>
-        <Pressable onPress={() => router.back()}><Text style={styles.back}>← Back</Text></Pressable>
+        <View style={styles.heroCard}>
+          <View style={styles.heroRow}>
+            <View style={styles.heroLeft}>
+              <Text style={styles.heroTitle}>{protocol.name}</Text>
+              <Text style={styles.heroDose}>{protocol.dose_amount} {protocol.dose_unit}</Text>
+              <View style={[styles.statusPill, isActive ? styles.statusActivePill : styles.statusCompletedPill]}>
+                <Text style={[styles.statusPillText, isActive ? styles.statusActiveText : styles.statusCompletedText]}>
+                  {isActive ? 'Active' : 'Completed'}
+                </Text>
+              </View>
+            </View>
 
-        <Text style={styles.title}>{protocol.name}</Text>
-
-        <View style={styles.row}><Text style={styles.key}>Peptide</Text><Text style={styles.value}>{protocol.name}</Text></View>
-        <View style={styles.row}><Text style={styles.key}>Dose</Text><Text style={styles.value}>{protocol.dose_amount} {protocol.dose_unit}</Text></View>
-        <View style={styles.row}><Text style={styles.key}>Frequency</Text><Text style={styles.value}>{protocol.frequency}</Text></View>
-        <View style={styles.row}><Text style={styles.key}>Time of day</Text><Text style={styles.value}>{protocol.time_of_day}</Text></View>
-        <View style={styles.row}>
-          <Text style={styles.key}>Status</Text>
-          <View style={[styles.badge, { backgroundColor: isActive ? '#2D6A4F' : '#9CA3AF' }]}>
-            <Text style={styles.badgeText}>{isActive ? 'Active' : 'Completed'}</Text>
+            <View style={styles.ringWrap}>
+              <Svg width={56} height={56}>
+                <Circle cx={28} cy={28} r={22} stroke={Colors.border} strokeWidth={6} fill="none" />
+                <Circle
+                  cx={28}
+                  cy={28}
+                  r={22}
+                  stroke="white"
+                  strokeWidth={6}
+                  fill="none"
+                  strokeDasharray={CIRC}
+                  strokeDashoffset={CIRC * (1 - boundedAdherence / 100)}
+                  strokeLinecap="round"
+                  transform="rotate(-90 28 28)"
+                />
+              </Svg>
+              <Text style={styles.ringText}>{boundedAdherence}%</Text>
+            </View>
           </View>
         </View>
 
-        <Text style={styles.adherence}>{adherence}% adherence</Text>
+        <Text style={styles.sectionLabel}>PROTOCOL INFO</Text>
+        <View style={styles.infoRow}><View style={styles.infoLeft}><View style={styles.iconCircle}><Text>💊</Text></View><Text style={styles.infoLabel}>Dose</Text></View><Text style={styles.infoValue}>{protocol.dose_amount} {protocol.dose_unit}</Text></View>
+        <View style={styles.infoRow}><View style={styles.infoLeft}><View style={styles.iconCircle}><Text>📅</Text></View><Text style={styles.infoLabel}>Frequency</Text></View><Text style={styles.infoValue}>{protocol.frequency}</Text></View>
+        <View style={styles.infoRow}><View style={styles.infoLeft}><View style={styles.iconCircle}><Text>⏰</Text></View><Text style={styles.infoLabel}>Time</Text></View><Text style={styles.infoValue}>{protocol.time_of_day}</Text></View>
+        <View style={styles.infoRow}><View style={styles.infoLeft}><View style={styles.iconCircle}><Text>📆</Text></View><Text style={styles.infoLabel}>Start Date</Text></View><Text style={styles.infoValue}>{protocol.start_date ?? '—'}</Text></View>
 
-        <Text style={styles.section}>Last 7 dose logs</Text>
+        <Text style={styles.sectionLabel}>RECENT LOGS</Text>
         {recentLogs.length === 0 ? (
-          <Text style={styles.muted}>No logged doses for this protocol yet.</Text>
+          <Text style={styles.emptyLogs}>No doses logged yet</Text>
         ) : (
           recentLogs.map((log) => (
             <View key={log.id} style={styles.logRow}>
-              <Text style={styles.value}>{log.logged_at.slice(0, 10)}</Text>
-              <Text style={styles.value}>{log.amount} {log.unit}</Text>
+              <Text style={styles.logDate}>{log.logged_at.slice(0, 10)}</Text>
+              <Text style={styles.logAmount}>{log.amount} {log.unit}</Text>
             </View>
           ))
         )}
-
-        {isActive ? (
-          <Pressable style={styles.completeButton} onPress={handleMarkComplete} disabled={saving}>
-            {saving ? <ActivityIndicator color={Colors.background} /> : <Text style={styles.completeText}>Mark Complete</Text>}
-          </Pressable>
-        ) : null}
       </ScrollView>
+
+      <View style={styles.bottomBar}>
+        <Pressable style={styles.primaryButton} onPress={() => router.push('/log/dose')}>
+          <Text style={styles.primaryButtonText}>Log Dose</Text>
+        </Pressable>
+
+        <Pressable
+          style={styles.ghostButton}
+          onPress={isActive ? handleMarkComplete : handleReactivate}
+          disabled={saving}
+        >
+          {saving ? (
+            <ActivityIndicator color={Colors.text} />
+          ) : (
+            <Text style={styles.ghostButtonText}>{isActive ? 'Mark Complete' : 'Reactivate'}</Text>
+          )}
+        </Pressable>
+      </View>
     </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: Colors.background },
-  content: { padding: 16, paddingBottom: 32 },
-  back: { color: '#2D6A4F', fontWeight: '600', marginBottom: 12 },
-  title: { fontSize: 24, fontWeight: '700', color: Colors.text, marginBottom: 16 },
-  row: { marginBottom: 10 },
-  key: { color: Colors.muted, marginBottom: 2 },
-  value: { color: Colors.text, fontWeight: '600' },
-  badge: { alignSelf: 'flex-start', borderRadius: 999, paddingHorizontal: 10, paddingVertical: 4 },
-  badgeText: { color: '#FFFFFF', fontWeight: '700', fontSize: 12 },
-  adherence: { marginTop: 8, marginBottom: 16, color: Colors.text, fontWeight: '700' },
-  section: { color: Colors.text, fontWeight: '700', marginBottom: 8 },
-  muted: { color: Colors.muted },
+  content: { paddingBottom: 120 },
+  notFoundWrap: { flex: 1, justifyContent: 'center', alignItems: 'center', gap: 10 },
+  empty: { color: Colors.text, fontSize: 16 },
+  backLink: { color: Colors.accent, fontWeight: '600' },
+  heroCard: { margin: 16, backgroundColor: Colors.accent, borderRadius: 16, padding: 18 },
+  heroRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' },
+  heroLeft: { flex: 1, paddingRight: 8 },
+  heroTitle: { color: 'white', fontSize: 20, fontWeight: '700' },
+  heroDose: { color: 'rgba(255,255,255,0.7)', fontSize: 14, marginTop: 4 },
+  statusPill: { alignSelf: 'flex-start', borderRadius: 999, marginTop: 10, paddingHorizontal: 10, paddingVertical: 5 },
+  statusActivePill: { backgroundColor: Colors.accentLight },
+  statusCompletedPill: { backgroundColor: '#F3F4F6' },
+  statusPillText: { fontSize: 12, fontWeight: '700' },
+  statusActiveText: { color: Colors.accent },
+  statusCompletedText: { color: '#6B7280' },
+  ringWrap: { alignItems: 'center' },
+  ringText: { marginTop: 6, color: 'white', fontSize: 12, fontWeight: '700' },
+  sectionLabel: {
+    fontSize: 10,
+    fontWeight: '600',
+    letterSpacing: 1.5,
+    color: Colors.textSecondary,
+    paddingHorizontal: 20,
+    paddingTop: 16,
+    paddingBottom: 8,
+  },
+  infoRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: 20,
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderColor: Colors.border,
+  },
+  infoLeft: { flexDirection: 'row', alignItems: 'center' },
+  iconCircle: { width: 34, height: 34, borderRadius: 17, backgroundColor: '#F3F4F6', alignItems: 'center', justifyContent: 'center' },
+  infoLabel: { marginLeft: 12, fontSize: 14, color: Colors.text },
+  infoValue: { fontSize: 14, fontWeight: '600', color: Colors.text },
   logRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
+    paddingHorizontal: 20,
+    paddingVertical: 10,
+    borderBottomWidth: 1,
+    borderColor: Colors.border,
+  },
+  logDate: { color: Colors.text, fontSize: 14 },
+  logAmount: { color: Colors.text, fontSize: 14, fontWeight: '600' },
+  emptyLogs: { textAlign: 'center', color: Colors.textSecondary, paddingVertical: 16 },
+  bottomBar: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    backgroundColor: Colors.background,
+    borderTopWidth: 1,
+    borderTopColor: Colors.border,
+    padding: 16,
+    flexDirection: 'row',
+    gap: 10,
+  },
+  primaryButton: {
+    flex: 1,
+    backgroundColor: Colors.accent,
+    borderRadius: 12,
+    height: 48,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  primaryButtonText: { color: 'white', fontWeight: '700' },
+  ghostButton: {
+    flex: 1,
     borderWidth: 1,
     borderColor: Colors.border,
-    borderRadius: 8,
-    padding: 10,
-    marginBottom: 8,
-    backgroundColor: Colors.card,
-  },
-  completeButton: {
-    marginTop: 16,
-    backgroundColor: '#2D6A4F',
-    borderRadius: 10,
-    paddingVertical: 14,
+    borderRadius: 12,
+    height: 48,
     alignItems: 'center',
+    justifyContent: 'center',
   },
-  completeText: { color: '#FFFFFF', fontWeight: '700' },
-  empty: { color: Colors.text, marginTop: 12 },
+  ghostButtonText: { color: Colors.text, fontWeight: '600' },
 });
