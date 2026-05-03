@@ -1,5 +1,5 @@
 import { Tabs } from 'expo-router';
-import Svg, { Circle, Path } from 'react-native-svg';
+import Svg, { Path } from 'react-native-svg';
 
 import Colors from '@/constants/Colors';
 
@@ -22,11 +22,10 @@ function ProtocolsIcon({ color }: { color: string }) {
   );
 }
 
-function LogIcon({ color }: { color: string }) {
+function ChatIcon({ color }: { color: string }) {
   return (
     <Svg width={24} height={24} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round">
-      <Circle cx="12" cy="12" r="9" />
-      <Path d="M12 8v8M8 12h8" />
+      <Path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z" />
     </Svg>
   );
 }
@@ -61,9 +60,10 @@ export default function TabsLayout() {
     >
       <Tabs.Screen name="index" options={{ title: 'Dashboard', tabBarIcon: ({ color }) => <HomeIcon color={color} /> }} />
       <Tabs.Screen name="protocols" options={{ title: 'Protocols', tabBarIcon: ({ color }) => <ProtocolsIcon color={color} /> }} />
-      <Tabs.Screen name="log" options={{ title: 'Log', tabBarIcon: ({ color }) => <LogIcon color={color} /> }} />
+      <Tabs.Screen name="chat" options={{ title: 'Chat', tabBarIcon: ({ color }) => <ChatIcon color={color} /> }} />
       <Tabs.Screen name="insights" options={{ title: 'Insights', tabBarIcon: ({ color }) => <InsightsIcon color={color} /> }} />
       <Tabs.Screen name="more" options={{ title: 'More', tabBarIcon: ({ color }) => <MoreIcon color={color} /> }} />
+      <Tabs.Screen name="log" options={{ href: null }} />
       <Tabs.Screen name="research" options={{ href: null }} />
       <Tabs.Screen name="providers" options={{ href: null }} />
       <Tabs.Screen name="settings" options={{ href: null }} />
