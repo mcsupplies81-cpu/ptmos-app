@@ -13,10 +13,13 @@ import {
 } from 'react-native';
 
 import Colors from '@/constants/Colors';
+import { supabase } from '@/lib/supabase';
 import { useAuthStore } from '@/stores/authStore';
 import useChatStore, { type ChatMessage, type ParsedIntent } from '@/stores/chatStore';
 import { useDoseLogStore } from '@/stores/doseLogStore';
+import { useLifestyleStore } from '@/stores/lifestyleStore';
 import { useProtocolStore } from '@/stores/protocolStore';
+import { SymptomType, useSymptomStore } from '@/stores/symptomStore';
 
 const QUICK_CHIPS = [
   { label: 'Log Dose 💉', hint: 'I just took ' },
@@ -126,12 +129,74 @@ export default function ChatScreen() {
   const doseLogs = useDoseLogStore((s) => s.doseLogs);
   const protocols = useProtocolStore((s) => s.protocols);
   const user = useAuthStore((s) => s.user);
-  void user;
+  const fetchDoseLogs = useDoseLogStore((s) => s.fetchDoseLogs);
+  const upsertLifestyle = useLifestyleStore((s) => s.upsertLog);
+  const addSymptom = useSymptomStore((s) => s.addLog);
 
-  const handleConfirm = useCallback((message: ChatMessage) => {
+  const handleConfirm = useCallback(async (message: ChatMessage) => {
+    if (!user?.id || !message.parsedIntent) return;
     updateMessageStatus(message.id, 'confirmed');
-    addMessage({ role: 'success', text: 'Logged successfully!' });
-  }, [addMessage, updateMessageStatus]);
+    const { intent, payload } = message.parsedIntent;
+
+    try {
+      if (intent === 'log_dose') {
+        await supabase.from('dose_logs').insert({
+          user_id: user.id,
+          peptide_name: payload.peptide ?? null,
+          amount: Number(payload.amount) || 0,
+          unit: payload.unit ?? 'mcg',
+          injection_site: payload.site ?? null,
+          logged_at: new Date().toISOString(),
+          protocol_id: null,
+          notes: null,
+        });
+        await fetchDoseLogs(user.id);
+        addMessage({ role: 'success', text: `${payload.peptide ?? 'Dose'} logged ✓` });
+      }
+
+      else if (intent === 'log_weight') {
+        await upsertLifestyle(
+          { weight_lbs: Number(payload.value) || null },
+          user.id
+        );
+        addMessage({ role: 'success', text: `Weight logged: ${payload.value} lbs ✓` });
+      }
+
+      else if (intent === 'log_sleep') {
+        await upsertLifestyle(
+          { sleep_hours: Number(payload.hours) || null },
+          user.id
+        );
+        addMessage({ role: 'success', text: `Sleep logged: ${payload.hours} hours ✓` });
+      }
+
+      else if (intent === 'log_symptom') {
+        const normalized = (payload.symptom as string ?? '').toLowerCase().trim();
+        const symptomType: SymptomType =
+          normalized === 'fatigue' ? 'fatigue' :
+          normalized === 'headache' ? 'headache' :
+          normalized === 'nausea' ? 'nausea' :
+          normalized === 'joint pain' ? 'joint pain' : 'other';
+        await addSymptom(
+          {
+            symptom_type: symptomType,
+            severity: Number(payload.severity) || 5,
+            notes: symptomType === 'other' ? (payload.symptom as string) : null,
+            logged_at: new Date().toISOString(),
+          },
+          user.id
+        );
+        addMessage({ role: 'success', text: `Symptom logged ✓` });
+      }
+
+      else {
+        addMessage({ role: 'success', text: 'Logged ✓' });
+      }
+
+    } catch (e) {
+      addMessage({ role: 'error', text: 'Something went wrong. Try again.' });
+    }
+  }, [user?.id, updateMessageStatus, addMessage, fetchDoseLogs, upsertLifestyle, addSymptom]);
 
   const handleSend = useCallback(() => {
     if (!inputText.trim()) return;
@@ -230,7 +295,7 @@ export default function ChatScreen() {
                   {message.status === 'confirmed' && <Text style={styles.confirmedBadge}>✓ Confirmed</Text>}
                   {isPending && (
                     <View style={styles.buttonRow}>
-                      <Pressable style={styles.confirmButton} onPress={() => handleConfirm(message)}>
+                      <Pressable style={styles.confirmButton} onPress={() => { void handleConfirm(message); }}>
                         <Text style={styles.confirmButtonText}>Confirm</Text>
                       </Pressable>
                       <Pressable
