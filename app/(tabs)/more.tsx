@@ -1,7 +1,6 @@
 import { useEffect } from 'react';
 import { router } from 'expo-router';
 import { Pressable, SafeAreaView, ScrollView, StyleSheet, Text, View } from 'react-native';
-import ScreenHeader from '@/components/ScreenHeader';
 import Colors from '@/constants/Colors';
 import { useAuthStore } from '@/stores/authStore';
 import { useProfileStore } from '@/stores/profileStore';
@@ -80,7 +79,7 @@ export default function MoreTabScreen() {
 
   return (
     <SafeAreaView style={styles.container}>
-      <ScreenHeader title="More" hideBack={true} />
+      <View style={{ paddingTop: 16 }} />
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
         <View style={styles.userCard}>
           <View style={styles.avatar}>
