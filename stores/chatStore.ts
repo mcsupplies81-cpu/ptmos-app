@@ -1,4 +1,6 @@
 import { create } from 'zustand';
+import { persist, createJSONStorage } from 'zustand/middleware';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 export type ParsedIntent = {
   intent:
@@ -12,6 +14,7 @@ export type ParsedIntent = {
     | 'ask_last_dose'
     | 'ask_next_dose'
     | 'ask_inventory'
+    | 'reconstitute'
     | 'unknown';
   payload: Record<string, string | number | null>;
   confidence: 'high' | 'medium' | 'low';
@@ -20,10 +23,18 @@ export type ParsedIntent = {
 
 export type ChatMessage = {
   id: string;
-  role: 'user' | 'assistant' | 'confirmation' | 'success' | 'error';
+  role: 'user' | 'assistant' | 'confirmation' | 'success' | 'error' | 'reconstitution';
   text: string;
   parsedIntent?: ParsedIntent;
   status?: 'pending' | 'confirmed' | 'cancelled';
+  reconstitutionResult?: {
+    vialMg: number;
+    waterMl: number;
+    concentrationMgPerMl: number;
+    concentrationMcgPerMl: number;
+    doseTable: Array<{ mcg: number; ml: string }>;
+    peptide: string | null;
+  };
   createdAt: string;
 };
 
@@ -34,26 +45,37 @@ type ChatStore = {
   clearMessages: () => void;
 };
 
-const useChatStore = create<ChatStore>((set) => ({
-  messages: [],
-  addMessage: (msg) =>
-    set((state) => ({
-      messages: [
-        ...state.messages,
-        {
+const useChatStore = create<ChatStore>()(
+  persist(
+    (set, get) => ({
+      messages: [],
+
+      addMessage: (msg) => {
+        const newMsg: ChatMessage = {
           ...msg,
           id: Math.random().toString(36).slice(2),
           createdAt: new Date().toISOString(),
-        },
-      ],
-    })),
-  updateMessageStatus: (id, status) =>
-    set((state) => ({
-      messages: state.messages.map((message) =>
-        message.id === id ? { ...message, status } : message,
-      ),
-    })),
-  clearMessages: () => set({ messages: [] }),
-}));
+        };
+        const current = get().messages;
+        const trimmed = current.length >= 100 ? current.slice(-99) : current;
+        set({ messages: [...trimmed, newMsg] });
+      },
+
+      updateMessageStatus: (id, status) =>
+        set((state) => ({
+          messages: state.messages.map((m) =>
+            m.id === id ? { ...m, status } : m,
+          ),
+        })),
+
+      clearMessages: () => set({ messages: [] }),
+    }),
+    {
+      name: 'ptmos-chat-history',
+      storage: createJSONStorage(() => AsyncStorage),
+      partialize: (state) => ({ messages: state.messages }),
+    },
+  ),
+);
 
 export default useChatStore;

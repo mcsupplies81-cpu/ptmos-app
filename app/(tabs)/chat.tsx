@@ -1,4 +1,4 @@
-import { useCallback, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   FlatList,
   KeyboardAvoidingView,
@@ -10,6 +10,7 @@ import {
   Text,
   TextInput,
   View,
+  Alert,
 } from 'react-native';
 
 import Colors from '@/constants/Colors';
@@ -26,7 +27,22 @@ const QUICK_CHIPS = [
   { label: 'Log Weight ⚖️', hint: 'My weight is ' },
   { label: 'Log Sleep 😴', hint: 'I slept ' },
   { label: 'Log Symptom 🩺', hint: "I'm feeling " },
+  { label: 'Reconstitute 💧', hint: 'Reconstitute ' },
 ];
+
+
+function calcReconstitution(vialMg: number, waterMl: number, peptide: string | null) {
+  const concentrationMgPerMl = vialMg / waterMl;
+  const concentrationMcgPerMl = concentrationMgPerMl * 1000;
+  const doseMcgValues = [50, 100, 150, 200, 250, 300, 500, 1000];
+  const doseTable = doseMcgValues
+    .filter((mcg) => mcg <= concentrationMcgPerMl)
+    .map((mcg) => ({
+      mcg,
+      ml: (mcg / concentrationMcgPerMl).toFixed(3).replace(/0+$/, '').replace(/\.$/, ''),
+    }));
+  return { vialMg, waterMl, concentrationMgPerMl, concentrationMcgPerMl, doseTable, peptide };
+}
 
 function mockParse(text: string): ParsedIntent {
   const lower = text.toLowerCase();
@@ -113,6 +129,28 @@ function mockParse(text: string): ParsedIntent {
     };
   }
 
+
+  // Reconstitution intent
+  if (/(reconstitut|bac water|bacteriostatic|dilut|mix.*vial|vial.*mix)/i.test(text)) {
+    const numbers = [...text.matchAll(/(\d+(?:\.\d+)?)\s*(mg|ml|mL)/gi)];
+    let vialMg: number | null = null;
+    let waterMl: number | null = null;
+    for (const match of numbers) {
+      const val = parseFloat(match[1]);
+      const unit = match[2].toLowerCase();
+      if (unit === 'mg' && !vialMg) vialMg = val;
+      if (unit === 'ml' && !waterMl) waterMl = val;
+    }
+    const peptideMatch = text.match(/reconstitut(?:e|ing)?\s+([a-z0-9-]+)/i);
+    const peptide = peptideMatch?.[1] ?? null;
+    return {
+      intent: 'reconstitute' as const,
+      payload: { vialMg, waterMl, peptide },
+      confidence: (vialMg && waterMl) ? 'high' : 'medium',
+      displaySummary: `Reconstitute${peptide ? ' ' + peptide : ''}${vialMg ? ': ' + vialMg + 'mg' : ''} with${waterMl ? ' ' + waterMl + 'mL' : ''} BAC water`,
+    };
+  }
+
   return {
     intent: 'unknown',
     payload: {},
@@ -133,13 +171,22 @@ export default function ChatScreen() {
   const [inputText, setInputText] = useState('');
   const flatListRef = useRef<FlatList<ChatMessage>>(null);
   const textInputRef = useRef<TextInput>(null);
-  const { messages, addMessage, updateMessageStatus } = useChatStore();
+  const { messages, addMessage, updateMessageStatus, clearMessages } = useChatStore();
   const doseLogs = useDoseLogStore((s) => s.doseLogs);
   const protocols = useProtocolStore((s) => s.protocols);
   const user = useAuthStore((s) => s.user);
   const fetchDoseLogs = useDoseLogStore((s) => s.fetchDoseLogs);
   const upsertLifestyle = useLifestyleStore((s) => s.upsertLog);
   const addSymptom = useSymptomStore((s) => s.addLog);
+
+
+  useEffect(() => {
+    const cutoff = Date.now() - 30 * 24 * 60 * 60 * 1000;
+    const fresh = messages.filter((m) => new Date(m.createdAt).getTime() > cutoff);
+    if (fresh.length !== messages.length) {
+      clearMessages();
+    }
+  }, []);
 
   const handleConfirm = useCallback(async (message: ChatMessage) => {
     if (!user?.id || !message.parsedIntent) return;
@@ -253,7 +300,7 @@ export default function ChatScreen() {
     }
 
     if (aiResult && aiResult.type === 'action' && aiResult.intent) {
-      const validIntents: ParsedIntent['intent'][] = ['log_dose','log_symptom','log_weight','log_sleep','log_lifestyle','update_inventory','ask_adherence','ask_last_dose','ask_next_dose','ask_inventory'];
+      const validIntents: ParsedIntent['intent'][] = ['log_dose','log_symptom','log_weight','log_sleep','log_lifestyle','update_inventory','ask_adherence','ask_last_dose','ask_next_dose','ask_inventory','reconstitute'];
       const resolvedIntent: ParsedIntent['intent'] = validIntents.includes(aiResult.intent as ParsedIntent['intent'])
         ? (aiResult.intent as ParsedIntent['intent'])
         : 'log_dose';
@@ -263,7 +310,19 @@ export default function ChatScreen() {
         confidence: 'high',
         displaySummary: buildSummary(resolvedIntent, (aiResult.payload ?? {}) as Record<string, string | number | null>),
       };
-      addMessage({ role: 'confirmation', text: parsed.displaySummary, parsedIntent: parsed, status: 'pending' });
+  
+    if (parsed.intent === 'reconstitute') {
+      const { vialMg, waterMl, peptide } = parsed.payload as { vialMg: number | null; waterMl: number | null; peptide: string | null };
+      if (!vialMg || !waterMl) {
+        addMessage({ role: 'assistant', text: "Tell me the vial size and BAC water amount. Example: 'Reconstitute BPC-157 5mg with 2mL BAC water'" });
+        return;
+      }
+      const result = calcReconstitution(vialMg, waterMl, peptide);
+      addMessage({ role: 'reconstitution', text: '', reconstitutionResult: result });
+      return;
+    }
+
+    addMessage({ role: 'confirmation', text: parsed.displaySummary, parsedIntent: parsed, status: 'pending' });
       return;
     }
 
@@ -312,6 +371,18 @@ export default function ChatScreen() {
       return;
     }
 
+
+    if (parsed.intent === 'reconstitute') {
+      const { vialMg, waterMl, peptide } = parsed.payload as { vialMg: number | null; waterMl: number | null; peptide: string | null };
+      if (!vialMg || !waterMl) {
+        addMessage({ role: 'assistant', text: "Tell me the vial size and BAC water amount. Example: 'Reconstitute BPC-157 5mg with 2mL BAC water'" });
+        return;
+      }
+      const result = calcReconstitution(vialMg, waterMl, peptide);
+      addMessage({ role: 'reconstitution', text: '', reconstitutionResult: result });
+      return;
+    }
+
     addMessage({ role: 'confirmation', text: parsed.displaySummary, parsedIntent: parsed, status: 'pending' });
   }, [inputText, addMessage, callAI, doseLogs, mockParse, protocols]);
 
@@ -319,8 +390,20 @@ export default function ChatScreen() {
     <SafeAreaView style={styles.safeArea}>
       <KeyboardAvoidingView style={styles.container} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
         <View style={styles.header}>
-          <Text style={styles.title}>PTMOS</Text>
-          <Text style={styles.subtitle}>AI Assistant</Text>
+          <View>
+            <Text style={styles.title}>PTMOS</Text>
+            <Text style={styles.subtitle}>AI Assistant</Text>
+          </View>
+          <Pressable
+            onPress={() =>
+              Alert.alert('Clear Chat', 'Clear all chat history?', [
+                { text: 'Cancel', style: 'cancel' },
+                { text: 'Clear', style: 'destructive', onPress: clearMessages },
+              ])
+            }
+          >
+            <Text style={styles.clearText}>Clear</Text>
+          </Pressable>
         </View>
 
         <FlatList
@@ -348,6 +431,42 @@ export default function ChatScreen() {
             }
             if (message.role === 'error') {
               return <View style={styles.errorPill}><Text style={styles.errorText}>✕ {message.text}</Text></View>;
+            }
+
+            if (message.role === 'reconstitution' && message.reconstitutionResult) {
+              const r = message.reconstitutionResult;
+              return (
+                <View style={styles.reconCard}>
+                  <View style={styles.reconHeader}>
+                    <Text style={styles.reconEmoji}>🧪</Text>
+                    <View style={{ flex: 1 }}>
+                      <Text style={styles.reconTitle}>
+                        {r.peptide ? r.peptide.toUpperCase() : 'RECONSTITUTION'} CALCULATOR
+                      </Text>
+                      <Text style={styles.reconSubtitle}>
+                        {r.vialMg}mg vial + {r.waterMl}mL BAC water
+                      </Text>
+                    </View>
+                  </View>
+
+                  <View style={styles.reconConc}>
+                    <Text style={styles.reconConcValue}>{r.concentrationMgPerMl.toFixed(2)} mg/mL</Text>
+                    <Text style={styles.reconConcLabel}>{r.concentrationMcgPerMl.toFixed(0)} mcg/mL concentration</Text>
+                  </View>
+
+                  <Text style={styles.reconTableLabel}>DOSE LOOKUP</Text>
+                  {r.doseTable.map((row) => (
+                    <View key={row.mcg} style={styles.reconTableRow}>
+                      <Text style={styles.reconTableDose}>{row.mcg} mcg</Text>
+                      <Text style={styles.reconTableMl}>{row.ml} mL</Text>
+                    </View>
+                  ))}
+
+                  <Text style={styles.reconDisclaimer}>
+                    Educational reference only. Consult your provider for dosing guidance.
+                  </Text>
+                </View>
+              );
             }
             if (message.role === 'confirmation') {
               const isPending = message.status === 'pending';
@@ -429,9 +548,13 @@ const styles = StyleSheet.create({
     paddingBottom: 12,
     borderBottomWidth: 1,
     borderColor: Colors.border,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
   },
   title: { fontSize: 17, fontWeight: '700', color: Colors.text },
   subtitle: { fontSize: 12, color: Colors.textSecondary },
+  clearText: { fontSize: 13, color: Colors.textSecondary },
   messages: { flex: 1 },
   messagesContent: { paddingHorizontal: 16, paddingVertical: 12, gap: 10 },
   emptyState: { alignItems: 'center', justifyContent: 'center', paddingTop: 80 },
@@ -450,6 +573,27 @@ const styles = StyleSheet.create({
     alignSelf: 'flex-start',
   },
   assistantText: { color: Colors.text, fontSize: 15 },
+
+  reconCard: {
+    backgroundColor: Colors.card,
+    borderRadius: 14,
+    borderWidth: 1.5,
+    borderColor: Colors.accentLight,
+    padding: 16,
+    marginVertical: 4,
+  },
+  reconHeader: { flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 12 },
+  reconEmoji: { fontSize: 24 },
+  reconTitle: { fontSize: 11, fontWeight: '700', color: Colors.accent, letterSpacing: 1 },
+  reconSubtitle: { fontSize: 13, color: Colors.textSecondary, marginTop: 2 },
+  reconConc: { backgroundColor: Colors.accentLight, borderRadius: 10, padding: 12, alignItems: 'center', marginBottom: 14 },
+  reconConcValue: { fontSize: 24, fontWeight: '800', color: Colors.accent },
+  reconConcLabel: { fontSize: 12, color: Colors.accent, opacity: 0.8, marginTop: 2 },
+  reconTableLabel: { fontSize: 10, fontWeight: '600', color: Colors.textSecondary, letterSpacing: 1.5, marginBottom: 8 },
+  reconTableRow: { flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 7, borderBottomWidth: 1, borderBottomColor: Colors.border },
+  reconTableDose: { fontSize: 14, color: Colors.text, fontWeight: '600' },
+  reconTableMl: { fontSize: 14, color: Colors.accent, fontWeight: '700' },
+  reconDisclaimer: { fontSize: 10, color: Colors.textSecondary, marginTop: 12, textAlign: 'center', fontStyle: 'italic' },
   confirmCard: { backgroundColor: Colors.card, borderRadius: 14, borderWidth: 1.5, borderColor: Colors.accent, padding: 14, marginVertical: 4 },
   cancelledCard: { opacity: 0.5 },
   parsedLabel: { fontSize: 10, color: Colors.textSecondary, letterSpacing: 1, fontWeight: '600' },
