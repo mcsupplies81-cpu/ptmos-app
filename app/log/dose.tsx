@@ -1,10 +1,12 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'expo-router';
-import { ActivityIndicator, Pressable, SafeAreaView, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { ActivityIndicator, KeyboardAvoidingView, Platform, Pressable, SafeAreaView, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 
+import ScreenHeader from '@/components/ScreenHeader';
 import Colors from '@/constants/Colors';
 import { useAuthStore } from '@/stores/authStore';
 import { useDoseLogStore } from '@/stores/doseLogStore';
+import { useInjectionSiteStore } from '@/stores/injectionSiteStore';
 import { useProtocolStore } from '@/stores/protocolStore';
 
 const moodOptions = [
@@ -14,16 +16,19 @@ const moodOptions = [
   { emoji: '😕', label: 'Bad' },
   { emoji: '😞', label: 'Awful' },
 ];
-const sites = ['Abdomen L', 'Abdomen R', 'Thigh L', 'Thigh R', 'Glute L', 'Glute R', 'Arm L', 'Arm R'];
+
+const INJECTION_SITES = ['Abdomen L', 'Abdomen R', 'Thigh L', 'Thigh R', 'Glute L', 'Glute R', 'Arm L', 'Arm R'] as const;
 
 export default function DoseLogScreen() {
   const router = useRouter();
   const { addDoseLog } = useDoseLogStore();
   const user = useAuthStore((state) => state.user);
-  const protocols = useProtocolStore((state) => state.protocols);
+  const protocols = useProtocolStore((s) => s.protocols);
   const fetchProtocols = useProtocolStore((state) => state.fetchProtocols);
   const activeProtocols = protocols.filter((p) => p.status === 'active');
-  const [selectedProtocolId, setSelectedProtocolId] = useState<string | null>(null);
+  useInjectionSiteStore((s) => s.sites);
+
+  const [protocolId, setProtocolId] = useState<string | null>(null);
   const [peptideName, setPeptideName] = useState('');
   const [amount, setAmount] = useState('');
   const [unit, setUnit] = useState<'mcg' | 'mg' | 'IU' | 'mL'>('mcg');
@@ -31,7 +36,6 @@ export default function DoseLogScreen() {
   const [logDate, setLogDate] = useState(now.toISOString().slice(0, 10));
   const [logTime, setLogTime] = useState(now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false }));
   const [selectedSite, setSelectedSite] = useState<string | null>(null);
-  const [showSites, setShowSites] = useState(false);
   const [mood, setMood] = useState<string | null>(null);
   const [notes, setNotes] = useState('');
   const [saving, setSaving] = useState(false);
@@ -44,115 +48,138 @@ export default function DoseLogScreen() {
     if (!user?.id) return;
     setSaving(true);
     const logged_at = new Date(`${logDate}T${logTime}:00`).toISOString();
-    await addDoseLog({ protocol_id: selectedProtocolId, peptide_name: peptideName.trim() || null, amount: Number(amount) || 0, unit, logged_at, injection_site: selectedSite, mood, notes: notes || null }, user.id);
+    await addDoseLog({ protocol_id: protocolId, peptide_name: peptideName.trim() || null, amount: Number(amount) || 0, unit, logged_at, injection_site: selectedSite, mood, notes: notes || null }, user.id);
     setSaving(false);
     router.back();
   };
 
   return (
-    <SafeAreaView style={styles.safeArea}>
-      <ScrollView contentContainerStyle={{ paddingBottom: 24 }}>
-        <View style={styles.nav}>
-          <Pressable onPress={() => router.back()}><Text style={styles.navAction}>Cancel</Text></Pressable>
-          <Text style={styles.navTitle}>Log Dose</Text>
-          <Pressable onPress={handleSave}><Text style={[styles.navAction, { fontWeight: '600' }]}>Save</Text></Pressable>
-        </View>
+    <SafeAreaView style={{ flex: 1, backgroundColor: Colors.background }}>
+      <ScreenHeader title="Log Dose" />
+      <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
+        <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={{ padding: 20, paddingBottom: 40 }}>
+          <Text style={styles.fieldLabel}>PEPTIDE / COMPOUND</Text>
+          <TextInput
+            value={peptideName}
+            onChangeText={setPeptideName}
+            placeholder="e.g. BPC-157"
+            placeholderTextColor={Colors.textSecondary}
+            style={styles.input}
+          />
 
-        <View style={styles.selectRow}>
-          <View style={styles.icon} />
-          <View style={{ flex: 1 }}>
-            <TextInput
-              value={peptideName}
-              onChangeText={setPeptideName}
-              placeholder="Peptide name"
-              placeholderTextColor={Colors.textSecondary}
-              style={{ fontSize: 16, fontWeight: '600', color: Colors.text }}
-            />
-            {!!amount && <Text style={{ fontSize: 12, color: Colors.textSecondary }}>{amount} mcg</Text>}
-          </View>
-        </View>
-
-        {activeProtocols.length > 0 && (
-          <View style={styles.protocolRow}>
-            <Text style={styles.label}>Protocol</Text>
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginTop: 8 }}>
-              <View style={{ flexDirection: 'row', gap: 8 }}>
-                {activeProtocols.map((p) => {
-                  const sel = selectedProtocolId === p.id;
+          <View style={{ flexDirection: 'row', gap: 10, marginBottom: 16, alignItems: 'flex-end' }}>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.fieldLabel}>DOSE AMOUNT</Text>
+              <TextInput value={amount} onChangeText={setAmount} keyboardType="decimal-pad" placeholder="0" placeholderTextColor={Colors.textSecondary} style={[styles.input, { marginBottom: 0 }]} />
+            </View>
+            <View>
+              <Text style={styles.fieldLabel}>UNIT</Text>
+              <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6 }}>
+                {(['mcg', 'mg', 'IU', 'mL'] as const).map((u) => {
+                  const selected = unit === u;
                   return (
-                    <Pressable key={p.id} onPress={() => setSelectedProtocolId(sel ? null : p.id)}
-                      style={[styles.siteChip, sel && { backgroundColor: Colors.accent }]}>
-                      <Text style={{ color: sel ? Colors.white : Colors.text, fontSize: 13, fontWeight: '600' }}>{p.name}</Text>
+                    <Pressable key={u} onPress={() => setUnit(u)} style={[styles.unitChip, selected && styles.selectedRectChip]}>
+                      <Text style={[styles.chipText, selected && styles.selectedChipText]}>{u}</Text>
                     </Pressable>
                   );
                 })}
               </View>
-            </ScrollView>
+            </View>
           </View>
-        )}
 
-        <View style={styles.field}>
-          <Text style={styles.label}>Amount</Text>
-          <View style={styles.inline}>
-            <TextInput value={amount} onChangeText={setAmount} keyboardType="decimal-pad" placeholder="0" placeholderTextColor={Colors.textSecondary} style={styles.input} />
-            {(['mcg', 'mg', 'IU', 'mL'] as const).map((u) => (
-              <Pressable key={u} onPress={() => setUnit(u)} style={[styles.unitChip, unit === u && { backgroundColor: Colors.accent }]}>
-                <Text style={{ color: unit === u ? Colors.white : Colors.textSecondary, fontSize: 12, fontWeight: '600' }}>{u}</Text>
-              </Pressable>
-            ))}
+          <View style={{ flexDirection: 'row', gap: 10, marginBottom: 16 }}>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.fieldLabel}>DATE</Text>
+              <TextInput value={logDate} onChangeText={setLogDate} placeholder="YYYY-MM-DD" placeholderTextColor={Colors.textSecondary} style={[styles.input, { marginBottom: 0 }]} />
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.fieldLabel}>TIME</Text>
+              <TextInput value={logTime} onChangeText={setLogTime} placeholder="HH:MM" placeholderTextColor={Colors.textSecondary} style={[styles.input, { marginBottom: 0 }]} />
+            </View>
           </View>
-        </View>
-        <View style={styles.field}><Text style={styles.label}>Date</Text><TextInput value={logDate} onChangeText={setLogDate} placeholder="YYYY-MM-DD" placeholderTextColor={Colors.textSecondary} style={[styles.input, { textAlign: 'right' }]} keyboardType="numbers-and-punctuation" /></View>
-        <View style={styles.field}><Text style={styles.label}>Time</Text><TextInput value={logTime} onChangeText={setLogTime} placeholder="HH:MM" placeholderTextColor={Colors.textSecondary} style={[styles.input, { textAlign: 'right' }]} keyboardType="numbers-and-punctuation" /></View>
-        <Pressable style={styles.field} onPress={() => setShowSites((v) => !v)}><Text style={styles.label}>Injection Site</Text><Text style={[styles.value, !selectedSite && { color: Colors.textSecondary }]}>{selectedSite || 'Select site'}</Text></Pressable>
-        <View style={styles.field}><Text style={styles.label}>Notes</Text><TextInput value={notes} onChangeText={setNotes} placeholder="Add notes..." placeholderTextColor={Colors.textSecondary} multiline style={[styles.input, { minWidth: 180, minHeight: 54 }]} /></View>
 
-        {showSites && (
-          <View style={styles.sitesWrap}>
-            {sites.map((site) => {
+          <Text style={styles.fieldLabel}>INJECTION SITE</Text>
+          <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 16 }}>
+            {INJECTION_SITES.map((site) => {
               const selected = selectedSite === site;
-              return <Pressable key={site} style={[styles.siteChip, selected && { backgroundColor: Colors.accent }]} onPress={() => setSelectedSite(site)}><Text style={{ color: selected ? Colors.white : Colors.textSecondary, fontSize: 13, fontWeight: '600' }}>{site}</Text></Pressable>;
+              return (
+                <Pressable key={site} onPress={() => setSelectedSite(site === selectedSite ? null : site)} style={[styles.siteChip, selected && styles.selectedPillChip]}>
+                  <Text style={[styles.siteChipText, selected && styles.selectedChipText]}>{site}</Text>
+                </Pressable>
+              );
             })}
           </View>
-        )}
 
-        <View style={{ padding: 16 }}>
-          <Text style={{ fontSize: 15, fontWeight: '600', marginBottom: 12, color: Colors.text }}>How do you feel?</Text>
-          <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
-            {moodOptions.map((m) => {
-              const selected = mood === m.label;
-              return <Pressable key={m.label} onPress={() => setMood(m.label)} style={[styles.mood, selected && { backgroundColor: Colors.accent }]}><Text style={{ fontSize: 28 }}>{m.emoji}</Text><Text style={{ fontSize: 11, color: selected ? Colors.white : Colors.text }}>{m.label}</Text></Pressable>;
-            })}
+          <Text style={styles.fieldLabel}>PROTOCOL (OPTIONAL)</Text>
+          {activeProtocols.length > 0 ? (
+            <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 16 }}>
+              {[{ id: null, name: 'None' }, ...activeProtocols].map((item) => {
+                const selected = protocolId === item.id;
+                return (
+                  <Pressable key={item.id ?? 'none'} onPress={() => setProtocolId(item.id)} style={[styles.siteChip, selected && styles.selectedPillChip]}>
+                    <Text style={[styles.siteChipText, selected && styles.selectedChipText]}>{item.name}</Text>
+                  </Pressable>
+                );
+              })}
+            </View>
+          ) : (
+            <Text style={{ color: Colors.textSecondary, fontSize: 13, marginBottom: 16 }}>No active protocols</Text>
+          )}
+
+          <Text style={styles.fieldLabel}>NOTES (OPTIONAL)</Text>
+          <TextInput
+            value={notes}
+            onChangeText={setNotes}
+            placeholder="Add notes..."
+            placeholderTextColor={Colors.textSecondary}
+            multiline
+            style={[styles.input, { minHeight: 72, textAlignVertical: 'top' }]}
+          />
+
+          <View style={{ marginBottom: 16 }}>
+            <Text style={{ fontSize: 15, fontWeight: '600', marginBottom: 12, color: Colors.text }}>How do you feel?</Text>
+            <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
+              {moodOptions.map((m) => {
+                const selected = mood === m.label;
+                return (
+                  <Pressable key={m.label} onPress={() => setMood(m.label)} style={[styles.mood, selected && { backgroundColor: Colors.accent }]}>
+                    <Text style={{ fontSize: 28 }}>{m.emoji}</Text>
+                    <Text style={{ fontSize: 11, color: selected ? Colors.white : Colors.text }}>{m.label}</Text>
+                  </Pressable>
+                );
+              })}
+            </View>
           </View>
-        </View>
 
-        <View style={{ paddingHorizontal: 16 }}>
-          <Pressable style={styles.primaryBtn} onPress={handleSave} disabled={saving}>
+          <Pressable style={[styles.primaryBtn, (!amount.trim() || saving) && { opacity: 0.4 }]} onPress={handleSave} disabled={!amount.trim() || saving}>
             {saving ? <ActivityIndicator color={Colors.white} /> : <Text style={styles.primaryText}>Save Dose</Text>}
           </Pressable>
-        </View>
-      </ScrollView>
+        </ScrollView>
+      </KeyboardAvoidingView>
     </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  safeArea: { flex: 1, backgroundColor: Colors.backgroundSecondary },
-  nav: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: Colors.border },
-  navAction: { color: Colors.accent, fontSize: 16 },
-  navTitle: { fontSize: 17, fontWeight: '600', color: Colors.text },
-  selectRow: { padding: 16, flexDirection: 'row', alignItems: 'center', gap: 12 },
-  icon: { width: 44, height: 44, backgroundColor: Colors.accentLight, borderRadius: 12 },
-  field: { borderBottomWidth: 1, borderBottomColor: Colors.border, paddingVertical: 14, paddingHorizontal: 16, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  label: { fontSize: 13, color: Colors.textSecondary },
-  value: { fontSize: 16, color: Colors.text },
-  input: { textAlign: 'right', color: Colors.text },
-  inline: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  sitesWrap: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, padding: 16, backgroundColor: Colors.backgroundSecondary },
-  siteChip: { paddingHorizontal: 12, paddingVertical: 6, borderRadius: 999, backgroundColor: Colors.card },
-  protocolRow: { paddingHorizontal: 16, paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: Colors.border },
-  unitChip: { paddingHorizontal: 8, paddingVertical: 4, borderRadius: 6, backgroundColor: Colors.card, marginLeft: 4 },
+  fieldLabel: { fontSize: 12, fontWeight: '600', color: Colors.textSecondary, marginBottom: 6, letterSpacing: 0.5 },
+  input: {
+    borderWidth: 1,
+    borderColor: Colors.border,
+    backgroundColor: Colors.card,
+    color: Colors.text,
+    borderRadius: 10,
+    padding: 12,
+    marginBottom: 16,
+    fontSize: 15,
+  },
+  unitChip: { paddingHorizontal: 12, paddingVertical: 8, borderRadius: 8, borderWidth: 1, borderColor: Colors.border, backgroundColor: Colors.card },
+  siteChip: { paddingHorizontal: 10, paddingVertical: 7, borderRadius: 999, borderWidth: 1, borderColor: Colors.border, backgroundColor: Colors.card },
+  selectedRectChip: { backgroundColor: Colors.accent, borderColor: Colors.accent },
+  selectedPillChip: { backgroundColor: Colors.accent, borderColor: Colors.accent },
+  chipText: { color: Colors.textSecondary, fontWeight: '600' },
+  siteChipText: { color: Colors.textSecondary, fontSize: 13 },
+  selectedChipText: { color: Colors.white, fontWeight: '700' },
   mood: { alignItems: 'center', borderRadius: 12, padding: 8 },
-  primaryBtn: { backgroundColor: Colors.accent, borderRadius: 14, padding: 16, alignItems: 'center' },
+  primaryBtn: { backgroundColor: Colors.accent, borderRadius: 12, height: 52, alignItems: 'center', justifyContent: 'center', marginTop: 8 },
   primaryText: { color: Colors.white, fontWeight: '700', fontSize: 16 },
 });
