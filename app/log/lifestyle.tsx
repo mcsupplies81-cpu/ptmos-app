@@ -1,9 +1,19 @@
-import { useEffect, useMemo, useState } from 'react';
-import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { useEffect, useState } from 'react';
+import {
+  KeyboardAvoidingView,
+  Platform,
+  Pressable,
+  SafeAreaView,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  View,
+} from 'react-native';
 import Colors from '@/constants/Colors';
+import ScreenHeader from '@/components/ScreenHeader';
 import { useLifestyleStore } from '@/stores/lifestyleStore';
 import { useAuthStore } from '@/stores/authStore';
-import ScreenHeader from '@/components/ScreenHeader';
 
 const TODAY_LABEL_FORMAT: Intl.DateTimeFormatOptions = {
   weekday: 'long',
@@ -11,12 +21,29 @@ const TODAY_LABEL_FORMAT: Intl.DateTimeFormatOptions = {
   day: 'numeric',
 };
 
+const METRICS = [
+  { key: 'weight_lbs', emoji: '⚖️', label: 'Weight', unit: 'lbs', keyboard: 'decimal-pad' as const, placeholder: '0' },
+  { key: 'sleep_hours', emoji: '😴', label: 'Sleep', unit: 'hrs', keyboard: 'decimal-pad' as const, placeholder: '0' },
+  { key: 'steps', emoji: '🦶', label: 'Steps', unit: 'steps', keyboard: 'number-pad' as const, placeholder: '0' },
+  { key: 'water_oz', emoji: '💧', label: 'Water', unit: 'oz', keyboard: 'decimal-pad' as const, placeholder: '0' },
+  { key: 'calories', emoji: '🔥', label: 'Calories', unit: 'kcal', keyboard: 'number-pad' as const, placeholder: '0' },
+  { key: 'protein_g', emoji: '🥩', label: 'Protein', unit: 'g', keyboard: 'decimal-pad' as const, placeholder: '0' },
+];
+
+const MOOD_EMOJI: Record<number, string> = {
+  1: '😞',
+  2: '😕',
+  3: '😐',
+  4: '🙂',
+  5: '😁',
+};
+
 export default function LifestyleScreen() {
   const user = useAuthStore((state) => state.user);
   const logs = useLifestyleStore((state) => state.logs);
   const upsertLog = useLifestyleStore((state) => state.upsertLog);
 
-  const todayStr = useMemo(() => new Date().toISOString().slice(0, 10), []);
+  const todayStr = new Date().toISOString().slice(0, 10);
   const todayLog = logs.find((l) => l.date === todayStr);
 
   const [weightLbs, setWeightLbs] = useState('');
@@ -29,6 +56,7 @@ export default function LifestyleScreen() {
   const [notes, setNotes] = useState('');
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
+  const [mood, setMood] = useState<number | null>(null);
 
   useEffect(() => {
     setWeightLbs(todayLog?.weight_lbs?.toString() ?? '');
@@ -39,6 +67,7 @@ export default function LifestyleScreen() {
     setSteps(todayLog?.steps?.toString() ?? '');
     setWorkoutNotes(todayLog?.workout_notes ?? '');
     setNotes(todayLog?.meal_notes ?? '');
+    setMood(todayLog?.mood ?? null);
   }, [todayLog]);
 
   const handleSave = async () => {
@@ -56,7 +85,7 @@ export default function LifestyleScreen() {
           sleep_hours: Number(sleepHours) || null,
           steps: Number(steps) || null,
           workout_notes: workoutNotes.trim() || null,
-          mood: todayLog?.mood ?? null,
+          mood,
           energy: todayLog?.energy ?? null,
           meal_notes: notes.trim() || null,
         },
@@ -70,139 +99,172 @@ export default function LifestyleScreen() {
   };
 
   return (
-    <View style={styles.container}>
-      <ScreenHeader title="Lifestyle" />
-      <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
-        <View style={styles.dateHeader}>
-          <Text style={styles.todayTitle}>Today</Text>
-          <Text style={styles.todaySubtitle}>{new Date().toLocaleDateString('en-US', TODAY_LABEL_FORMAT)}</Text>
-        </View>
+    <SafeAreaView style={styles.container}>
+      <ScreenHeader title="Lifestyle Log" />
+      <KeyboardAvoidingView style={styles.keyboard} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
+        <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={styles.content}>
+          <View style={styles.dateHeader}>
+            <Text style={styles.metaLabel}>TODAY</Text>
+            <Text style={styles.dateText}>{new Date().toLocaleDateString('en-US', TODAY_LABEL_FORMAT)}</Text>
+          </View>
 
-        {[
-          { icon: '⚖️', label: 'Weight', unit: 'lbs', value: weightLbs, setter: setWeightLbs, kb: 'decimal-pad' as const },
-          { icon: '💧', label: 'Water', unit: 'oz', value: waterOz, setter: setWaterOz, kb: 'decimal-pad' as const },
-          { icon: '🔥', label: 'Calories', unit: 'kcal', value: calories, setter: setCalories, kb: 'decimal-pad' as const },
-          { icon: '🥩', label: 'Protein', unit: 'g', value: proteinG, setter: setProteinG, kb: 'decimal-pad' as const },
-          { icon: '🦶', label: 'Steps', unit: 'steps', value: steps, setter: setSteps, kb: 'number-pad' as const },
-          { icon: '😴', label: 'Sleep', unit: 'hrs', value: sleepHours, setter: setSleepHours, kb: 'decimal-pad' as const },
-        ].map((metric) => (
-          <View key={metric.label} style={styles.metricRow}>
-            <View style={styles.metricLeft}>
-              <View style={styles.iconCircle}>
-                <Text style={styles.metricEmoji}>{metric.icon}</Text>
+          {METRICS.map((metric) => {
+            const metricState = {
+              weight_lbs: [weightLbs, setWeightLbs],
+              sleep_hours: [sleepHours, setSleepHours],
+              steps: [steps, setSteps],
+              water_oz: [waterOz, setWaterOz],
+              calories: [calories, setCalories],
+              protein_g: [proteinG, setProteinG],
+            }[metric.key] as [string, (value: string) => void];
+
+            return (
+              <View key={metric.key} style={styles.metricCard}>
+                <View style={styles.emojiCircle}>
+                  <Text style={styles.emoji}>{metric.emoji}</Text>
+                </View>
+                <View style={styles.metricMiddle}>
+                  <Text style={styles.metricLabel}>{metric.label}</Text>
+                  <Text style={styles.metricUnit}>{metric.unit}</Text>
+                </View>
+                <TextInput
+                  value={metricState[0]}
+                  onChangeText={metricState[1]}
+                  keyboardType={metric.keyboard}
+                  placeholder={metric.placeholder}
+                  placeholderTextColor={Colors.textSecondary}
+                  style={styles.metricInput}
+                />
               </View>
-              <Text style={styles.metricLabel}>{metric.label}</Text>
-            </View>
-            <View style={styles.metricRight}>
-              <TextInput
-                value={metric.value}
-                onChangeText={metric.setter}
-                keyboardType={metric.kb}
-                placeholder="—"
-                placeholderTextColor={Colors.textSecondary}
-                style={styles.metricInput}
-              />
-              <Text style={styles.metricUnit}>{metric.unit}</Text>
+            );
+          })}
+
+          <View style={styles.section}>
+            <Text style={styles.metaLabel}>WORKOUT / NOTES</Text>
+            <TextInput
+              value={`${workoutNotes}${workoutNotes && notes ? '\n' : ''}${notes}`}
+              onChangeText={(text) => {
+                const [workout = '', ...rest] = text.split('\n');
+                setWorkoutNotes(workout);
+                setNotes(rest.join('\n'));
+              }}
+              multiline
+              placeholder="Workout, meals, notes..."
+              placeholderTextColor={Colors.textSecondary}
+              style={styles.notesInput}
+            />
+          </View>
+
+          <View style={styles.section}>
+            <Text style={styles.metaLabel}>MOOD</Text>
+            <View style={styles.moodRow}>
+              {[1, 2, 3, 4, 5].map((value) => {
+                const selected = mood === value;
+                return (
+                  <Pressable
+                    key={value}
+                    onPress={() => setMood(value)}
+                    style={[styles.moodChip, selected && styles.moodChipSelected]}
+                  >
+                    <Text style={styles.moodEmoji}>{MOOD_EMOJI[value]}</Text>
+                  </Pressable>
+                );
+              })}
             </View>
           </View>
-        ))}
 
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Workout</Text>
-          <TextInput
-            value={workoutNotes}
-            onChangeText={setWorkoutNotes}
-            multiline
-            placeholder="Upper body, cardio, rest day..."
-            placeholderTextColor={Colors.textSecondary}
-            style={styles.notesInput}
-          />
-        </View>
-
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Notes</Text>
-          <TextInput
-            value={notes}
-            onChangeText={setNotes}
-            multiline
-            placeholder="Feeling strong today..."
-            placeholderTextColor={Colors.textSecondary}
-            style={styles.notesInput}
-          />
-        </View>
-
-        <Pressable style={[styles.saveButton, saving && styles.saveButtonDisabled]} onPress={handleSave} disabled={saving}>
-          {saving ? (
-            <ActivityIndicator color={Colors.white} />
-          ) : (
-            <Text style={styles.saveButtonText}>{saved ? 'Saved ✓' : 'Save'}</Text>
-          )}
-        </Pressable>
-      </ScrollView>
-    </View>
+          <Pressable style={[styles.saveButton, saving && styles.saveButtonDisabled]} onPress={handleSave} disabled={saving}>
+            <Text style={styles.saveButtonText}>{saving ? 'Saving...' : saved ? 'Saved ✓' : "Save Today's Log"}</Text>
+          </Pressable>
+        </ScrollView>
+      </KeyboardAvoidingView>
+    </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: Colors.background },
-  content: { paddingBottom: 60 },
-  dateHeader: { padding: 20, paddingBottom: 8 },
-  todayTitle: { fontSize: 28, fontWeight: '800', color: Colors.text },
-  todaySubtitle: { marginTop: 2, fontSize: 14, color: Colors.textSecondary },
-  metricRow: {
-    padding: 16,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    borderBottomWidth: 1,
-    borderBottomColor: Colors.border,
-  },
-  metricLeft: { flexDirection: 'row', alignItems: 'center', gap: 12 },
-  iconCircle: {
-    width: 38,
-    height: 38,
-    borderRadius: 19,
-    backgroundColor: '#F3F4F6',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  metricEmoji: { fontSize: 18 },
-  metricLabel: { fontSize: 15, color: Colors.text },
-  metricRight: { flexDirection: 'row', alignItems: 'center', gap: 6 },
-  metricInput: {
-    minWidth: 80,
-    textAlign: 'right',
-    fontSize: 15,
+  keyboard: { flex: 1 },
+  content: { padding: 20, paddingBottom: 40 },
+  dateHeader: { marginBottom: 20 },
+  metaLabel: {
+    fontSize: 10,
     fontWeight: '600',
-    color: Colors.text,
-  },
-  metricUnit: { fontSize: 13, color: Colors.textSecondary },
-  section: { padding: 16, paddingTop: 0 },
-  sectionTitle: {
-    marginBottom: 8,
-    fontSize: 13,
     color: Colors.textSecondary,
-    fontWeight: '600',
-    letterSpacing: 0.5,
+    letterSpacing: 1.5,
+    marginBottom: 8,
   },
-  notesInput: {
-    minHeight: 72,
+  dateText: { fontSize: 22, fontWeight: '800', color: Colors.text, marginTop: 2 },
+  metricCard: {
+    backgroundColor: Colors.card,
+    borderRadius: 12,
+    padding: 14,
+    marginBottom: 10,
     borderWidth: 1,
     borderColor: Colors.border,
-    borderRadius: 10,
-    padding: 12,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 14,
+  },
+  emojiCircle: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: '#F3F4F6',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  emoji: { fontSize: 20 },
+  metricMiddle: { flex: 1 },
+  metricLabel: { fontSize: 15, fontWeight: '600', color: Colors.text },
+  metricUnit: { fontSize: 12, color: Colors.textSecondary, marginTop: 1 },
+  metricInput: {
+    width: 80,
+    textAlign: 'right',
+    fontSize: 18,
+    fontWeight: '700',
+    color: Colors.text,
+    borderBottomWidth: 1.5,
+    borderColor: Colors.border,
+    paddingBottom: 2,
+  },
+  section: { marginTop: 4 },
+  notesInput: {
+    minHeight: 80,
     backgroundColor: Colors.card,
+    borderWidth: 1,
+    borderColor: Colors.border,
+    borderRadius: 12,
+    padding: 14,
     color: Colors.text,
     textAlignVertical: 'top',
+    fontSize: 15,
   },
+  moodRow: { flexDirection: 'row', gap: 10 },
+  moodChip: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: Colors.card,
+    borderWidth: 1,
+    borderColor: Colors.border,
+  },
+  moodChipSelected: {
+    backgroundColor: Colors.accentLight,
+    borderColor: Colors.accent,
+    borderRadius: 999,
+  },
+  moodEmoji: { fontSize: 22 },
   saveButton: {
-    margin: 16,
-    height: 52,
-    borderRadius: 14,
+    marginTop: 20,
     backgroundColor: Colors.accent,
+    borderRadius: 12,
+    height: 52,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  saveButtonDisabled: { opacity: 0.85 },
-  saveButtonText: { color: Colors.white, fontWeight: '700', fontSize: 16 },
+  saveButtonDisabled: { opacity: 0.8 },
+  saveButtonText: { color: Colors.white, fontSize: 16, fontWeight: '700' },
 });
