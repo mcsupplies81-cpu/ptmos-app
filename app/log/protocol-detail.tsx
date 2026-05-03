@@ -125,6 +125,13 @@ export default function ProtocolDetailScreen() {
 
         <Pressable
           style={styles.ghostButton}
+          onPress={() => router.push({ pathname: '/protocol/edit', params: { protocolId: protocol.id } })}
+        >
+          <Text style={styles.ghostButtonText}>Edit</Text>
+        </Pressable>
+
+        <Pressable
+          style={styles.ghostButton}
           onPress={isActive ? handleMarkComplete : handleReactivate}
           disabled={saving}
         >
