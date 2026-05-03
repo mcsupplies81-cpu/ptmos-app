@@ -1,6 +1,7 @@
-import { useState } from 'react'
 import { router } from 'expo-router'
-import { Pressable, SafeAreaView, StyleSheet, Text, View } from 'react-native'
+import { useEffect, useState } from 'react'
+import Purchases, { PurchasesPackage } from 'react-native-purchases'
+import { ActivityIndicator, Alert, Pressable, SafeAreaView, StyleSheet, Text, View } from 'react-native'
 
 import Colors from '@/constants/Colors'
 import { Copy } from '@/constants/Copy'
@@ -15,6 +16,57 @@ const features = [
 
 export default function PaywallScreen() {
   const [selected, setSelected] = useState<'monthly' | 'annual'>('annual')
+  const [packages, setPackages] = useState<PurchasesPackage[]>([])
+  const [purchasing, setPurchasing] = useState(false)
+
+  useEffect(() => {
+    Purchases.getOfferings()
+      .then((offerings) => {
+        setPackages(offerings.current?.availablePackages ?? [])
+      })
+      .catch(() => {})
+  }, [])
+
+  const handleSubscribe = async () => {
+    const pkg =
+      packages.find((p) =>
+        selected === 'annual' ? p.packageType === 'ANNUAL' : p.packageType === 'MONTHLY'
+      ) ?? packages[0]
+
+    if (!pkg) {
+      Alert.alert('Not available', 'Subscriptions are not available in this build.')
+      return
+    }
+
+    setPurchasing(true)
+    try {
+      const { customerInfo } = await Purchases.purchasePackage(pkg)
+      if (customerInfo.entitlements.active['PT-OS Pro']) {
+        Alert.alert('Welcome to Pro! 🎉', 'Your subscription is now active.')
+        router.back()
+      }
+    } catch (e: any) {
+      if (!e.userCancelled) {
+        Alert.alert('Purchase failed', e.message ?? 'Something went wrong.')
+      }
+    } finally {
+      setPurchasing(false)
+    }
+  }
+
+  const handleRestore = async () => {
+    try {
+      const customerInfo = await Purchases.restorePurchases()
+      if (customerInfo.entitlements.active['PT-OS Pro']) {
+        Alert.alert('Restored!', 'Your Pro subscription has been restored.')
+        router.back()
+      } else {
+        Alert.alert('No subscription found', 'No active Pro subscription was found for this account.')
+      }
+    } catch (e: any) {
+      Alert.alert('Restore failed', e.message ?? 'Something went wrong.')
+    }
+  }
 
   return (
     <SafeAreaView style={styles.container}>
@@ -73,13 +125,13 @@ export default function PaywallScreen() {
           </Pressable>
         </View>
 
-        <Pressable style={styles.ctaButton} onPress={() => console.log('subscribe', selected)}>
-          <Text style={styles.ctaText}>Start Free 7-Day Trial</Text>
+        <Pressable style={styles.ctaButton} onPress={() => { void handleSubscribe() }}>
+          {purchasing ? <ActivityIndicator color="#FFFFFF" /> : <Text style={styles.ctaText}>Start Free 7-Day Trial</Text>}
         </Pressable>
 
         <Text style={styles.billingText}>Then billed annually · Cancel anytime</Text>
 
-        <Pressable onPress={() => console.log('restore')}>
+        <Pressable onPress={() => { void handleRestore() }}>
           <Text style={styles.restoreText}>Restore Purchases</Text>
         </Pressable>
 
