@@ -75,7 +75,7 @@ export default function PaywallScreen() {
           <Text style={styles.crown}>👑</Text>
         </View>
 
-        <Text style={styles.title}>PTMOS Pro</Text>
+        <Text style={styles.title}>PT-OS Pro</Text>
         <Text style={styles.subtitle}>Unlock your full potential</Text>
 
         <View style={styles.featureList}>

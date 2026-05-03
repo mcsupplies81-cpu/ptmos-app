@@ -134,14 +134,14 @@ export default function WeeklySummaryScreen() {
 
   const handleShare = async () => {
     await Share.share({
-      title: 'My PTMOS Weekly Summary',
+      title: 'My PT-OS Weekly Summary',
       message: [
-        'PTMOS Weekly Summary',
+        'PT-OS Weekly Summary',
         `Adherence: ${adherencePct}%`,
         `Streak: ${streakDays} days`,
         `Total doses: ${totalDoses}`,
         avgSleep ? `Avg sleep: ${avgSleep}` : '',
-        'Tracked with PTMOS',
+        'Tracked with PT-OS',
       ]
         .filter(Boolean)
         .join('\n'),
