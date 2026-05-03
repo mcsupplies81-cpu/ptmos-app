@@ -317,6 +317,24 @@ export default function DashboardScreen() {
               );
             })
           )}
+
+          <Pressable
+            onPress={() => router.push('/log/history')}
+            style={{
+              marginTop: 10,
+              backgroundColor: Colors.card,
+              borderRadius: 12,
+              padding: 14,
+              flexDirection: 'row',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+              borderWidth: 1,
+              borderColor: Colors.border,
+            }}
+          >
+            <Text style={{ fontSize: 15, fontWeight: '600', color: Colors.text }}>📋 Dose History</Text>
+            <Text style={{ fontSize: 13, fontWeight: '600', color: Colors.accent }}>View Full History →</Text>
+          </Pressable>
         </View>
 
       </ScrollView>
