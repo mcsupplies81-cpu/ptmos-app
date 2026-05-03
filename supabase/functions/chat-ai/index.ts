@@ -5,22 +5,41 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 }
 
-const SYSTEM_PROMPT = `You are PTMOS, a peptide protocol tracking assistant.
-You help users log their doses, symptoms, weight, sleep, and lifestyle data.
-You answer questions about their personal tracking data.
-You provide motivational insights based on their logged data.
-
-STRICT RULES — never violate these:
-- Never recommend, prescribe, or suggest specific peptide dosages
-- Never recommend starting, stopping, or changing a protocol
-- Never diagnose symptoms or suggest medical treatment
-- If asked for medical advice, say: "I can help you track data and prepare questions for your provider, but I can't give medical advice."
-- Only log what the user explicitly tells you — never infer a dose amount
-
-When the user wants to LOG something, call the appropriate tool.
-When the user asks a QUESTION about their data, answer conversationally using the context provided.
-Keep responses short and conversational. This is a mobile app.
-When a user asks about reconstitution or how to mix a vial, call the reconstitute tool with the vial size and water volume. This is math-based only — you are not recommending a dose.`
+const SYSTEM_PROMPT = `You are PTMOS, a peptide protocol tracking assistant and research companion.
+Your job is to:
+1. Help users LOG their data via structured tools (doses, water, weight, sleep, symptoms, inventory)
+2. Provide EDUCATIONAL summaries about peptides and compounds using published research
+3. Help users SET UP tracking templates for compounds they choose to track
+4. Answer questions about a user's own logged data
+LOGGING BEHAVIOR:
+- When a user says they did something (took a dose, drank water, weighed themselves), call the appropriate tool immediately
+- Do NOT ask for confirmation before calling a logging tool — the app handles confirmation UI
+- Parse natural language amounts: "a gallon" = 128 oz, "a liter" = 33.8 oz, "half liter" = 16.9 oz
+- For dose logging: if compound is clear but amount is missing, ask ONLY for the amount, nothing else
+- For water: accept oz, mL, liters, gallons — always store as oz (convert internally)
+- For weight: default to lbs unless user specifies kg
+EDUCATIONAL BEHAVIOR:
+- When asked about a peptide/compound, provide a factual educational summary
+- Include: mechanism, research context, half-life, administration notes from published trials
+- You MAY reference clinical trial dose ranges as educational/historical context with a disclaimer
+- Always include: "This is educational information only. Consult a licensed clinician before use."
+- Do NOT say "I can't answer that" for factual educational questions about compounds
+PROTOCOL SETUP BEHAVIOR:
+- When a user wants to "start tracking" or "add a protocol," help them create a tracking template
+- Ask for: compound name (if not provided), dose amount, dose unit, frequency, time of day
+- Do NOT prescribe. Say: "I'll set up a tracking template with whatever schedule you confirm."
+- Never suggest a dose. Let the user provide the dose they have chosen.
+STRICT LIMITS — never violate:
+- Never say "you should take X mg"
+- Never say "I recommend X"
+- Never diagnose symptoms
+- Never suggest where to purchase compounds
+- If asked for purchase links: "I'm not able to help with sourcing. You can ask your provider."
+- If asked "what dose should I take?": "I can't recommend a dose — that's between you and your clinician. For educational context, published trials used [range] but that is not a recommendation."
+TONE:
+- Short, direct, mobile-friendly
+- Friendly but not overly enthusiastic
+- No unnecessary disclaimers on simple logging actions`
 
 const TOOLS = [
   {
@@ -43,13 +62,43 @@ const TOOLS = [
   {
     type: 'function',
     function: {
+      name: 'log_water',
+      description: 'Log water intake the user drank. Convert all units to oz before calling.',
+      parameters: {
+        type: 'object',
+        properties: {
+          amount_oz: { type: 'number', description: 'Amount in fluid ounces. Convert: 1 gallon=128oz, 1 liter=33.8oz, 1 mL=0.0338oz, 1 cup=8oz' },
+        },
+        required: ['amount_oz'],
+      },
+    },
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'log_weight',
+      description: 'Log the user body weight',
+      parameters: {
+        type: 'object',
+        properties: {
+          value: { type: 'number', description: 'Weight value' },
+          unit: { type: 'string', enum: ['lbs', 'kg'], description: 'Unit, default lbs' },
+        },
+        required: ['value'],
+      },
+    },
+  },
+  {
+    type: 'function',
+    function: {
       name: 'log_symptom',
-      description: 'Log a symptom or side effect the user is experiencing',
+      description: 'Log a symptom or side effect',
       parameters: {
         type: 'object',
         properties: {
           symptom: { type: 'string', description: 'Symptom name or description' },
           severity: { type: 'number', description: 'Severity 1-10 if mentioned' },
+          notes: { type: 'string', description: 'Any extra notes' },
         },
         required: ['symptom'],
       },
@@ -58,23 +107,39 @@ const TOOLS = [
   {
     type: 'function',
     function: {
-      name: 'log_weight',
-      description: 'Log the user\'s body weight',
+      name: 'log_sleep',
+      description: 'Log hours of sleep',
       parameters: {
         type: 'object',
         properties: {
-          value: { type: 'number', description: 'Weight in lbs' },
+          hours: { type: 'number', description: 'Hours slept' },
         },
-        required: ['value'],
+        required: ['hours'],
       },
     },
   },
-
+  {
+    type: 'function',
+    function: {
+      name: 'update_inventory',
+      description: 'Add a new vial or compound to the user inventory',
+      parameters: {
+        type: 'object',
+        properties: {
+          peptide_name: { type: 'string', description: 'Compound name e.g. BPC-157' },
+          vial_mg: { type: 'number', description: 'Vial size in mg' },
+          quantity: { type: 'number', description: 'Number of vials, default 1' },
+          bac_water_ml: { type: 'number', description: 'BAC water used for reconstitution if mentioned' },
+        },
+        required: ['peptide_name', 'vial_mg'],
+      },
+    },
+  },
   {
     type: 'function',
     function: {
       name: 'reconstitute',
-      description: 'Calculate reconstitution concentration when user has a vial and BAC water',
+      description: 'Calculate reconstitution concentration. Call when user has a vial size and water volume.',
       parameters: {
         type: 'object',
         properties: {
@@ -83,20 +148,6 @@ const TOOLS = [
           waterMl: { type: 'number', description: 'BAC water volume in mL' },
         },
         required: ['vialMg', 'waterMl'],
-      },
-    },
-  },
-  {
-    type: 'function',
-    function: {
-      name: 'log_sleep',
-      description: 'Log how many hours the user slept',
-      parameters: {
-        type: 'object',
-        properties: {
-          hours: { type: 'number', description: 'Hours of sleep' },
-        },
-        required: ['hours'],
       },
     },
   },
