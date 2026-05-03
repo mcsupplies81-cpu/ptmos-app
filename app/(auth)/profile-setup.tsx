@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from 'react';
-import { Pressable, SafeAreaView, ScrollView, Text, TextInput, View } from 'react-native';
+import { KeyboardAvoidingView, Platform, Pressable, SafeAreaView, ScrollView, Text, TextInput, View } from 'react-native';
 import { useRouter } from 'expo-router';
 import Colors from '@/constants/Colors';
 import { useAuthStore } from '@/stores/authStore';
@@ -43,68 +43,84 @@ export default function ProfileSetupScreen() {
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: Colors.background }}>
-      <ScrollView contentContainerStyle={{ padding: 16, paddingBottom: 24 }} keyboardShouldPersistTaps="handled">
-        <Text style={{ fontSize: 28, fontWeight: '700', color: Colors.text, marginBottom: 8 }}>Tell us about yourself</Text>
-        <Text style={{ fontSize: 15, color: Colors.textSecondary, marginBottom: 20 }}>This helps personalize your experience</Text>
+      <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
+        <ScrollView contentContainerStyle={{ padding: 16, paddingBottom: 24 }} keyboardShouldPersistTaps="handled">
+          <Text style={{ fontSize: 28, fontWeight: '800', color: Colors.text }}>Set Up Your Profile</Text>
+          <Text style={{ fontSize: 14, color: Colors.textSecondary, marginTop: 4, marginBottom: 24 }}>
+            This helps us personalize your experience.
+          </Text>
 
-        <Text style={{ color: Colors.textSecondary, marginBottom: 6 }}>Full Name</Text>
-        <TextInput value={fullName} onChangeText={setFullName} style={inputStyle} />
+          <Text style={labelStyle}>FULL NAME</Text>
+          <TextInput value={fullName} onChangeText={setFullName} style={inputStyle} />
 
-        <Text style={{ color: Colors.textSecondary, marginBottom: 6 }}>Date of Birth (YYYY-MM-DD)</Text>
-        <TextInput value={dob} onChangeText={setDob} placeholder="1990-01-31" placeholderTextColor={Colors.muted} style={inputStyle} />
+          <Text style={labelStyle}>DATE OF BIRTH</Text>
+          <TextInput value={dob} onChangeText={setDob} placeholder="YYYY-MM-DD" placeholderTextColor={Colors.muted} style={inputStyle} />
 
-        <Text style={{ color: Colors.textSecondary, marginBottom: 6 }}>Height in inches</Text>
-        <TextInput value={heightInches} onChangeText={setHeightInches} keyboardType="number-pad" style={inputStyle} />
+          <Text style={labelStyle}>HEIGHT</Text>
+          <TextInput value={heightInches} onChangeText={setHeightInches} placeholder="inches" placeholderTextColor={Colors.muted} keyboardType="number-pad" style={inputStyle} />
 
-        <Text style={{ color: Colors.textSecondary, marginBottom: 6 }}>Weight in lbs</Text>
-        <TextInput value={weightLbs} onChangeText={setWeightLbs} keyboardType="number-pad" style={inputStyle} />
+          <Text style={labelStyle}>WEIGHT</Text>
+          <TextInput value={weightLbs} onChangeText={setWeightLbs} placeholder="lbs" placeholderTextColor={Colors.muted} keyboardType="number-pad" style={inputStyle} />
 
-        <Text style={{ color: Colors.textSecondary, marginBottom: 8 }}>Goal</Text>
-        <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 24 }}>
-          {GOALS.map((option) => {
-            const selected = goal === option;
-            return (
-              <Pressable
-                key={option}
-                onPress={() => setGoal(option)}
-                style={{
-                  borderWidth: 1,
-                  borderColor: selected ? Colors.accent : Colors.border,
-                  backgroundColor: selected ? Colors.accentLight : Colors.card,
-                  paddingHorizontal: 12,
-                  paddingVertical: 8,
-                  borderRadius: 999,
-                }}
-              >
-                <Text style={{ color: Colors.text }}>{option}</Text>
-              </Pressable>
-            );
-          })}
-        </View>
+          <Text style={[labelStyle, { marginBottom: 8 }]}>GOAL</Text>
+          <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 24 }}>
+            {GOALS.map((option) => {
+              const selected = goal === option;
+              return (
+                <Pressable
+                  key={option}
+                  onPress={() => setGoal(option)}
+                  style={{
+                    borderRadius: 999,
+                    paddingHorizontal: 14,
+                    paddingVertical: 8,
+                    borderWidth: 1,
+                    backgroundColor: selected ? Colors.accent : Colors.card,
+                    borderColor: selected ? Colors.accent : Colors.border,
+                  }}
+                >
+                  <Text style={{ color: selected ? Colors.white : Colors.textSecondary, fontWeight: selected ? '700' : '500' }}>{option}</Text>
+                </Pressable>
+              );
+            })}
+          </View>
 
-        <Pressable onPress={onSave} disabled={saving} style={primaryButton}>
-          <Text style={{ color: Colors.white, fontWeight: '700' }}>{saving ? 'Saving...' : 'Save & Continue'}</Text>
-        </Pressable>
-        <Pressable onPress={() => router.replace('/(tabs)/')} style={{ alignItems: 'center', marginTop: 14 }}>
-          <Text style={{ color: Colors.textSecondary, fontWeight: '600' }}>Back</Text>
-        </Pressable>
-      </ScrollView>
+          <Pressable onPress={onSave} disabled={saving} style={[primaryButton, saving && { opacity: 0.6 }]}>
+            <Text style={{ color: Colors.white, fontSize: 16, fontWeight: '700' }}>Save & Continue</Text>
+          </Pressable>
+          <Pressable onPress={() => router.replace('/(tabs)/')} style={{ alignItems: 'center', marginTop: 14 }}>
+            <Text style={{ color: Colors.textSecondary, fontSize: 13 }}>Skip for now</Text>
+          </Pressable>
+        </ScrollView>
+      </KeyboardAvoidingView>
     </SafeAreaView>
   );
 }
 
+const labelStyle = {
+  fontSize: 12,
+  fontWeight: '600',
+  color: Colors.textSecondary,
+  marginBottom: 6,
+  letterSpacing: 0.5,
+} as const;
+
 const inputStyle = {
   borderWidth: 1,
   borderColor: Colors.border,
+  backgroundColor: Colors.card,
+  color: Colors.text,
   borderRadius: 10,
   padding: 12,
   marginBottom: 16,
-  color: Colors.text,
+  fontSize: 15,
 } as const;
 
 const primaryButton = {
   backgroundColor: Colors.accent,
-  borderRadius: 10,
-  padding: 14,
+  borderRadius: 12,
+  height: 52,
   alignItems: 'center',
+  justifyContent: 'center',
+  marginTop: 8,
 } as const;
