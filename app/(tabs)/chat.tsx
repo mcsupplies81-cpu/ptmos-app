@@ -121,6 +121,14 @@ function mockParse(text: string): ParsedIntent {
   };
 }
 
+function buildSummary(intent: string, payload: Record<string, string | number | null>): string {
+  if (intent === 'log_dose') return `Log ${payload.amount ?? '?'}${payload.unit ?? 'mcg'} ${payload.peptide ?? 'dose'}${payload.site ? ', ' + payload.site : ''}`;
+  if (intent === 'log_weight') return `Log weight: ${payload.value ?? '?'} lbs`;
+  if (intent === 'log_sleep') return `Log sleep: ${payload.hours ?? '?'} hours`;
+  if (intent === 'log_symptom') return `Log symptom: ${payload.symptom ?? '?'}${payload.severity ? ' (' + payload.severity + '/10)' : ''}`;
+  return String(payload);
+}
+
 export default function ChatScreen() {
   const [inputText, setInputText] = useState('');
   const flatListRef = useRef<FlatList<ChatMessage>>(null);
@@ -200,12 +208,65 @@ export default function ChatScreen() {
     }
   }, [user?.id, updateMessageStatus, addMessage, fetchDoseLogs, upsertLifestyle, addSymptom]);
 
-  const handleSend = useCallback(() => {
+  const callAI = useCallback(async (text: string): Promise<{ type: string; intent?: string; payload?: Record<string, unknown>; text?: string; reason?: string } | null> => {
+    try {
+      const last7 = Array.from({ length: 7 }).map((_, i) => {
+        const d = new Date(); d.setDate(d.getDate() - i);
+        return d.toISOString().slice(0, 10);
+      });
+      const logged = new Set(doseLogs.map(l => l.logged_at.slice(0, 10)));
+      const adherencePct = Math.round(last7.filter(d => logged.has(d)).length / 7 * 100);
+      let streakDays = 0;
+      const s = new Date(); s.setDate(s.getDate() - 1);
+      while (logged.has(s.toISOString().slice(0, 10))) { streakDays++; s.setDate(s.getDate() - 1); }
+
+      const { data, error } = await supabase.functions.invoke('chat-ai', {
+        body: {
+          message: text,
+          context: {
+            protocols: protocols.map(p => ({ name: p.name, dose_amount: p.dose_amount, dose_unit: p.dose_unit, frequency: p.frequency, status: p.status })),
+            recentDoses: [...doseLogs].sort((a, b) => new Date(b.logged_at).getTime() - new Date(a.logged_at).getTime()).slice(0, 5),
+            adherencePct,
+            streakDays,
+          },
+        },
+      });
+      if (error) return null;
+      return data as { type: string; intent?: string; payload?: Record<string, unknown>; text?: string; reason?: string };
+    } catch {
+      return null;
+    }
+  }, [doseLogs, protocols]);
+
+  const handleSend = useCallback(async () => {
     if (!inputText.trim()) return;
     const text = inputText.trim();
     setInputText('');
     addMessage({ role: 'user', text });
 
+    // Try AI first, fall back to mock parser
+    const aiResult = await callAI(text);
+
+    if (aiResult && aiResult.type === 'message' && aiResult.text) {
+      addMessage({ role: 'assistant', text: aiResult.text });
+      return;
+    }
+
+    if (aiResult && aiResult.type === 'action' && aiResult.intent) {
+      const intents = ['log_dose','log_symptom','log_weight','log_sleep','log_lifestyle','update_inventory','ask_adherence','ask_last_dose','ask_next_dose','ask_inventory'] as const;
+      type IntentType = typeof intents[number] | 'unknown';
+      const intent = intents.includes(aiResult.intent as IntentType) ? aiResult.intent as IntentType : 'unknown';
+      const parsed: ParsedIntent = {
+        intent: intent as ParsedIntent['intent'],
+        payload: (aiResult.payload ?? {}) as Record<string, string | number | null>,
+        confidence: 'high',
+        displaySummary: buildSummary(intent, (aiResult.payload ?? {}) as Record<string, string | number | null>),
+      };
+      addMessage({ role: 'confirmation', text: parsed.displaySummary, parsedIntent: parsed, status: 'pending' });
+      return;
+    }
+
+    // Fallback: mock parser (AI not configured or failed)
     const parsed = mockParse(text);
 
     if (parsed.intent === 'unknown') {
@@ -251,7 +312,7 @@ export default function ChatScreen() {
     }
 
     addMessage({ role: 'confirmation', text: parsed.displaySummary, parsedIntent: parsed, status: 'pending' });
-  }, [addMessage, doseLogs, inputText, protocols]);
+  }, [inputText, addMessage, callAI, doseLogs, mockParse, protocols]);
 
   return (
     <SafeAreaView style={styles.safeArea}>
@@ -343,11 +404,11 @@ export default function ChatScreen() {
             placeholderTextColor={Colors.textSecondary}
             returnKeyType="send"
             multiline
-            onSubmitEditing={handleSend}
+            onSubmitEditing={() => { void handleSend(); }}
           />
           <Pressable
             style={[styles.sendButton, { opacity: inputText.trim() ? 1 : 0.4 }]}
-            onPress={handleSend}
+            onPress={() => { void handleSend(); }}
             disabled={!inputText.trim()}
           >
             <Text style={styles.sendText}>↑</Text>
