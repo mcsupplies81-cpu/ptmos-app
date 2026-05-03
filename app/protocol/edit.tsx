@@ -7,7 +7,7 @@ import Colors from '@/constants/Colors';
 import ScreenHeader from '@/components/ScreenHeader';
 
 const DOSE_UNITS = ['mcg', 'mg', 'IU', 'mL'] as const;
-const FREQUENCY_OPTIONS = ['Daily', 'Every Other Day', '3x/week', 'Weekly'] as const;
+const FREQUENCY_OPTIONS = ['Daily', 'Weekly', 'Specific Days'] as const;
 
 export default function EditProtocolScreen() {
   const { protocolId } = useLocalSearchParams<{ protocolId: string }>();
