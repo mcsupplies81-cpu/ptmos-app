@@ -175,6 +175,31 @@ export default function DashboardScreen() {
           </View>
         </View>
 
+        <Pressable
+          onPress={() => router.push('/(tabs)/chat')}
+          style={{
+            marginHorizontal: 16,
+            marginBottom: 10,
+            backgroundColor: Colors.card,
+            borderRadius: 14,
+            borderWidth: 1,
+            borderColor: Colors.border,
+            padding: 14,
+            flexDirection: 'row',
+            alignItems: 'center',
+            gap: 12,
+          }}
+        >
+          <View style={{ width: 38, height: 38, borderRadius: 19, backgroundColor: Colors.accentLight, justifyContent: 'center', alignItems: 'center' }}>
+            <Text style={{ fontSize: 18 }}>💬</Text>
+          </View>
+          <View style={{ flex: 1 }}>
+            <Text style={{ fontSize: 14, fontWeight: '600', color: Colors.text }}>Log with AI</Text>
+            <Text style={{ fontSize: 12, color: Colors.textSecondary, marginTop: 1 }}>Just say what you did</Text>
+          </View>
+          <Text style={{ fontSize: 18, color: Colors.textSecondary }}>›</Text>
+        </Pressable>
+
         <View style={{ flexDirection: 'row', gap: 10, paddingHorizontal: 16, marginBottom: 4 }}>
           <View style={{ flex: 1, backgroundColor: Colors.accentLight, borderRadius: 12, padding: 12, flexDirection: 'row', alignItems: 'center', gap: 10 }}>
             <Text style={{ fontSize: 22 }}>🔥</Text>
@@ -265,6 +290,33 @@ export default function DashboardScreen() {
               </Pressable>
             ))}
           </View>
+        </View>
+        <View style={{ height: 1, backgroundColor: Colors.border, marginHorizontal: 20, marginTop: 8 }} />
+        <View style={{ paddingHorizontal: 20, paddingTop: 16, paddingBottom: 8 }}>
+          <Text style={{ fontSize: 10, fontWeight: '600', color: Colors.textSecondary, letterSpacing: 1.5, marginBottom: 12 }}>RECENT ACTIVITY</Text>
+          {recentDoses.length === 0 ? (
+            <Text style={{ color: Colors.textSecondary, fontSize: 14, textAlign: 'center', marginTop: 8 }}>No activity yet — log your first dose!</Text>
+          ) : (
+            recentDoses.map((dose) => {
+              const daysAgo = Math.floor((Date.now() - new Date(dose.logged_at).getTime()) / 86400000);
+              const when = daysAgo === 0 ? 'Today' : daysAgo === 1 ? 'Yesterday' : `${daysAgo}d ago`;
+              return (
+                <View
+                  key={dose.id}
+                  style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: Colors.border, gap: 12 }}
+                >
+                  <View style={{ width: 36, height: 36, borderRadius: 18, backgroundColor: Colors.accentLight, justifyContent: 'center', alignItems: 'center' }}>
+                    <Text style={{ fontSize: 16 }}>💉</Text>
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <Text style={{ fontSize: 14, fontWeight: '600', color: Colors.text }}>{dose.peptide_name ?? 'Dose'}</Text>
+                    <Text style={{ fontSize: 12, color: Colors.textSecondary, marginTop: 1 }}>{dose.amount} {dose.unit}</Text>
+                  </View>
+                  <Text style={{ fontSize: 12, color: Colors.textSecondary }}>{when}</Text>
+                </View>
+              );
+            })
+          )}
         </View>
 
       </ScrollView>
