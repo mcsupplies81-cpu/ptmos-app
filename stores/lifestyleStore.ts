@@ -46,6 +46,7 @@ export const useLifestyleStore = create<LifestyleStore>((set, get) => ({
       .upsert({ ...log, user_id: userId }, { onConflict: 'user_id,date' })
       .select('*')
       .eq('user_id', userId)
+      .eq('date', log.date)
       .single();
     if (error) throw error;
 

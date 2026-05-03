@@ -1,10 +1,9 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { Alert, SafeAreaView, FlatList, Pressable, StyleSheet, Text, View, ScrollView } from 'react-native';
+import { Alert, SafeAreaView, FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
 import { router } from 'expo-router';
 import Colors from '@/constants/Colors';
 import { useProtocolStore } from '@/stores/protocolStore';
 import { useAuthStore } from '@/stores/authStore';
-import ScreenHeader from '@/components/ScreenHeader';
 import EmptyState from '@/components/EmptyState';
 import LoadingScreen from '@/components/LoadingScreen';
 
@@ -30,13 +29,7 @@ export default function ProtocolsScreen() {
 
   return (
     <SafeAreaView style={styles.container}>
-      <ScreenHeader title="Protocols" hideBack={true} rightLabel="+ New" onRightPress={() => router.push('/protocol/create')} />
-
-      <ScrollView
-        horizontal
-        showsHorizontalScrollIndicator={false}
-        contentContainerStyle={styles.chipsContainer}
-      >
+      <View style={styles.chipsContainer}>
         {(['All', 'Active', 'Completed'] as const).map((label) => {
           const value = label.toLowerCase() as Filter;
           const selected = filter === value;
@@ -51,7 +44,7 @@ export default function ProtocolsScreen() {
             </Pressable>
           );
         })}
-      </ScrollView>
+      </View>
 
       <FlatList
         data={filteredProtocols}
@@ -101,20 +94,22 @@ export default function ProtocolsScreen() {
           </Pressable>
         )}
       />
+
+      <Pressable style={styles.fab} onPress={() => router.push('/protocol/create')}><Text style={styles.fabText}>+</Text></Pressable>
     </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: Colors.background },
-  chipsContainer: { paddingHorizontal: 16, paddingVertical: 10, gap: 8 },
-  chip: { borderRadius: 999, paddingHorizontal: 14, paddingVertical: 7 },
+  chipsContainer: { flexDirection: 'row', gap: 8, paddingHorizontal: 16, paddingTop: 12, paddingBottom: 4 },
+  chip: { borderRadius: 999, paddingHorizontal: 10, paddingVertical: 4 },
   chipSelected: { backgroundColor: Colors.accent },
   chipUnselected: { backgroundColor: Colors.card, borderWidth: 1, borderColor: Colors.border },
-  chipText: { fontWeight: '700' },
+  chipText: { fontWeight: '700', fontSize: 12 },
   chipTextSelected: { color: Colors.white },
   chipTextUnselected: { color: Colors.textSecondary },
-  listContent: { padding: 16, gap: 10, paddingBottom: 40 },
+  listContent: { padding: 16, gap: 10, paddingBottom: 120 },
   card: { backgroundColor: Colors.card, borderRadius: 14, padding: 16, borderWidth: 1, borderColor: Colors.border },
   rowTop: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' },
   cardMain: { flex: 1, paddingRight: 8 },
@@ -133,4 +128,21 @@ const styles = StyleSheet.create({
   rowBottom: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   detailHint: { fontSize: 12, color: Colors.textSecondary },
   chevron: { fontSize: 18, color: Colors.textSecondary },
+  fab: {
+    position: 'absolute',
+    bottom: 80,
+    right: 20,
+    width: 52,
+    height: 52,
+    borderRadius: 26,
+    backgroundColor: Colors.accent,
+    justifyContent: 'center',
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
+    elevation: 4,
+  },
+  fabText: { color: '#fff', fontSize: 28, lineHeight: 32, fontWeight: '300' },
 });

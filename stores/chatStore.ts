@@ -7,6 +7,7 @@ export type ParsedIntent = {
     | 'log_dose'
     | 'log_symptom'
     | 'log_weight'
+    | 'log_water'
     | 'log_sleep'
     | 'log_lifestyle'
     | 'update_inventory'
