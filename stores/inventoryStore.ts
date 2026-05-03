@@ -19,6 +19,8 @@ interface InventoryStore {
   error: string | null;
   fetchInventory: (userId: string) => Promise<void>;
   addVial: (vial: InsertInventoryItem, userId: string) => Promise<void>;
+  updateVialVolume: (id: string, newVolume: number, userId: string) => Promise<void>;
+  deleteVial: (id: string, userId: string) => Promise<void>;
 }
 
 export const useInventoryStore = create<InventoryStore>((set, get) => ({
@@ -50,4 +52,28 @@ export const useInventoryStore = create<InventoryStore>((set, get) => ({
     }
     set({ items: [data as InventoryItem, ...get().items] });
   },
+  updateVialVolume: async (id, newVolume, userId) => {
+    const { error } = await supabase
+      .from('inventory_items')
+      .update({ volume_remaining_ml: newVolume })
+      .eq('id', id)
+      .eq('user_id', userId);
+    if (error) {
+      set({ error: error.message });
+      return;
+    }
+    await get().fetchInventory(userId);
+  },
+  deleteVial: async (id, userId) => {
+    const { error } = await supabase
+      .from('inventory_items')
+      .delete()
+      .eq('id', id)
+      .eq('user_id', userId);
+    if (error) {
+      set({ error: error.message });
+      return;
+    }
+    await get().fetchInventory(userId);
+  }
 }));
