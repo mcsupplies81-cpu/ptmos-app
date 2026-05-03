@@ -1,4 +1,4 @@
-import { useCallback, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   FlatList,
   KeyboardAvoidingView,
@@ -10,6 +10,7 @@ import {
   Text,
   TextInput,
   View,
+  Alert,
 } from 'react-native';
 
 import Colors from '@/constants/Colors';
@@ -170,13 +171,22 @@ export default function ChatScreen() {
   const [inputText, setInputText] = useState('');
   const flatListRef = useRef<FlatList<ChatMessage>>(null);
   const textInputRef = useRef<TextInput>(null);
-  const { messages, addMessage, updateMessageStatus } = useChatStore();
+  const { messages, addMessage, updateMessageStatus, clearMessages } = useChatStore();
   const doseLogs = useDoseLogStore((s) => s.doseLogs);
   const protocols = useProtocolStore((s) => s.protocols);
   const user = useAuthStore((s) => s.user);
   const fetchDoseLogs = useDoseLogStore((s) => s.fetchDoseLogs);
   const upsertLifestyle = useLifestyleStore((s) => s.upsertLog);
   const addSymptom = useSymptomStore((s) => s.addLog);
+
+
+  useEffect(() => {
+    const cutoff = Date.now() - 30 * 24 * 60 * 60 * 1000;
+    const fresh = messages.filter((m) => new Date(m.createdAt).getTime() > cutoff);
+    if (fresh.length !== messages.length) {
+      clearMessages();
+    }
+  }, []);
 
   const handleConfirm = useCallback(async (message: ChatMessage) => {
     if (!user?.id || !message.parsedIntent) return;
@@ -380,8 +390,20 @@ export default function ChatScreen() {
     <SafeAreaView style={styles.safeArea}>
       <KeyboardAvoidingView style={styles.container} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
         <View style={styles.header}>
-          <Text style={styles.title}>PTMOS</Text>
-          <Text style={styles.subtitle}>AI Assistant</Text>
+          <View>
+            <Text style={styles.title}>PTMOS</Text>
+            <Text style={styles.subtitle}>AI Assistant</Text>
+          </View>
+          <Pressable
+            onPress={() =>
+              Alert.alert('Clear Chat', 'Clear all chat history?', [
+                { text: 'Cancel', style: 'cancel' },
+                { text: 'Clear', style: 'destructive', onPress: clearMessages },
+              ])
+            }
+          >
+            <Text style={styles.clearText}>Clear</Text>
+          </Pressable>
         </View>
 
         <FlatList
@@ -526,9 +548,13 @@ const styles = StyleSheet.create({
     paddingBottom: 12,
     borderBottomWidth: 1,
     borderColor: Colors.border,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
   },
   title: { fontSize: 17, fontWeight: '700', color: Colors.text },
   subtitle: { fontSize: 12, color: Colors.textSecondary },
+  clearText: { fontSize: 13, color: Colors.textSecondary },
   messages: { flex: 1 },
   messagesContent: { paddingHorizontal: 16, paddingVertical: 12, gap: 10 },
   emptyState: { alignItems: 'center', justifyContent: 'center', paddingTop: 80 },
