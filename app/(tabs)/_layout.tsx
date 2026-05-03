@@ -1,6 +1,9 @@
 import { Tabs } from 'expo-router';
+import { useState } from 'react';
+import { Pressable, Text, View } from 'react-native';
 import Svg, { Path } from 'react-native-svg';
 
+import PlusMenu from '@/components/PlusMenu';
 import Colors from '@/constants/Colors';
 
 function HomeIcon({ color }: { color: string }) {
@@ -47,26 +50,58 @@ function MoreIcon({ color }: { color: string }) {
 }
 
 export default function TabsLayout() {
+  const [plusOpen, setPlusOpen] = useState(false);
+
   return (
-    <Tabs
-      screenOptions={{
-        tabBarStyle: {
-          backgroundColor: Colors.tabBar,
-          borderTopColor: Colors.tabBarBorder,
-        },
-        tabBarActiveTintColor: Colors.tabActive,
-        tabBarInactiveTintColor: Colors.tabInactive,
-      }}
-    >
-      <Tabs.Screen name="index" options={{ title: 'Dashboard', tabBarIcon: ({ color }) => <HomeIcon color={color} /> }} />
-      <Tabs.Screen name="protocols" options={{ title: 'Protocols', tabBarIcon: ({ color }) => <ProtocolsIcon color={color} /> }} />
-      <Tabs.Screen name="chat" options={{ title: 'Chat', tabBarIcon: ({ color }) => <ChatIcon color={color} /> }} />
-      <Tabs.Screen name="insights" options={{ title: 'Insights', tabBarIcon: ({ color }) => <InsightsIcon color={color} /> }} />
-      <Tabs.Screen name="more" options={{ title: 'More', tabBarIcon: ({ color }) => <MoreIcon color={color} /> }} />
-      <Tabs.Screen name="log" options={{ href: null }} />
-      <Tabs.Screen name="research" options={{ href: null }} />
-      <Tabs.Screen name="providers" options={{ href: null }} />
-      <Tabs.Screen name="settings" options={{ href: null }} />
-    </Tabs>
+    <>
+      <Tabs
+        screenOptions={{
+          tabBarStyle: {
+            backgroundColor: Colors.tabBar,
+            borderTopColor: Colors.tabBarBorder,
+          },
+          tabBarActiveTintColor: Colors.tabActive,
+          tabBarInactiveTintColor: Colors.tabInactive,
+        }}
+      >
+        <Tabs.Screen name="index" options={{ title: 'Dashboard', tabBarIcon: ({ color }) => <HomeIcon color={color} /> }} />
+        <Tabs.Screen name="protocols" options={{ title: 'Protocols', tabBarIcon: ({ color }) => <ProtocolsIcon color={color} /> }} />
+        <Tabs.Screen
+          name="plus"
+          options={{
+            title: '',
+            tabBarIcon: () => (
+              <View
+                style={{
+                  width: 48,
+                  height: 48,
+                  borderRadius: 24,
+                  backgroundColor: Colors.accent,
+                  justifyContent: 'center',
+                  alignItems: 'center',
+                  marginBottom: 4,
+                  shadowColor: Colors.accent,
+                  shadowOffset: { width: 0, height: 2 },
+                  shadowOpacity: 0.4,
+                  shadowRadius: 6,
+                  elevation: 6,
+                }}
+              >
+                <Text style={{ color: '#fff', fontSize: 28, lineHeight: 32, fontWeight: '300' }}>+</Text>
+              </View>
+            ),
+            tabBarButton: (props) => <Pressable {...props} onPress={() => setPlusOpen(true)} />,
+          }}
+        />
+        <Tabs.Screen name="chat" options={{ title: 'Chat', tabBarIcon: ({ color }) => <ChatIcon color={color} /> }} />
+        <Tabs.Screen name="insights" options={{ title: 'Insights', tabBarIcon: ({ color }) => <InsightsIcon color={color} /> }} />
+        <Tabs.Screen name="more" options={{ title: 'More', tabBarIcon: ({ color }) => <MoreIcon color={color} /> }} />
+        <Tabs.Screen name="log" options={{ href: null }} />
+        <Tabs.Screen name="research" options={{ href: null }} />
+        <Tabs.Screen name="providers" options={{ href: null }} />
+        <Tabs.Screen name="settings" options={{ href: null }} />
+      </Tabs>
+      <PlusMenu visible={plusOpen} onClose={() => setPlusOpen(false)} />
+    </>
   );
 }
