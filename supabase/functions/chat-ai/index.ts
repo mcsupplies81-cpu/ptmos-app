@@ -117,8 +117,9 @@ Deno.serve(async (req: Request) => {
       )
     }
 
-    const { message, context } = await req.json() as {
+    const { message, context, imageBase64 } = await req.json() as {
       message: string
+      imageBase64?: string | null
       context: {
         protocols: Array<{ name: string; dose_amount: number; dose_unit: string; frequency: string; status: string }>
         recentDoses: Array<{ peptide_name: string | null; amount: number; unit: string; logged_at: string }>
@@ -135,6 +136,13 @@ USER DATA CONTEXT:
 - Recent doses: ${context.recentDoses.slice(0, 3).map(d => `${d.peptide_name ?? 'unknown'} ${d.amount}${d.unit} on ${d.logged_at.slice(0, 10)}`).join(', ') || 'none'}
 `
 
+    const userContent: unknown[] = imageBase64
+      ? [
+          { type: 'text', text: message || 'Describe this image and help me log or understand it.' },
+          { type: 'image_url', image_url: { url: `data:image/jpeg;base64,${imageBase64}`, detail: 'low' } },
+        ]
+      : [{ type: 'text', text: message }]
+
     const response = await fetch('https://api.openai.com/v1/chat/completions', {
       method: 'POST',
       headers: {
@@ -142,10 +150,10 @@ USER DATA CONTEXT:
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        model: 'gpt-4o-mini',
+        model: imageBase64 ? 'gpt-4o' : 'gpt-4o-mini',
         messages: [
           { role: 'system', content: SYSTEM_PROMPT + '\n\n' + contextBlock },
-          { role: 'user', content: message },
+          { role: 'user', content: userContent },
         ],
         tools: TOOLS,
         tool_choice: 'auto',
