@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { SafeAreaView, FlatList, Pressable, StyleSheet, Text, View, ScrollView } from 'react-native';
+import { Alert, SafeAreaView, FlatList, Pressable, StyleSheet, Text, View, ScrollView } from 'react-native';
 import { router } from 'expo-router';
 import Colors from '@/constants/Colors';
 import useProtocolStore from '@/stores/protocolStore';
@@ -62,6 +62,13 @@ export default function ProtocolsScreen() {
         renderItem={({ item }) => (
           <Pressable
             onPress={() => router.push({ pathname: '/log/protocol-detail', params: { protocolId: item.id } })}
+            onLongPress={() =>
+              Alert.alert('Protocol Options', item.name, [
+                { text: 'Edit', onPress: () => router.push({ pathname: '/protocol/edit', params: { protocolId: item.id } }) },
+                { text: 'View Details', onPress: () => router.push({ pathname: '/log/protocol-detail', params: { protocolId: item.id } }) },
+                { text: 'Cancel', style: 'cancel' },
+              ])
+            }
             style={styles.card}
           >
             <View style={styles.rowTop}>
