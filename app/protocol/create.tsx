@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { ActivityIndicator, Pressable, SafeAreaView, ScrollView, Text, TextInput, View } from 'react-native';
+import { KeyboardAvoidingView, Platform, Pressable, SafeAreaView, ScrollView, Text, TextInput, View } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useProtocolStore } from '@/stores/protocolStore';
 import { useAuthStore } from '@/stores/authStore';
@@ -42,36 +42,49 @@ export default function CreateProtocolScreen() {
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: Colors.background }}>
-      <ScreenHeader title="Create Protocol" />
-      <ScrollView contentContainerStyle={{ padding: 16, paddingBottom: 28 }}>
-        <Text style={{ fontSize: 20, fontWeight: '700', marginVertical: 16, color: Colors.text }}>Create Protocol</Text>
+      <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
+        <ScreenHeader title="New Protocol" />
+        <ScrollView contentContainerStyle={{ padding: 16, paddingBottom: 28 }} keyboardShouldPersistTaps="handled">
+          <Text style={labelStyle}>PEPTIDE NAME</Text>
+          <TextInput value={name} onChangeText={setName} returnKeyType="next" style={[inputStyle, { marginBottom: 16 }]} />
 
-        <Text style={{ color: Colors.textSecondary }}>Name</Text>
-        <TextInput value={name} onChangeText={setName} style={inputStyle} />
+          <View style={{ flexDirection: 'row', gap: 8, marginBottom: 16, alignItems: 'flex-end' }}>
+            <View style={{ flex: 1 }}>
+              <Text style={labelStyle}>DOSE AMOUNT</Text>
+              <TextInput value={doseAmount} onChangeText={setDoseAmount} keyboardType="decimal-pad" style={inputStyle} />
+            </View>
+            <View>
+              <Text style={labelStyle}>UNIT</Text>
+              <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6 }}>
+                {DOSE_UNITS.map((option) => (
+                  <Chip key={option} label={option} selected={doseUnit === option} onPress={() => setDoseUnit(option)} />
+                ))}
+              </View>
+            </View>
+          </View>
 
-        <Text style={{ color: Colors.textSecondary }}>Dose Amount</Text>
-        <TextInput value={doseAmount} onChangeText={setDoseAmount} keyboardType="decimal-pad" style={inputStyle} />
+          <Text style={labelStyle}>FREQUENCY</Text>
+          <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 16 }}>
+            {FREQUENCY_OPTIONS.map((option) => (
+              <Chip key={option} label={option} selected={frequency === option} onPress={() => setFrequency(option)} />
+            ))}
+          </View>
 
-        <Text style={{ color: Colors.textSecondary, marginBottom: 8 }}>Dose Unit</Text>
-        <View style={chipRow}>
-          {DOSE_UNITS.map((option) => <Chip key={option} label={option} selected={doseUnit === option} onPress={() => setDoseUnit(option)} />)}
-        </View>
+          <Text style={labelStyle}>TIME OF DAY</Text>
+          <TextInput value={timeOfDay} onChangeText={setTimeOfDay} placeholder="09:00" placeholderTextColor={Colors.muted} style={[inputStyle, { marginBottom: 16 }]} />
 
-        <Text style={{ color: Colors.textSecondary, marginBottom: 8 }}>Frequency</Text>
-        <View style={chipRow}>
-          {FREQUENCY_OPTIONS.map((option) => <Chip key={option} label={option} selected={frequency === option} onPress={() => setFrequency(option)} />)}
-        </View>
+          <Text style={labelStyle}>NOTES (OPTIONAL)</Text>
+          <TextInput value={notes} onChangeText={setNotes} multiline style={[inputStyle, { minHeight: 72, textAlignVertical: 'top' }]} />
 
-        <Text style={{ color: Colors.textSecondary }}>Time of Day (HH:MM)</Text>
-        <TextInput value={timeOfDay} onChangeText={setTimeOfDay} placeholder="09:00" placeholderTextColor={Colors.muted} style={inputStyle} />
-
-        <Text style={{ color: Colors.textSecondary }}>Notes</Text>
-        <TextInput value={notes} onChangeText={setNotes} multiline style={[inputStyle, { minHeight: 100, textAlignVertical: 'top' }]} />
-
-        <Pressable onPress={handleSave} disabled={saving || !name.trim()} style={buttonStyle}>
-          {saving ? <ActivityIndicator color={Colors.white} /> : <Text style={{ color: Colors.white, fontWeight: '700' }}>Create Protocol</Text>}
-        </Pressable>
-      </ScrollView>
+          <Pressable
+            onPress={handleSave}
+            disabled={!name.trim() || saving}
+            style={[buttonStyle, (!name.trim() || saving) && { opacity: 0.4 }]}
+          >
+            <Text style={{ color: Colors.white, fontSize: 16, fontWeight: '700' }}>{saving ? 'Saving...' : 'Save Protocol'}</Text>
+          </Pressable>
+        </ScrollView>
+      </KeyboardAvoidingView>
     </SafeAreaView>
   );
 }
@@ -81,27 +94,44 @@ function Chip({ label, selected, onPress }: { label: string; selected: boolean; 
     <Pressable
       onPress={onPress}
       style={{
-        borderWidth: 1,
-        borderColor: selected ? Colors.accent : Colors.border,
-        backgroundColor: selected ? Colors.accentLight : Colors.card,
-        borderRadius: 999,
-        paddingHorizontal: 12,
+        paddingHorizontal: 10,
         paddingVertical: 8,
+        borderRadius: 8,
+        borderWidth: 1,
+        backgroundColor: selected ? Colors.accent : Colors.card,
+        borderColor: selected ? Colors.accent : Colors.border,
       }}
     >
-      <Text style={{ color: Colors.text }}>{label}</Text>
+      <Text style={{ color: selected ? Colors.white : Colors.textSecondary }}>{label}</Text>
     </Pressable>
   );
 }
 
+const labelStyle = {
+  fontSize: 12,
+  fontWeight: '600',
+  color: Colors.textSecondary,
+  marginBottom: 6,
+  letterSpacing: 0.5,
+} as const;
+
 const inputStyle = {
   borderWidth: 1,
   borderColor: Colors.border,
-  borderRadius: 8,
-  padding: 10,
-  marginBottom: 16,
+  backgroundColor: Colors.card,
   color: Colors.text,
+  borderRadius: 10,
+  padding: 12,
+  fontSize: 15,
 } as const;
 
-const chipRow = { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 16 } as const;
-const buttonStyle = { backgroundColor: Colors.accent, borderRadius: 10, padding: 14, alignItems: 'center' } as const;
+const buttonStyle = {
+  width: '100%',
+  backgroundColor: Colors.accent,
+  borderRadius: 12,
+  height: 52,
+  marginTop: 16,
+  marginBottom: 8,
+  alignItems: 'center',
+  justifyContent: 'center',
+} as const;
