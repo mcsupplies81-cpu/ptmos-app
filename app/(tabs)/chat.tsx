@@ -155,16 +155,18 @@ export default function ChatScreen() {
       }
 
       else if (intent === 'log_weight') {
+        const today = new Date().toISOString().slice(0, 10);
         await upsertLifestyle(
-          { weight_lbs: Number(payload.value) || null },
+          { date: today, weight_lbs: Number(payload.value) || null, water_oz: null, calories: null, protein_g: null, sleep_hours: null, steps: null, workout_notes: null, mood: null, energy: null, meal_notes: null },
           user.id
         );
         addMessage({ role: 'success', text: `Weight logged: ${payload.value} lbs ✓` });
       }
 
       else if (intent === 'log_sleep') {
+        const today = new Date().toISOString().slice(0, 10);
         await upsertLifestyle(
-          { sleep_hours: Number(payload.hours) || null },
+          { date: today, sleep_hours: Number(payload.hours) || null, weight_lbs: null, water_oz: null, calories: null, protein_g: null, steps: null, workout_notes: null, mood: null, energy: null, meal_notes: null },
           user.id
         );
         addMessage({ role: 'success', text: `Sleep logged: ${payload.hours} hours ✓` });
