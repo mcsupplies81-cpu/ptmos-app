@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { FlatList, KeyboardAvoidingView, Modal, Platform, Pressable, SafeAreaView, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { Alert, FlatList, KeyboardAvoidingView, Modal, Platform, Pressable, SafeAreaView, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import Colors from '@/constants/Colors';
 import { useAuthStore } from '@/stores/authStore';
 import { useInventoryStore } from '@/stores/inventoryStore';
@@ -7,7 +7,7 @@ import ScreenHeader from '@/components/ScreenHeader';
 
 export default function InventoryScreen() {
   const user = useAuthStore((state) => state.user);
-  const { items, fetchInventory, addVial } = useInventoryStore();
+  const { items, fetchInventory, addVial, updateVialVolume, deleteVial } = useInventoryStore();
   const [open, setOpen] = useState(false);
   const [name, setName] = useState('');
   const [concentration, setConcentration] = useState('');
@@ -54,7 +54,8 @@ export default function InventoryScreen() {
         }
         renderItem={({ item }) => {
           const expired = item.expiry_date < today;
-          const low = !expired && item.volume_remaining_ml < 1;
+          const empty = !expired && item.volume_remaining_ml === 0;
+          const low = !expired && !empty && item.volume_remaining_ml <= 0.5;
           return (
             <View style={styles.card}>
               <View style={styles.cardRow}>
@@ -66,11 +67,69 @@ export default function InventoryScreen() {
                   <Text style={styles.cardMeta}>{item.concentration_mg_per_ml} mg/mL  ·  {item.volume_remaining_ml} mL left</Text>
                   <Text style={styles.cardMeta}>Exp: {new Date(item.expiry_date).toLocaleDateString()}</Text>
                 </View>
-                <View style={[styles.statusBadge, expired ? styles.badgeExpired : low ? styles.badgeLow : styles.badgeActive]}>
-                  <Text style={[styles.statusText, expired ? styles.textExpired : low ? styles.textLow : styles.textActive]}>
-                    {expired ? 'Expired' : low ? 'Low' : 'Active'}
+                <View style={[styles.statusBadge, expired ? styles.badgeExpired : empty ? styles.badgeEmpty : low ? styles.badgeLow : styles.badgeActive]}>
+                  <Text style={[styles.statusText, expired ? styles.textExpired : empty ? styles.textEmpty : low ? styles.textLow : styles.textActive]}>
+                    {expired ? 'Expired' : empty ? 'Empty' : low ? 'Low' : 'Active'}
                   </Text>
                 </View>
+              </View>
+
+              <View style={styles.actionDivider} />
+
+              <View style={styles.actionRow}>
+                <Pressable
+                  style={styles.useDoseBtn}
+                  onPress={() => {
+                    Alert.alert(
+                      'Mark Dose Used',
+                      `Reduce volume for ${item.peptide_name}?`,
+                      [
+                        { text: 'Cancel', style: 'cancel' },
+                        {
+                          text: '−0.1 mL',
+                          onPress: () => {
+                            if (!user?.id) return;
+                            const next = Math.max(0, item.volume_remaining_ml - 0.1);
+                            void updateVialVolume(item.id, parseFloat(next.toFixed(2)), user.id);
+                          },
+                        },
+                        {
+                          text: '−0.2 mL',
+                          onPress: () => {
+                            if (!user?.id) return;
+                            const next = Math.max(0, item.volume_remaining_ml - 0.2);
+                            void updateVialVolume(item.id, parseFloat(next.toFixed(2)), user.id);
+                          },
+                        },
+                      ],
+                    );
+                  }}
+                >
+                  <Text style={styles.useDoseText}>Use Dose</Text>
+                </Pressable>
+
+                <Pressable
+                  style={styles.deleteBtn}
+                  onPress={() => {
+                    Alert.alert(
+                      'Delete Vial',
+                      `Remove ${item.peptide_name} from inventory?`,
+                      [
+                        { text: 'Cancel', style: 'cancel' },
+                        {
+                          text: 'Delete',
+                          style: 'destructive',
+                          onPress: () => {
+                            if (!user?.id) return;
+                            void deleteVial(item.id, user.id);
+                          },
+                        },
+                      ],
+                    );
+                  }}
+                >
+                  <Text style={styles.deleteBtnText}>🗑</Text>
+                </Pressable>
               </View>
             </View>
           );
@@ -132,10 +191,18 @@ const styles = StyleSheet.create({
   badgeActive: { backgroundColor: Colors.accentLight },
   badgeLow: { backgroundColor: '#FEF3C7' },
   badgeExpired: { backgroundColor: '#FEE2E2' },
+  badgeEmpty: { backgroundColor: '#F3F4F6' },
   statusText: { fontSize: 11, fontWeight: '700' },
   textActive: { color: Colors.accent },
   textLow: { color: '#D97706' },
   textExpired: { color: '#DC2626' },
+  textEmpty: { color: '#9CA3AF' },
+  actionDivider: { height: 1, backgroundColor: Colors.border, marginTop: 10, marginBottom: 10 },
+  actionRow: { flexDirection: 'row', gap: 8 },
+  useDoseBtn: { flex: 1, backgroundColor: Colors.accentLight, borderRadius: 8, paddingVertical: 8, alignItems: 'center' },
+  useDoseText: { color: Colors.accent, fontSize: 13, fontWeight: '600' },
+  deleteBtn: { width: 40, backgroundColor: '#FEE2E2', borderRadius: 8, paddingVertical: 8, alignItems: 'center' },
+  deleteBtnText: { fontSize: 16 },
   overlay: { flex: 1, justifyContent: 'flex-end' },
   dismissArea: { flex: 1, backgroundColor: '#00000066' },
   modal: { backgroundColor: Colors.background, borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: 20, paddingBottom: 40, maxHeight: '90%' },
