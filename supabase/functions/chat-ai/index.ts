@@ -162,6 +162,17 @@ USER DATA CONTEXT:
     })
 
     const data = await response.json()
+
+    // Surface OpenAI errors clearly
+    if (!response.ok || data.error) {
+      const errMsg = data.error?.message ?? `OpenAI error ${response.status}`
+      console.error('[chat-ai] OpenAI error:', JSON.stringify(data.error))
+      return new Response(
+        JSON.stringify({ type: 'fallback', reason: errMsg }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 }
+      )
+    }
+
     const choice = data.choices?.[0]
 
     if (choice?.message?.tool_calls?.[0]) {
@@ -175,7 +186,7 @@ USER DATA CONTEXT:
     }
 
     return new Response(
-      JSON.stringify({ type: 'message', text: choice?.message?.content ?? "I couldn't process that." }),
+      JSON.stringify({ type: 'message', text: choice?.message?.content ?? "I couldn't understand that." }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     )
 
