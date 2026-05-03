@@ -1,140 +1,126 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { FlatList, Pressable, SafeAreaView, Text, View } from 'react-native';
-import { useRouter } from 'expo-router';
+import { SafeAreaView, FlatList, Pressable, StyleSheet, Text, View, ScrollView } from 'react-native';
+import { router } from 'expo-router';
 import Colors from '@/constants/Colors';
+import useProtocolStore from '@/stores/protocolStore';
 import { useAuthStore } from '@/stores/authStore';
-import { useDoseLogStore } from '@/stores/doseLogStore';
-import { calcAdherence, useProtocolStore } from '@/stores/protocolStore';
+import ScreenHeader from '@/components/ScreenHeader';
 
-type Filter = 'Active' | 'Completed' | 'All';
+type Filter = 'all' | 'active' | 'completed';
 
 export default function ProtocolsScreen() {
-  const router = useRouter();
   const user = useAuthStore((state) => state.user);
   const protocols = useProtocolStore((state) => state.protocols);
-  const doseLogs = useDoseLogStore((state) => state.doseLogs);
-  const fetchDoseLogs = useDoseLogStore((state) => state.fetchDoseLogs);
-  const [filter, setFilter] = useState<Filter>('Active');
+  const fetchProtocols = useProtocolStore((state) => state.fetchProtocols);
+  const [filter, setFilter] = useState<Filter>('all');
 
   useEffect(() => {
-    if (user?.id) {
-      fetchDoseLogs(user.id);
-    }
-  }, [fetchDoseLogs, user?.id]);
+    if (user?.id) fetchProtocols(user.id);
+  }, [fetchProtocols, user?.id]);
 
-  const filtered = useMemo(() => {
-    if (filter === 'All') return protocols;
-    if (filter === 'Active') return protocols.filter((p) => p.status === 'active' || p.status === 'paused');
-    return protocols.filter((p) => p.status === 'completed');
-  }, [filter, protocols]);
+  const filteredProtocols = useMemo(() => {
+    if (filter === 'all') return protocols;
+    return protocols.filter((p) => p.status === filter);
+  }, [protocols, filter]);
 
   return (
-    <SafeAreaView style={{ flex: 1, paddingHorizontal: 16, backgroundColor: Colors.background }}>
-      <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 12, marginBottom: 14 }}>
-        <Text style={{ fontSize: 28, fontWeight: '800', color: Colors.text }}>Protocols</Text>
-        <Pressable
-          onPress={() => router.push('/protocol/create')}
-          style={{ backgroundColor: Colors.accent, borderRadius: 10, paddingHorizontal: 14, paddingVertical: 8 }}
-        >
-          <Text style={{ color: Colors.white, fontWeight: '700' }}>+ New</Text>
-        </Pressable>
-      </View>
+    <SafeAreaView style={styles.container}>
+      <ScreenHeader title="Protocols" hideBack={true} rightLabel="+ New" onRightPress={() => router.push('/protocol/create')} />
 
-      <View style={{ flexDirection: 'row', gap: 8, marginBottom: 14 }}>
-        {(['Active', 'Completed', 'All'] as const).map((tab) => {
-          const isSelected = filter === tab;
+      <ScrollView
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        contentContainerStyle={styles.chipsContainer}
+      >
+        {(['All', 'Active', 'Completed'] as const).map((label) => {
+          const value = label.toLowerCase() as Filter;
+          const selected = filter === value;
+
           return (
             <Pressable
-              key={tab}
-              onPress={() => setFilter(tab)}
-              style={{
-                backgroundColor: isSelected ? Colors.accent : Colors.card,
-                borderRadius: 999,
-                borderWidth: isSelected ? 0 : 1,
-                borderColor: Colors.border,
-                paddingHorizontal: 14,
-                paddingVertical: 8,
-              }}
+              key={label}
+              onPress={() => setFilter(value)}
+              style={[styles.chip, selected ? styles.chipSelected : styles.chipUnselected]}
             >
-              <Text
-                style={{
-                  color: isSelected ? Colors.white : Colors.textSecondary,
-                  fontWeight: isSelected ? '600' : '500',
-                }}
-              >
-                {tab}
-              </Text>
+              <Text style={[styles.chipText, selected ? styles.chipTextSelected : styles.chipTextUnselected]}>{label}</Text>
             </Pressable>
           );
         })}
-      </View>
+      </ScrollView>
 
-      {filtered.length === 0 ? (
-        <Text style={{ color: Colors.textSecondary }}>No protocols yet. Tap + to add your first one.</Text>
-      ) : (
-        <FlatList
-          data={filtered}
-          keyExtractor={(item) => item.id}
-          renderItem={({ item }) => {
-            const pct = calcAdherence(item, doseLogs);
-            const adherenceColor = pct >= 80 ? Colors.success : pct >= 50 ? Colors.warning : Colors.error;
-
-            return (
-              <View
-                style={{
-                  backgroundColor: Colors.card,
-                  borderRadius: 14,
-                  padding: 14,
-                  marginBottom: 10,
-                  borderWidth: 1,
-                  borderColor: Colors.border,
-                  flexDirection: 'row',
-                  alignItems: 'center',
-                  gap: 12,
-                }}
-              >
-                <View
-                  style={{
-                    width: 44,
-                    height: 44,
-                    borderRadius: 22,
-                    backgroundColor: Colors.accentLight,
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                  }}
-                >
-                  <Text style={{ color: Colors.accent, fontWeight: '700', fontSize: 17 }}>
-                    {item.name?.[0]?.toUpperCase() ?? '?'}
-                  </Text>
-                </View>
-
-                <View style={{ flex: 1 }}>
-                  <Text style={{ color: Colors.text, fontWeight: '700', fontSize: 15 }}>{item.name}</Text>
-                  <Text style={{ color: Colors.textSecondary, fontSize: 13 }}>
-                    {item.dose_amount} {item.dose_unit} · {item.frequency}
-                  </Text>
-                  <Text style={{ color: Colors.textSecondary, fontSize: 12 }}>{item.time_of_day}</Text>
-                </View>
-
-                <View style={{ minWidth: 68, alignItems: 'flex-end' }}>
-                  <Text style={{ color: adherenceColor, fontWeight: '700', fontSize: 14 }}>{pct}%</Text>
-                  <View style={{ width: '100%', height: 3, borderRadius: 2, backgroundColor: Colors.border, marginTop: 6 }}>
-                    <View
-                      style={{
-                        width: `${Math.min(pct, 100)}%`,
-                        height: 3,
-                        borderRadius: 2,
-                        backgroundColor: adherenceColor,
-                      }}
-                    />
-                  </View>
-                  <Text style={{ color: Colors.textSecondary, marginTop: 6 }}>›</Text>
-                </View>
+      <FlatList
+        data={filteredProtocols}
+        keyExtractor={(item) => item.id}
+        contentContainerStyle={styles.listContent}
+        ListEmptyComponent={
+          <View style={styles.emptyWrap}>
+            <Text style={styles.emptyEmoji}>💊</Text>
+            <Text style={styles.emptyTitle}>No protocols yet</Text>
+            <Text style={styles.emptySubtitle}>Tap + New to create your first protocol</Text>
+          </View>
+        }
+        renderItem={({ item }) => (
+          <Pressable
+            onPress={() => router.push({ pathname: '/log/protocol-detail', params: { protocolId: item.id } })}
+            style={styles.card}
+          >
+            <View style={styles.rowTop}>
+              <View style={styles.cardMain}>
+                <Text style={styles.name}>{item.name}</Text>
+                <Text style={styles.meta}>{item.dose_amount} {item.dose_unit} · {item.frequency}</Text>
+                <Text style={styles.time}>⏰ {item.time_of_day}</Text>
               </View>
-            );
-          }}
-        />
-      )}
+
+              <View style={[styles.badge, item.status === 'active' ? styles.badgeActive : item.status === 'completed' ? styles.badgeCompleted : styles.badgePaused]}>
+                <Text style={[styles.badgeText, item.status === 'active' ? styles.badgeTextActive : item.status === 'completed' ? styles.badgeTextCompleted : styles.badgeTextPaused]}>
+                  {item.status === 'active' ? 'Active' : item.status === 'completed' ? 'Done' : 'Paused'}
+                </Text>
+              </View>
+            </View>
+
+            <View style={styles.divider} />
+
+            <View style={styles.rowBottom}>
+              <Text style={styles.detailHint}>Tap to view details</Text>
+              <Text style={styles.chevron}>›</Text>
+            </View>
+          </Pressable>
+        )}
+      />
     </SafeAreaView>
   );
 }
+
+const styles = StyleSheet.create({
+  container: { flex: 1, backgroundColor: Colors.background },
+  chipsContainer: { paddingHorizontal: 16, paddingVertical: 10, gap: 8 },
+  chip: { borderRadius: 999, paddingHorizontal: 14, paddingVertical: 7 },
+  chipSelected: { backgroundColor: Colors.accent },
+  chipUnselected: { backgroundColor: Colors.card, borderWidth: 1, borderColor: Colors.border },
+  chipText: { fontWeight: '700' },
+  chipTextSelected: { color: Colors.white },
+  chipTextUnselected: { color: Colors.textSecondary },
+  listContent: { padding: 16, gap: 10, paddingBottom: 40 },
+  emptyWrap: { marginTop: 60, alignItems: 'center' },
+  emptyEmoji: { fontSize: 40 },
+  emptyTitle: { marginTop: 12, fontSize: 18, fontWeight: '700', color: Colors.text },
+  emptySubtitle: { marginTop: 6, fontSize: 14, color: Colors.textSecondary },
+  card: { backgroundColor: Colors.card, borderRadius: 14, padding: 16, borderWidth: 1, borderColor: Colors.border },
+  rowTop: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' },
+  cardMain: { flex: 1, paddingRight: 8 },
+  name: { fontSize: 16, fontWeight: '700', color: Colors.text },
+  meta: { marginTop: 3, fontSize: 13, color: Colors.textSecondary },
+  time: { marginTop: 2, fontSize: 12, color: Colors.textSecondary },
+  badge: { borderRadius: 999, paddingHorizontal: 10, paddingVertical: 4 },
+  badgeText: { fontWeight: '700', fontSize: 12 },
+  badgeActive: { backgroundColor: Colors.accentLight },
+  badgeTextActive: { color: Colors.accent },
+  badgeCompleted: { backgroundColor: '#F3F4F6' },
+  badgeTextCompleted: { color: '#6B7280' },
+  badgePaused: { backgroundColor: '#FEF3C7' },
+  badgeTextPaused: { color: '#D97706' },
+  divider: { height: 1, backgroundColor: Colors.border, marginVertical: 12 },
+  rowBottom: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+  detailHint: { fontSize: 12, color: Colors.textSecondary },
+  chevron: { fontSize: 18, color: Colors.textSecondary },
+});
