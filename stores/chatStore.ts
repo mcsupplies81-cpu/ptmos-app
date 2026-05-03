@@ -79,4 +79,3 @@ const useChatStore = create<ChatStore>()(
 );
 
 export default useChatStore;
-export type { ChatMessage, ParsedIntent };
