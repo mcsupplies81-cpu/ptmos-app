@@ -109,6 +109,7 @@ function mockParse(text: string): ParsedIntent {
       return {
         intent: 'log_water',
         payload: { amount_oz: Math.round(oz * 10) / 10 },
+        confidence: 'high' as const,
         displaySummary: `Log water: ${oz >= 128 ? oz / 128 + ' gallon(s)' : oz + ' oz'}`,
       };
     }
@@ -185,7 +186,7 @@ function buildSummary(intent: string, payload: Record<string, string | number | 
       : `${oz} oz`;
     return `Log water: ${display}`;
   }
-  if (intent === 'update_inventory') return `Add to inventory: ${payload.peptide_name ?? 'compound'} ${payload.vial_mg ?? '?'}mg${payload.quantity && payload.quantity > 1 ? ` × ${payload.quantity}` : ''}`;
+  if (intent === 'update_inventory') return `Add to inventory: ${payload.peptide_name ?? 'compound'} ${payload.vial_mg ?? '?'}mg${payload.quantity && Number(payload.quantity) > 1 ? ` × ${payload.quantity}` : ''}`;
   if (intent === 'log_symptom') return `Log symptom: ${payload.symptom ?? '?'}${payload.severity ? ' (' + payload.severity + '/10)' : ''}`;
   return String(payload);
 }

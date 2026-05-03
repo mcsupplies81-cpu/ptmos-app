@@ -90,7 +90,7 @@ export default function TabsLayout() {
                 <Text style={{ color: '#fff', fontSize: 28, lineHeight: 32, fontWeight: '300' }}>+</Text>
               </View>
             ),
-            tabBarButton: (props) => <Pressable {...props} onPress={() => setPlusOpen(true)} />,
+            tabBarButton: (props) => <Pressable {...(props as any)} onPress={() => setPlusOpen(true)} />,
           }}
         />
         <Tabs.Screen name="chat" options={{ title: 'Chat', tabBarIcon: ({ color }) => <ChatIcon color={color} /> }} />
