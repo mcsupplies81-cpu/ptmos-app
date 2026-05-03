@@ -5,6 +5,8 @@ import Colors from '@/constants/Colors';
 import useProtocolStore from '@/stores/protocolStore';
 import { useAuthStore } from '@/stores/authStore';
 import ScreenHeader from '@/components/ScreenHeader';
+import EmptyState from '@/components/EmptyState';
+import LoadingScreen from '@/components/LoadingScreen';
 
 type Filter = 'all' | 'active' | 'completed';
 
@@ -22,6 +24,10 @@ export default function ProtocolsScreen() {
     if (filter === 'all') return protocols;
     return protocols.filter((p) => p.status === filter);
   }, [protocols, filter]);
+
+  if (protocols.length === 0 && filter === 'all') {
+    return <LoadingScreen message="Loading protocols..." />;
+  }
 
   return (
     <SafeAreaView style={styles.container}>
@@ -53,11 +59,13 @@ export default function ProtocolsScreen() {
         keyExtractor={(item) => item.id}
         contentContainerStyle={styles.listContent}
         ListEmptyComponent={
-          <View style={styles.emptyWrap}>
-            <Text style={styles.emptyEmoji}>💊</Text>
-            <Text style={styles.emptyTitle}>No protocols yet</Text>
-            <Text style={styles.emptySubtitle}>Tap + New to create your first protocol</Text>
-          </View>
+          <EmptyState
+            emoji="💊"
+            title="No protocols found"
+            subtitle={filter === 'active' ? 'No active protocols. Create one to get started.' : 'No completed protocols yet.'}
+            actionLabel="Create Protocol"
+            onAction={() => router.push('/protocol/create')}
+          />
         }
         renderItem={({ item }) => (
           <Pressable
@@ -101,10 +109,6 @@ const styles = StyleSheet.create({
   chipTextSelected: { color: Colors.white },
   chipTextUnselected: { color: Colors.textSecondary },
   listContent: { padding: 16, gap: 10, paddingBottom: 40 },
-  emptyWrap: { marginTop: 60, alignItems: 'center' },
-  emptyEmoji: { fontSize: 40 },
-  emptyTitle: { marginTop: 12, fontSize: 18, fontWeight: '700', color: Colors.text },
-  emptySubtitle: { marginTop: 6, fontSize: 14, color: Colors.textSecondary },
   card: { backgroundColor: Colors.card, borderRadius: 14, padding: 16, borderWidth: 1, borderColor: Colors.border },
   rowTop: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' },
   cardMain: { flex: 1, paddingRight: 8 },
