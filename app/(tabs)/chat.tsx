@@ -20,6 +20,7 @@ import { useAuthStore } from '@/stores/authStore';
 import useChatStore, { type ChatMessage, type ParsedIntent } from '@/stores/chatStore';
 import { useDoseLogStore } from '@/stores/doseLogStore';
 import { useLifestyleStore } from '@/stores/lifestyleStore';
+import { useInventoryStore } from '@/stores/inventoryStore';
 import { useProtocolStore } from '@/stores/protocolStore';
 import { SymptomType, useSymptomStore } from '@/stores/symptomStore';
 
@@ -93,6 +94,26 @@ function mockParse(text: string): ParsedIntent {
     };
   }
 
+  // Water
+  if (/(water|drank|hydrat|gallon|liter|litre|oz|ounce|fluid)/i.test(lower)) {
+    let oz = 0;
+    const gallonMatch = text.match(/(\d+(?:\.\d+)?)\s*gal/i);
+    const literMatch = text.match(/(\d+(?:\.\d+)?)\s*l(?:iter|itre)?s?/i);
+    const ozMatch = text.match(/(\d+(?:\.\d+)?)\s*(?:oz|ounce)/i);
+    const mlMatch = text.match(/(\d+(?:\.\d+)?)\s*ml/i);
+    if (gallonMatch) oz = Number(gallonMatch[1]) * 128;
+    else if (literMatch) oz = Number(literMatch[1]) * 33.8;
+    else if (ozMatch) oz = Number(ozMatch[1]);
+    else if (mlMatch) oz = Number(mlMatch[1]) * 0.0338;
+    if (oz > 0) {
+      return {
+        intent: 'log_water',
+        payload: { amount_oz: Math.round(oz * 10) / 10 },
+        displaySummary: `Log water: ${oz >= 128 ? oz / 128 + ' gallon(s)' : oz + ' oz'}`,
+      };
+    }
+  }
+
   if (/(slept|sleep|hours of sleep|bed)/i.test(text)) {
     const hours = Number(text.match(/\d+(?:\.\d+)?/)?.[0] ?? '') || null;
     return {
@@ -155,6 +176,16 @@ function buildSummary(intent: string, payload: Record<string, string | number | 
   if (intent === 'log_dose') return `Log ${payload.amount ?? '?'}${payload.unit ?? 'mcg'} ${payload.peptide ?? 'dose'}${payload.site ? ', ' + payload.site : ''}`;
   if (intent === 'log_weight') return `Log weight: ${payload.value ?? '?'} lbs`;
   if (intent === 'log_sleep') return `Log sleep: ${payload.hours ?? '?'} hours`;
+  if (intent === 'log_water') {
+    const oz = (payload.amount_oz as number) ?? 0;
+    const display = oz >= 128 && oz % 128 === 0
+      ? `${oz / 128} gallon${oz / 128 !== 1 ? 's' : ''}`
+      : oz >= 33.8
+      ? `${(oz / 33.8).toFixed(1)}L`
+      : `${oz} oz`;
+    return `Log water: ${display}`;
+  }
+  if (intent === 'update_inventory') return `Add to inventory: ${payload.peptide_name ?? 'compound'} ${payload.vial_mg ?? '?'}mg${payload.quantity && payload.quantity > 1 ? ` × ${payload.quantity}` : ''}`;
   if (intent === 'log_symptom') return `Log symptom: ${payload.symptom ?? '?'}${payload.severity ? ' (' + payload.severity + '/10)' : ''}`;
   return String(payload);
 }
@@ -171,6 +202,8 @@ export default function ChatScreen() {
   const fetchDoseLogs = useDoseLogStore((s) => s.fetchDoseLogs);
   const upsertLifestyle = useLifestyleStore((s) => s.upsertLog);
   const addSymptom = useSymptomStore((s) => s.addLog);
+  const addVial = useInventoryStore((s) => s.addVial);
+  const fetchInventory = useInventoryStore((s) => s.fetchInventory);
 
 
   useEffect(() => {
@@ -245,6 +278,36 @@ export default function ChatScreen() {
         addMessage({ role: 'success', text: `Symptom logged ✓` });
       }
 
+      else if (intent === 'log_water') {
+        const today = new Date().toISOString().slice(0, 10);
+        const oz = Number((payload as { amount_oz?: number }).amount_oz) || 0;
+        await upsertLifestyle(
+          { date: today, water_oz: oz, weight_lbs: null, calories: null, protein_g: null, sleep_hours: null, steps: null, workout_notes: null, mood: null, energy: null, meal_notes: null },
+          user.id
+        );
+        addMessage({ role: 'success', text: `Water logged: ${oz} oz ✓` });
+      }
+
+      else if (intent === 'update_inventory') {
+        if (!user?.id) return;
+        const p = payload as { peptide_name?: string; vial_mg?: number; quantity?: number; bac_water_ml?: number };
+        const qty = p.quantity ?? 1;
+        const concentration = p.bac_water_ml && p.vial_mg
+          ? p.vial_mg / p.bac_water_ml
+          : p.vial_mg ?? 0;
+        for (let i = 0; i < qty; i++) {
+          await addVial({
+            peptide_name: p.peptide_name ?? 'Unknown',
+            concentration_mg_per_ml: concentration,
+            volume_remaining_ml: p.bac_water_ml ?? 1,
+            expiry_date: new Date(Date.now() + 90 * 86400000).toISOString().slice(0, 10),
+            notes: p.bac_water_ml ? `Reconstituted with ${p.bac_water_ml}mL BAC water` : null,
+          }, user.id);
+        }
+        await fetchInventory(user.id);
+        addMessage({ role: 'success', text: `${qty} × ${p.peptide_name ?? 'vial'} added to inventory ✓` });
+      }
+
       else {
         addMessage({ role: 'success', text: 'Logged ✓' });
       }
@@ -252,7 +315,7 @@ export default function ChatScreen() {
     } catch (e) {
       addMessage({ role: 'error', text: 'Something went wrong. Try again.' });
     }
-  }, [user?.id, updateMessageStatus, addMessage, fetchDoseLogs, upsertLifestyle, addSymptom]);
+  }, [user?.id, updateMessageStatus, addMessage, fetchDoseLogs, upsertLifestyle, addSymptom, addVial, fetchInventory]);
 
   const callAI = useCallback(async (text: string, imageBase64?: string): Promise<{
     type: string;
@@ -372,7 +435,11 @@ export default function ChatScreen() {
     }
 
     if (aiResult.type === 'action' && aiResult.intent) {
-      const validIntents: ParsedIntent['intent'][] = ['log_dose','log_symptom','log_weight','log_sleep','log_lifestyle','update_inventory','ask_adherence','ask_last_dose','ask_next_dose','ask_inventory','reconstitute'];
+      const validIntents: ParsedIntent['intent'][] = [
+        'log_dose','log_symptom','log_weight','log_water','log_sleep',
+        'log_lifestyle','update_inventory','ask_adherence','ask_last_dose',
+        'ask_next_dose','ask_inventory','reconstitute'
+      ];
       const resolvedIntent: ParsedIntent['intent'] = validIntents.includes(aiResult.intent as ParsedIntent['intent'])
         ? (aiResult.intent as ParsedIntent['intent'])
         : 'log_dose';
