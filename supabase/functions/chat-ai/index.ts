@@ -19,7 +19,8 @@ STRICT RULES — never violate these:
 
 When the user wants to LOG something, call the appropriate tool.
 When the user asks a QUESTION about their data, answer conversationally using the context provided.
-Keep responses short and conversational. This is a mobile app.`
+Keep responses short and conversational. This is a mobile app.
+When a user asks about reconstitution or how to mix a vial, call the reconstitute tool with the vial size and water volume. This is math-based only — you are not recommending a dose.`
 
 const TOOLS = [
   {
@@ -65,6 +66,23 @@ const TOOLS = [
           value: { type: 'number', description: 'Weight in lbs' },
         },
         required: ['value'],
+      },
+    },
+  },
+
+  {
+    type: 'function',
+    function: {
+      name: 'reconstitute',
+      description: 'Calculate reconstitution concentration when user has a vial and BAC water',
+      parameters: {
+        type: 'object',
+        properties: {
+          peptide: { type: 'string', description: 'Peptide name if mentioned' },
+          vialMg: { type: 'number', description: 'Vial size in mg' },
+          waterMl: { type: 'number', description: 'BAC water volume in mL' },
+        },
+        required: ['vialMg', 'waterMl'],
       },
     },
   },

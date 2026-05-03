@@ -12,6 +12,7 @@ export type ParsedIntent = {
     | 'ask_last_dose'
     | 'ask_next_dose'
     | 'ask_inventory'
+    | 'reconstitute'
     | 'unknown';
   payload: Record<string, string | number | null>;
   confidence: 'high' | 'medium' | 'low';
@@ -20,10 +21,18 @@ export type ParsedIntent = {
 
 export type ChatMessage = {
   id: string;
-  role: 'user' | 'assistant' | 'confirmation' | 'success' | 'error';
+  role: 'user' | 'assistant' | 'confirmation' | 'success' | 'error' | 'reconstitution';
   text: string;
   parsedIntent?: ParsedIntent;
   status?: 'pending' | 'confirmed' | 'cancelled';
+  reconstitutionResult?: {
+    vialMg: number;
+    waterMl: number;
+    concentrationMgPerMl: number;
+    concentrationMcgPerMl: number;
+    doseTable: Array<{ mcg: number; ml: string }>;
+    peptide: string | null;
+  };
   createdAt: string;
 };
 
