@@ -46,34 +46,25 @@ export const useInventoryStore = create<InventoryStore>((set, get) => ({
       .insert({ ...vial, user_id: userId })
       .select('*')
       .single();
-    if (error) {
-      set({ error: error.message });
-      return;
-    }
+    if (error) throw new Error(error.message);
     set({ items: [data as InventoryItem, ...get().items] });
   },
   updateVialVolume: async (id, newVolume, userId) => {
     const { error } = await supabase
-      .from('inventory_items')
+      .from('inventory')
       .update({ volume_remaining_ml: newVolume })
       .eq('id', id)
       .eq('user_id', userId);
-    if (error) {
-      set({ error: error.message });
-      return;
-    }
+    if (error) throw new Error(error.message);
     await get().fetchInventory(userId);
   },
   deleteVial: async (id, userId) => {
     const { error } = await supabase
-      .from('inventory_items')
+      .from('inventory')
       .delete()
       .eq('id', id)
       .eq('user_id', userId);
-    if (error) {
-      set({ error: error.message });
-      return;
-    }
+    if (error) throw new Error(error.message);
     await get().fetchInventory(userId);
   }
 }));

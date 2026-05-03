@@ -7,7 +7,7 @@ import Colors from '@/constants/Colors';
 import ScreenHeader from '@/components/ScreenHeader';
 
 const DOSE_UNITS = ['mcg', 'mg', 'IU', 'mL'] as const;
-const FREQUENCY_OPTIONS = ['Daily', 'Every Other Day', '3x/week', 'Weekly'] as const;
+const FREQUENCY_OPTIONS = ['Daily', 'Weekly', 'Specific Days'] as const;
 
 export default function CreateProtocolScreen() {
   const router = useRouter();
@@ -28,7 +28,7 @@ export default function CreateProtocolScreen() {
       name: name.trim(),
       dose_amount: Number(doseAmount) || 0,
       dose_unit: doseUnit,
-      frequency: frequency as unknown as 'Daily' | 'Weekly' | 'Specific Days',
+      frequency: frequency as 'Daily' | 'Weekly' | 'Specific Days',
       days_of_week: [],
       time_of_day: timeOfDay.trim() || '09:00',
       start_date: new Date().toISOString().slice(0, 10),

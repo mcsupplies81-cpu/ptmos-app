@@ -313,8 +313,9 @@ export default function ChatScreen() {
         addMessage({ role: 'success', text: 'Logged ✓' });
       }
 
-    } catch (e) {
-      addMessage({ role: 'error', text: 'Something went wrong. Try again.' });
+    } catch (e: any) {
+      console.error('[handleConfirm] error:', e?.message ?? e);
+      addMessage({ role: 'error', text: `Failed: ${e?.message ?? 'something went wrong'}` });
     }
   }, [user?.id, updateMessageStatus, addMessage, fetchDoseLogs, upsertLifestyle, addSymptom, addVial, fetchInventory]);
 
