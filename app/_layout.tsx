@@ -3,12 +3,17 @@ import { useEffect } from 'react';
 import { supabase } from '@/lib/supabase';
 import { useAuthStore } from '@/stores/authStore';
 import { useProfileStore } from '@/stores/profileStore';
+import { useProtocolStore } from '@/stores/protocolStore';
+import { requestNotificationPermission, scheduleProtocolReminders } from '@/lib/notifications';
+import { initRevenueCat } from '@/lib/revenueCat';
 
 export default function RootLayout() {
   const router = useRouter();
   const segments = useSegments();
   const { session, loading, setSession, setLoading } = useAuthStore();
+  const user = useAuthStore((state) => state.session?.user);
   const { profile, fetchProfile } = useProfileStore();
+  const protocols = useProtocolStore((state) => state.protocols);
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
@@ -26,6 +31,10 @@ export default function RootLayout() {
   useEffect(() => {
     if (session?.user?.id) fetchProfile(session.user.id);
   }, [session?.user?.id]);
+
+  useEffect(() => {
+    initRevenueCat(user?.id);
+  }, [user?.id]);
 
   useEffect(() => {
     // Don't redirect until we know auth state
@@ -49,6 +58,12 @@ export default function RootLayout() {
       router.replace('/(tabs)/');
     }
   }, [loading, session, profile, segments]);
+
+  useEffect(() => {
+    requestNotificationPermission().then((granted) => {
+      if (granted) scheduleProtocolReminders(protocols);
+    });
+  }, [protocols]);
 
   return <Stack screenOptions={{ headerShown: false }} />;
 }

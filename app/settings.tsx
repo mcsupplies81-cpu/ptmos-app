@@ -7,11 +7,14 @@ import Colors from '@/constants/Colors';
 import supabase from '@/lib/supabase';
 import { useAuthStore } from '@/stores/authStore';
 import { useProfileStore } from '@/stores/profileStore';
+import { useProtocolStore } from '@/stores/protocolStore';
+import { cancelAllReminders, scheduleProtocolReminders } from '@/lib/notifications';
 
 export default function SettingsScreen() {
   const [notificationsEnabled, setNotificationsEnabled] = useState(true);
   const user = useAuthStore((state) => state.user);
   const profile = useProfileStore((state) => state.profile);
+  const protocols = useProtocolStore((state) => state.protocols);
 
   const initials =
     profile?.full_name
@@ -46,7 +49,15 @@ export default function SettingsScreen() {
               </View>
               <Text style={styles.rowLabel}>Push Notifications</Text>
             </View>
-            <Switch value={notificationsEnabled} onValueChange={setNotificationsEnabled} trackColor={{ true: Colors.accent }} />
+            <Switch
+              value={notificationsEnabled}
+              onValueChange={(value) => {
+                setNotificationsEnabled(value);
+                if (value) scheduleProtocolReminders(protocols);
+                else cancelAllReminders();
+              }}
+              trackColor={{ true: Colors.accent }}
+            />
           </View>
 
           <Pressable style={styles.row} onPress={() => router.push('/paywall')}>
