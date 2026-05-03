@@ -148,6 +148,12 @@ export default function InsightsScreen() {
             </Svg>
           </View>
         </View>
+        <View style={styles.historyLinkWrap}>
+          <Pressable style={styles.historyLinkCard} onPress={() => router.push('/insights/weekly-summary')}>
+            <Text style={styles.historyLinkText}>📋 Weekly Summary</Text>
+            <Text style={styles.historyLinkArrow}>Weekly Summary →</Text>
+          </Pressable>
+        </View>
 
         <View style={styles.statsRow}>
           <View style={styles.statCard}>
