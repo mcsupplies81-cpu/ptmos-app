@@ -1,17 +1,18 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import {
+  Alert,
   FlatList,
+  Image,
   KeyboardAvoidingView,
   Platform,
   Pressable,
   SafeAreaView,
-  ScrollView,
   StyleSheet,
   Text,
   TextInput,
   View,
-  Alert,
 } from 'react-native';
+import * as ImagePicker from 'expo-image-picker';
 
 import Colors from '@/constants/Colors';
 import { supabase } from '@/lib/supabase';
@@ -21,15 +22,6 @@ import { useDoseLogStore } from '@/stores/doseLogStore';
 import { useLifestyleStore } from '@/stores/lifestyleStore';
 import { useProtocolStore } from '@/stores/protocolStore';
 import { SymptomType, useSymptomStore } from '@/stores/symptomStore';
-
-const QUICK_CHIPS = [
-  { label: 'Log Dose 💉', hint: 'I just took ' },
-  { label: 'Log Weight ⚖️', hint: 'My weight is ' },
-  { label: 'Log Sleep 😴', hint: 'I slept ' },
-  { label: 'Log Symptom 🩺', hint: "I'm feeling " },
-  { label: 'Reconstitute 💧', hint: 'Reconstitute ' },
-];
-
 
 function calcReconstitution(vialMg: number, waterMl: number, peptide: string | null) {
   const concentrationMgPerMl = vialMg / waterMl;
@@ -169,6 +161,7 @@ function buildSummary(intent: string, payload: Record<string, string | number | 
 
 export default function ChatScreen() {
   const [inputText, setInputText] = useState('');
+  const [selectedImage, setSelectedImage] = useState<string | null>(null);
   const flatListRef = useRef<FlatList<ChatMessage>>(null);
   const textInputRef = useRef<TextInput>(null);
   const { messages, addMessage, updateMessageStatus, clearMessages } = useChatStore();
@@ -187,6 +180,12 @@ export default function ChatScreen() {
       clearMessages();
     }
   }, []);
+
+  useEffect(() => {
+    if (messages.length > 0) {
+      setTimeout(() => flatListRef.current?.scrollToEnd({ animated: true }), 50);
+    }
+  }, [messages.length]);
 
   const handleConfirm = useCallback(async (message: ChatMessage) => {
     if (!user?.id || !message.parsedIntent) return;
@@ -255,7 +254,13 @@ export default function ChatScreen() {
     }
   }, [user?.id, updateMessageStatus, addMessage, fetchDoseLogs, upsertLifestyle, addSymptom]);
 
-  const callAI = useCallback(async (text: string): Promise<{ type: string; intent?: string; payload?: Record<string, unknown>; text?: string; reason?: string } | null> => {
+  const callAI = useCallback(async (text: string, imageBase64?: string): Promise<{
+    type: string;
+    intent?: string;
+    payload?: Record<string, unknown>;
+    text?: string;
+    reason?: string;
+  } | null> => {
     try {
       const last7 = Array.from({ length: 7 }).map((_, i) => {
         const d = new Date(); d.setDate(d.getDate() - i);
@@ -270,6 +275,7 @@ export default function ChatScreen() {
       const { data, error } = await supabase.functions.invoke('chat-ai', {
         body: {
           message: text,
+          imageBase64: imageBase64 ?? null,
           context: {
             protocols: protocols.map(p => ({ name: p.name, dose_amount: p.dose_amount, dose_unit: p.dose_unit, frequency: p.frequency, status: p.status })),
             recentDoses: [...doseLogs].sort((a, b) => new Date(b.logged_at).getTime() - new Date(a.logged_at).getTime()).slice(0, 5),
@@ -278,117 +284,122 @@ export default function ChatScreen() {
           },
         },
       });
-      if (error) return null;
+      if (error) {
+        console.error('[chat-ai] invoke error:', JSON.stringify(error));
+        return { type: 'error', reason: error.message };
+      }
       return data as { type: string; intent?: string; payload?: Record<string, unknown>; text?: string; reason?: string };
-    } catch {
-      return null;
+    } catch (e) {
+      console.error('[chat-ai] caught:', e);
+      return { type: 'error', reason: String(e) };
     }
   }, [doseLogs, protocols]);
 
-  const handleSend = useCallback(async () => {
-    if (!inputText.trim()) return;
-    const text = inputText.trim();
-    setInputText('');
-    addMessage({ role: 'user', text });
+  const handleImagePick = useCallback(async () => {
+    Alert.alert('Add Image', 'Choose a source', [
+      {
+        text: 'Camera',
+        onPress: async () => {
+          const perm = await ImagePicker.requestCameraPermissionsAsync();
+          if (!perm.granted) { Alert.alert('Permission required', 'Camera access is needed.'); return; }
+          const result = await ImagePicker.launchCameraAsync({
+            base64: true, quality: 0.7,
+            mediaTypes: ImagePicker.MediaTypeOptions.Images,
+          });
+          if (!result.canceled && result.assets[0].base64) {
+            setSelectedImage(result.assets[0].base64);
+          }
+        },
+      },
+      {
+        text: 'Photo Library',
+        onPress: async () => {
+          const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
+          if (!perm.granted) { Alert.alert('Permission required', 'Photo library access is needed.'); return; }
+          const result = await ImagePicker.launchImageLibraryAsync({
+            base64: true, quality: 0.7,
+            mediaTypes: ImagePicker.MediaTypeOptions.Images,
+          });
+          if (!result.canceled && result.assets[0].base64) {
+            setSelectedImage(result.assets[0].base64);
+          }
+        },
+      },
+      { text: 'Cancel', style: 'cancel' },
+    ]);
+  }, []);
 
-    // Try AI first, fall back to mock parser
-    const aiResult = await callAI(text);
+  const handleSend = useCallback(async (overrideText?: string, imageBase64?: string) => {
+    const text = (overrideText ?? inputText).trim();
+    if (!text && !imageBase64) return;
+    if (!overrideText) setInputText('');
+    setSelectedImage(null);
 
-    if (aiResult && aiResult.type === 'message' && aiResult.text) {
+    if (text) addMessage({ role: 'user', text });
+    if (imageBase64) addMessage({ role: 'user', text: text || '📷 Image sent' });
+
+    const aiResult = await callAI(text || 'Describe this image and help me log or understand it.', imageBase64);
+
+    if (!aiResult || aiResult.type === 'error') {
+      const parsed = mockParse(text);
+      if (parsed.intent !== 'unknown') {
+        if (parsed.intent === 'ask_last_dose') {
+          const last = [...doseLogs].sort((a,b) => new Date(b.logged_at).getTime() - new Date(a.logged_at).getTime())[0];
+          if (!last) { addMessage({ role: 'assistant', text: 'No doses logged yet.' }); return; }
+          const days = Math.floor((Date.now() - new Date(last.logged_at).getTime()) / 86400000);
+          addMessage({ role: 'assistant', text: `Last dose: ${last.peptide_name ?? 'Unknown'} ${last.amount}${last.unit}, ${days === 0 ? 'today' : days === 1 ? 'yesterday' : days + ' days ago'}.` });
+          return;
+        }
+        if (parsed.intent === 'reconstitute') {
+          const { vialMg, waterMl, peptide } = parsed.payload as { vialMg: number | null; waterMl: number | null; peptide: string | null };
+          if (vialMg && waterMl) { addMessage({ role: 'reconstitution', text: '', reconstitutionResult: calcReconstitution(vialMg, waterMl, peptide) }); return; }
+        }
+        addMessage({ role: 'confirmation', text: parsed.displaySummary, parsedIntent: parsed, status: 'pending' });
+        return;
+      }
+      addMessage({ role: 'assistant', text: "I'm having trouble connecting right now. Try again in a moment." });
+      return;
+    }
+
+    if (aiResult.type === 'fallback') {
+      addMessage({ role: 'assistant', text: "AI is still setting up. Your message has been noted — try again in a moment." });
+      return;
+    }
+
+    if (aiResult.type === 'message' && aiResult.text) {
       addMessage({ role: 'assistant', text: aiResult.text });
       return;
     }
 
-    if (aiResult && aiResult.type === 'action' && aiResult.intent) {
+    if (aiResult.type === 'action' && aiResult.intent) {
       const validIntents: ParsedIntent['intent'][] = ['log_dose','log_symptom','log_weight','log_sleep','log_lifestyle','update_inventory','ask_adherence','ask_last_dose','ask_next_dose','ask_inventory','reconstitute'];
       const resolvedIntent: ParsedIntent['intent'] = validIntents.includes(aiResult.intent as ParsedIntent['intent'])
         ? (aiResult.intent as ParsedIntent['intent'])
         : 'log_dose';
+      if (resolvedIntent === 'reconstitute') {
+        const p = (aiResult.payload ?? {}) as { vialMg?: number; waterMl?: number; peptide?: string };
+        if (p.vialMg && p.waterMl) {
+          addMessage({ role: 'reconstitution', text: '', reconstitutionResult: calcReconstitution(p.vialMg, p.waterMl, p.peptide ?? null) });
+          return;
+        }
+      }
       const parsed: ParsedIntent = {
         intent: resolvedIntent,
         payload: (aiResult.payload ?? {}) as Record<string, string | number | null>,
         confidence: 'high',
         displaySummary: buildSummary(resolvedIntent, (aiResult.payload ?? {}) as Record<string, string | number | null>),
       };
-  
-    if (parsed.intent === 'reconstitute') {
-      const { vialMg, waterMl, peptide } = parsed.payload as { vialMg: number | null; waterMl: number | null; peptide: string | null };
-      if (!vialMg || !waterMl) {
-        addMessage({ role: 'assistant', text: "Tell me the vial size and BAC water amount. Example: 'Reconstitute BPC-157 5mg with 2mL BAC water'" });
-        return;
-      }
-      const result = calcReconstitution(vialMg, waterMl, peptide);
-      addMessage({ role: 'reconstitution', text: '', reconstitutionResult: result });
-      return;
+      addMessage({ role: 'confirmation', text: parsed.displaySummary, parsedIntent: parsed, status: 'pending' });
     }
-
-    addMessage({ role: 'confirmation', text: parsed.displaySummary, parsedIntent: parsed, status: 'pending' });
-      return;
-    }
-
-    // Fallback: mock parser (AI not configured or failed)
-    const parsed = mockParse(text);
-
-    if (parsed.intent === 'unknown') {
-      addMessage({ role: 'assistant', text: "I'm not sure how to handle that yet. Try: 'Log 250mcg BPC-157' or 'I slept 7 hours'." });
-      return;
-    }
-
-    if (parsed.intent === 'ask_last_dose') {
-      const last = [...doseLogs].sort(
-        (a, b) => new Date(b.logged_at).getTime() - new Date(a.logged_at).getTime(),
-      )[0];
-      if (!last) {
-        addMessage({ role: 'assistant', text: 'No doses logged yet.' });
-        return;
-      }
-      const days = Math.floor((Date.now() - new Date(last.logged_at).getTime()) / 86400000);
-      const when = days === 0 ? 'today' : days === 1 ? 'yesterday' : `${days} days ago`;
-      addMessage({
-        role: 'assistant',
-        text: `Last dose: ${last.peptide_name ?? 'Unknown'} ${last.amount}${last.unit}, ${when}.`,
-      });
-      return;
-    }
-
-    if (parsed.intent === 'ask_adherence') {
-      const active = protocols.filter((p) => p.status === 'active');
-      if (active.length === 0) {
-        addMessage({ role: 'assistant', text: 'No active protocols found.' });
-        return;
-      }
-      const last7 = Array.from({ length: 7 }).map((_, i) => {
-        const d = new Date();
-        d.setDate(d.getDate() - i);
-        return d.toISOString().slice(0, 10);
-      });
-      const logged = new Set(doseLogs.map((l) => l.logged_at.slice(0, 10)));
-      const pct = Math.round((last7.filter((d) => logged.has(d)).length / 7) * 100);
-      addMessage({
-        role: 'assistant',
-        text: `Your 7-day adherence is ${pct}%. ${pct >= 80 ? 'Great work! 🔥' : 'Keep going — every dose counts.'}`,
-      });
-      return;
-    }
-
-
-    if (parsed.intent === 'reconstitute') {
-      const { vialMg, waterMl, peptide } = parsed.payload as { vialMg: number | null; waterMl: number | null; peptide: string | null };
-      if (!vialMg || !waterMl) {
-        addMessage({ role: 'assistant', text: "Tell me the vial size and BAC water amount. Example: 'Reconstitute BPC-157 5mg with 2mL BAC water'" });
-        return;
-      }
-      const result = calcReconstitution(vialMg, waterMl, peptide);
-      addMessage({ role: 'reconstitution', text: '', reconstitutionResult: result });
-      return;
-    }
-
-    addMessage({ role: 'confirmation', text: parsed.displaySummary, parsedIntent: parsed, status: 'pending' });
-  }, [inputText, addMessage, callAI, doseLogs, mockParse, protocols]);
+  }, [inputText, addMessage, callAI, mockParse, doseLogs, protocols]);
 
   return (
-    <SafeAreaView style={styles.safeArea}>
-      <KeyboardAvoidingView style={styles.container} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+    <KeyboardAvoidingView
+      style={{ flex: 1, backgroundColor: Colors.background }}
+      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      keyboardVerticalOffset={Platform.OS === 'ios' ? 83 : 0}
+    >
+      <SafeAreaView style={{ flex: 1, backgroundColor: Colors.background }}>
         <View style={styles.header}>
           <View>
             <Text style={styles.title}>PTMOS</Text>
@@ -409,10 +420,10 @@ export default function ChatScreen() {
         <FlatList
           ref={flatListRef}
           data={messages}
-          inverted
           keyExtractor={(item) => item.id}
           style={styles.messages}
           contentContainerStyle={styles.messagesContent}
+          onLayout={() => flatListRef.current?.scrollToEnd({ animated: false })}
           ListEmptyComponent={
             <View style={styles.emptyState}>
               <Text style={styles.emptyEmoji}>💬</Text>
@@ -499,49 +510,47 @@ export default function ChatScreen() {
           }}
         />
 
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.chipsRow}>
-          {QUICK_CHIPS.map((chip) => (
-            <Pressable
-              key={chip.label}
-              style={styles.chip}
-              onPress={() => {
-                setInputText(chip.hint);
-                textInputRef.current?.focus();
-              }}
-            >
-              <Text style={styles.chipText}>{chip.label}</Text>
+        {selectedImage && (
+          <View style={{ paddingHorizontal: 12, paddingTop: 8, flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+            <Image
+              source={{ uri: `data:image/jpeg;base64,${selectedImage}` }}
+              style={{ width: 56, height: 56, borderRadius: 8 }}
+            />
+            <Pressable onPress={() => setSelectedImage(null)}>
+              <Text style={{ color: Colors.textSecondary, fontSize: 20 }}>✕</Text>
             </Pressable>
-          ))}
-        </ScrollView>
+          </View>
+        )}
 
         <View style={styles.inputBar}>
+          <Pressable style={styles.imageButton} onPress={() => { void handleImagePick(); }}>
+            <Text style={{ fontSize: 22, color: Colors.textSecondary }}>＋</Text>
+          </Pressable>
           <TextInput
             ref={textInputRef}
             style={styles.input}
             value={inputText}
             onChangeText={setInputText}
-            placeholder="Log a dose, ask a question..."
+            placeholder="Message PTMOS AI..."
             placeholderTextColor={Colors.textSecondary}
             returnKeyType="send"
             multiline
             onSubmitEditing={() => { void handleSend(); }}
           />
           <Pressable
-            style={[styles.sendButton, { opacity: inputText.trim() ? 1 : 0.4 }]}
-            onPress={() => { void handleSend(); }}
-            disabled={!inputText.trim()}
+            style={[styles.sendButton, { opacity: (inputText.trim() || selectedImage) ? 1 : 0.4 }]}
+            onPress={() => { void handleSend(undefined, selectedImage ?? undefined); }}
+            disabled={!inputText.trim() && !selectedImage}
           >
             <Text style={styles.sendText}>↑</Text>
           </Pressable>
         </View>
-      </KeyboardAvoidingView>
-    </SafeAreaView>
+      </SafeAreaView>
+    </KeyboardAvoidingView>
   );
 }
 
 const styles = StyleSheet.create({
-  safeArea: { flex: 1, backgroundColor: Colors.background },
-  container: { flex: 1, backgroundColor: Colors.background },
   header: {
     paddingHorizontal: 20,
     paddingTop: 16,
@@ -608,10 +617,8 @@ const styles = StyleSheet.create({
   successText: { color: Colors.accent, fontSize: 13, fontWeight: '600' },
   errorPill: { backgroundColor: '#FEE2E2', borderRadius: 999, paddingHorizontal: 12, paddingVertical: 6, alignSelf: 'flex-start' },
   errorText: { color: '#DC2626', fontSize: 13, fontWeight: '600' },
-  chipsRow: { paddingHorizontal: 12, paddingVertical: 8, gap: 8 },
-  chip: { backgroundColor: Colors.card, borderWidth: 1, borderColor: Colors.border, borderRadius: 999, paddingHorizontal: 12, paddingVertical: 8 },
-  chipText: { color: Colors.text, fontSize: 13 },
   inputBar: { flexDirection: 'row', paddingHorizontal: 12, paddingVertical: 10, gap: 8, borderTopWidth: 1, borderTopColor: Colors.border, backgroundColor: Colors.background },
+  imageButton: { width: 36, height: 36, justifyContent: 'center', alignItems: 'center' },
   input: { flex: 1, borderWidth: 1, borderColor: Colors.border, borderRadius: 20, paddingHorizontal: 14, paddingVertical: 10, fontSize: 15, color: Colors.text, backgroundColor: Colors.card, maxHeight: 100 },
   sendButton: { width: 44, height: 44, borderRadius: 22, backgroundColor: Colors.accent, justifyContent: 'center', alignItems: 'center' },
   sendText: { color: '#FFFFFF', fontSize: 20, fontWeight: '700' },
