@@ -3,8 +3,7 @@ import { useEffect } from 'react';
 import { supabase } from '@/lib/supabase';
 import { useAuthStore } from '@/stores/authStore';
 import { useProfileStore } from '@/stores/profileStore';
-import { useProtocolStore } from '@/stores/protocolStore';
-import { requestNotificationPermission, scheduleProtocolReminders } from '@/lib/notifications';
+import { requestNotificationPermission } from '@/utils/notifications';
 import { initRevenueCat } from '@/lib/revenueCat';
 
 export default function RootLayout() {
@@ -13,7 +12,6 @@ export default function RootLayout() {
   const { session, loading, setSession, setLoading } = useAuthStore();
   const user = useAuthStore((state) => state.session?.user);
   const { profile, fetchProfile } = useProfileStore();
-  const protocols = useProtocolStore((state) => state.protocols);
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
@@ -60,10 +58,8 @@ export default function RootLayout() {
   }, [loading, session, profile, segments]);
 
   useEffect(() => {
-    requestNotificationPermission().then((granted) => {
-      if (granted) scheduleProtocolReminders(protocols);
-    });
-  }, [protocols]);
+    void requestNotificationPermission();
+  }, []);
 
   return <Stack screenOptions={{ headerShown: false }} />;
 }

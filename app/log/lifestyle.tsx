@@ -17,6 +17,7 @@ import ScreenHeader from '@/components/ScreenHeader';
 import { useLifestyleStore } from '@/stores/lifestyleStore';
 import { useAuthStore } from '@/stores/authStore';
 import { useDoseLogStore } from '@/stores/doseLogStore';
+import * as Haptics from 'expo-haptics';
 
 const METRICS = [
   { key: 'weight_lbs', emoji: '⚖️', label: 'Weight', unit: 'lbs', keyboard: 'decimal-pad' as const, placeholder: '0' },
@@ -105,6 +106,7 @@ export default function LifestyleScreen() {
         },
         user.id,
       );
+      await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
       setSaved(true);
       setTimeout(() => setSaved(false), 2000);
     } catch (e: any) {
