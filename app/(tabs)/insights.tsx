@@ -102,7 +102,7 @@ export default function InsightsScreen() {
   if (doseLogs.length === 0 && lifestyleLogs.length === 0) {
     return (
       <SafeAreaView style={styles.safeArea}>
-        <ScreenHeader />
+        <ScreenHeader title="Insights" />
         <EmptyState
           emoji="📊"
           title="No data yet"
@@ -116,7 +116,7 @@ export default function InsightsScreen() {
 
   return (
     <SafeAreaView style={styles.safeArea}>
-      <ScreenHeader />
+      <ScreenHeader title="Insights" />
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
         <View style={styles.header}>
           <Text style={styles.title}>Insights</Text>
