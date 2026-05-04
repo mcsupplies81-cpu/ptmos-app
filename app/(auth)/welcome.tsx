@@ -12,7 +12,7 @@ export default function WelcomeScreen() {
         <View style={styles.logoContainer}>
           <Text style={styles.logoText}>P</Text>
         </View>
-        <Text style={styles.brandText}>PTMOS</Text>
+        <Text style={styles.brandText}>PT-OS</Text>
         <Text style={styles.subtitleText}>All-in-one peptide{`\n`}tracking and optimization platform.</Text>
       </View>
 

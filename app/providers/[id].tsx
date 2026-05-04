@@ -20,7 +20,7 @@ export default function ProviderDetailScreen() {
   const onVisit = async () => {
     if (!user?.id) return
     await logReferralClick(provider.outbound_url, 'provider_detail', user.id)
-    await openBrowserAsync(`${provider.outbound_url}?utm_source=ptmos&utm_medium=app&utm_campaign=provider_directory`)
+    await openBrowserAsync(`${provider.outbound_url}?utm_source=ptos&utm_medium=app&utm_campaign=provider_directory`)
   }
 
   return (

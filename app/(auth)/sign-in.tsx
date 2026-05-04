@@ -47,7 +47,7 @@ export default function SignInScreen() {
             <Text style={styles.logoText}>P</Text>
           </View>
           <Text style={styles.heading}>Welcome back</Text>
-          <Text style={styles.subheading}>Sign in to PTMOS</Text>
+          <Text style={styles.subheading}>Sign in to PT-OS</Text>
         </View>
 
         <View style={styles.bottomSheet}>

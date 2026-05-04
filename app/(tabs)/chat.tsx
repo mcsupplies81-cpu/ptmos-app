@@ -471,7 +471,7 @@ export default function ChatScreen() {
       <SafeAreaView style={{ flex: 1, backgroundColor: Colors.background }}>
         <View style={styles.header}>
           <View>
-            <Text style={styles.title}>PTMOS</Text>
+            <Text style={styles.title}>PT-OS</Text>
             <Text style={styles.subtitle}>AI Assistant</Text>
           </View>
           <Pressable
@@ -600,7 +600,7 @@ export default function ChatScreen() {
             style={styles.input}
             value={inputText}
             onChangeText={setInputText}
-            placeholder="Message PTMOS AI..."
+            placeholder="Message PT-OS AI..."
             placeholderTextColor={Colors.textSecondary}
             returnKeyType="send"
             multiline
