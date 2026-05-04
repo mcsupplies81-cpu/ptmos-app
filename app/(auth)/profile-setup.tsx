@@ -24,9 +24,7 @@ type GoalOption = (typeof GOAL_OPTIONS)[number];
 export default function ProfileSetupScreen() {
   const router = useRouter();
   const { user } = useAuthStore();
-  const { upsertProfile } = useProfileStore((state) => state as typeof state & {
-    upsertProfile?: (userId: string, values: Record<string, unknown>) => Promise<void>;
-  });
+  const { upsertProfile } = useProfileStore();
 
   const [firstName, setFirstName] = useState('');
   const [lastName, setLastName] = useState('');
@@ -52,10 +50,8 @@ export default function ProfileSetupScreen() {
     setSaving(true);
 
     const payload = {
-      first_name: firstName.trim(),
-      last_name: lastName.trim() || null,
+      full_name: `${firstName.trim()} ${lastName.trim()}`.trim() || null,
       date_of_birth: dateOfBirth.trim() || null,
-      biological_sex: biologicalSex,
       height_inches: height.trim() ? Number(height) : null,
       weight_lbs: weight.trim() ? Number(weight) : null,
       goal,
@@ -63,9 +59,7 @@ export default function ProfileSetupScreen() {
     };
 
     try {
-      if (upsertProfile) {
-        await upsertProfile(user.id, payload);
-      }
+      await upsertProfile(user.id, payload);
       router.replace('/(tabs)');
     } finally {
       setSaving(false);
