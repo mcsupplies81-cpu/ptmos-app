@@ -13,14 +13,17 @@ export type Profile = {
   onboarding_complete: boolean | null;
 };
 
+type UpsertProfilePayload = Partial<Omit<Profile, 'id'>>;
+
 type ProfileState = {
   profile: Profile | null | undefined; // undefined = not yet fetched
   loading: boolean;
   fetchProfile: (userId: string) => Promise<void>;
   setProfile: (profile: Profile | null) => void;
+  upsertProfile: (userId: string, values: UpsertProfilePayload) => Promise<void>;
 };
 
-export const useProfileStore = create<ProfileState>((set) => ({
+export const useProfileStore = create<ProfileState>((set, get) => ({
   profile: undefined, // undefined means "not fetched yet"
   loading: false,
   setProfile: (profile) => set({ profile }),
@@ -32,5 +35,9 @@ export const useProfileStore = create<ProfileState>((set) => ({
       .eq('id', userId)
       .maybeSingle();
     set({ profile: (data as Profile | null) ?? null, loading: false });
+  },
+  upsertProfile: async (userId, values) => {
+    await supabase.from('profiles').upsert({ id: userId, ...values });
+    await get().fetchProfile(userId);
   },
 }));
