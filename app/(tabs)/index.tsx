@@ -116,18 +116,6 @@ export default function DashboardScreen() {
     return Math.round((hits / 7) * 100);
   }, [doseLogs]);
 
-  const streakDays = useMemo(() => {
-    const loggedDays = new Set(doseLogs.map((d) => d.logged_at.slice(0, 10)));
-    let streak = 0;
-    const cursor = new Date();
-    cursor.setDate(cursor.getDate() - 1);
-    while (loggedDays.has(cursor.toISOString().slice(0, 10))) {
-      streak += 1;
-      cursor.setDate(cursor.getDate() - 1);
-    }
-    return streak;
-  }, [doseLogs]);
-
   const recentActivity = useMemo(() => doseLogs.slice(0, 5), [doseLogs]);
 
   const relativeTime = (iso: string) => {
@@ -199,7 +187,7 @@ export default function DashboardScreen() {
           <Pressable style={styles.metricCard} onPress={() => router.push('/log/lifestyle')}><Text style={styles.metricLabel}>⚖️ Weight</Text><Text style={styles.metricValue}>{todayLifestyle?.weight_lbs != null ? `${todayLifestyle.weight_lbs} lbs` : '—'}</Text></Pressable>
           <Pressable style={styles.metricCard} onPress={() => router.push('/log/lifestyle')}><Text style={styles.metricLabel}>💧 Water</Text><Text style={styles.metricValue}>{todayLifestyle?.water_oz != null ? `${todayLifestyle.water_oz} oz` : '—'}</Text></Pressable>
           <View style={styles.metricCard}><Text style={styles.metricLabel}>📊 7-Day Adherence</Text><Text style={styles.metricValue}>{adherencePct}%</Text></View>
-          <View style={styles.metricCard}><Text style={styles.metricLabel}>🔥 Streak</Text><Text style={styles.metricValue}>{streakDays} days</Text></View>
+          <View style={styles.metricCard}><Text style={styles.metricLabel}>🦶 Steps</Text><Text style={styles.metricValue}>{todayLifestyle?.steps != null ? todayLifestyle.steps.toLocaleString() : '—'}</Text></View>
         </View>
 
         <View style={styles.sectionHeaderRow}>
