@@ -15,6 +15,7 @@ export default function InventoryScreen() {
   const [volume, setVolume] = useState('');
   const [expiryDate, setExpiryDate] = useState('');
   const [storageNotes, setStorageNotes] = useState('');
+  const [searchQuery, setSearchQuery] = useState('');
 
   useEffect(() => {
     if (user?.id) fetchInventory(user.id);
@@ -41,15 +42,54 @@ export default function InventoryScreen() {
   };
 
   const today = new Date().toISOString().slice(0, 10);
+  const now = new Date();
+  const soonThreshold = new Date(now.getTime() + 30 * 86400000);
+  const filteredItems = items.filter((i) => i.peptide_name.toLowerCase().includes(searchQuery.toLowerCase()));
+  const lowStockCount = items.filter((item) => {
+    const expired = item.expiry_date < today;
+    return !expired && item.volume_remaining_ml <= 0.5;
+  }).length;
+  const expiringSoonCount = items.filter((item) => {
+    const expiry = new Date(item.expiry_date);
+    return expiry >= now && expiry <= soonThreshold;
+  }).length;
 
   return (
     <SafeAreaView style={styles.container}>
       <ScreenHeader title="Inventory" rightLabel="+ Add" onRightPress={() => setOpen(true)} />
 
       <FlatList
-        data={items}
+        data={filteredItems}
         keyExtractor={(item) => item.id}
         contentContainerStyle={styles.listContent}
+        ListHeaderComponent={
+          <View style={styles.headerWrap}>
+            <View style={styles.statsCard}>
+              <View style={styles.statChip}>
+                <Text style={styles.statValue}>{items.length}</Text>
+                <Text style={styles.statLabel}>Total Vials</Text>
+              </View>
+              <View style={[styles.statChip, styles.statChipBorder]}>
+                <Text style={[styles.statValue, { color: '#D97706' }]}>{lowStockCount}</Text>
+                <Text style={styles.statLabel}>Low Stock</Text>
+              </View>
+              <View style={[styles.statChip, styles.statChipBorder]}>
+                <Text style={[styles.statValue, { color: '#DC2626' }]}>{expiringSoonCount}</Text>
+                <Text style={styles.statLabel}>Expiring Soon</Text>
+              </View>
+            </View>
+            <View style={styles.searchBar}>
+              <Text style={styles.searchIcon}>🔍</Text>
+              <TextInput
+                style={styles.searchInput}
+                placeholder="Search inventory..."
+                placeholderTextColor={Colors.textSecondary}
+                value={searchQuery}
+                onChangeText={setSearchQuery}
+              />
+            </View>
+          </View>
+        }
         ListEmptyComponent={
           <EmptyState
             emoji="📦"
@@ -61,87 +101,80 @@ export default function InventoryScreen() {
         }
         renderItem={({ item }) => {
           const expired = item.expiry_date < today;
-          const empty = !expired && item.volume_remaining_ml === 0;
-          const low = !expired && !empty && item.volume_remaining_ml <= 0.5;
+          const low = !expired && item.volume_remaining_ml <= 0.5;
           return (
-            <View style={styles.card}>
-              <View style={styles.cardRow}>
+            <Pressable
+              style={styles.rowCard}
+              onPress={() => {
+                Alert.alert(
+                  item.peptide_name,
+                  'Choose an action',
+                  [
+                    { text: 'Cancel', style: 'cancel' },
+                    {
+                      text: 'Use Dose',
+                      onPress: () => {
+                        Alert.alert(
+                          'Mark Dose Used',
+                          `Reduce volume for ${item.peptide_name}?`,
+                          [
+                            { text: 'Cancel', style: 'cancel' },
+                            {
+                              text: '−0.1 mL',
+                              onPress: () => {
+                                if (!user?.id) return;
+                                const next = Math.max(0, item.volume_remaining_ml - 0.1);
+                                void updateVialVolume(item.id, parseFloat(next.toFixed(2)), user.id);
+                              },
+                            },
+                            {
+                              text: '−0.2 mL',
+                              onPress: () => {
+                                if (!user?.id) return;
+                                const next = Math.max(0, item.volume_remaining_ml - 0.2);
+                                void updateVialVolume(item.id, parseFloat(next.toFixed(2)), user.id);
+                              },
+                            },
+                          ],
+                        );
+                      },
+                    },
+                    {
+                      text: 'Delete',
+                      style: 'destructive',
+                      onPress: () => {
+                        if (!user?.id) return;
+                        void deleteVial(item.id, user.id);
+                      },
+                    },
+                  ],
+                );
+              }}
+            >
+              <View style={styles.rowContent}>
                 <View style={styles.vialIcon}>
-                  <Text style={{ fontSize: 22 }}>💉</Text>
+                  <Text style={{ fontSize: 18 }}>💉</Text>
                 </View>
-                <View style={{ flex: 1 }}>
+                <View style={styles.rowTextWrap}>
                   <Text style={styles.cardName}>{item.peptide_name}</Text>
-                  <Text style={styles.cardMeta}>{item.concentration_mg_per_ml} mg/mL  ·  {item.volume_remaining_ml} mL left</Text>
-                  <Text style={styles.cardMeta}>Exp: {new Date(item.expiry_date).toLocaleDateString()}</Text>
-                </View>
-                <View style={[styles.statusBadge, expired ? styles.badgeExpired : empty ? styles.badgeEmpty : low ? styles.badgeLow : styles.badgeActive]}>
-                  <Text style={[styles.statusText, expired ? styles.textExpired : empty ? styles.textEmpty : low ? styles.textLow : styles.textActive]}>
-                    {expired ? 'Expired' : empty ? 'Empty' : low ? 'Low' : 'Active'}
+                  <Text style={styles.cardMeta}>
+                    {item.concentration_mg_per_ml}mg · Exp: {new Date(item.expiry_date).toLocaleDateString()}
                   </Text>
                 </View>
+                <View style={styles.qtyBadge}>
+                  <Text style={styles.qtyText}>Qty: {item.volume_remaining_ml}mL</Text>
+                </View>
+                <View style={[styles.statusDot, expired ? styles.dotExpired : low ? styles.dotLow : styles.dotActive]} />
               </View>
-
-              <View style={styles.actionDivider} />
-
-              <View style={styles.actionRow}>
-                <Pressable
-                  style={styles.useDoseBtn}
-                  onPress={() => {
-                    Alert.alert(
-                      'Mark Dose Used',
-                      `Reduce volume for ${item.peptide_name}?`,
-                      [
-                        { text: 'Cancel', style: 'cancel' },
-                        {
-                          text: '−0.1 mL',
-                          onPress: () => {
-                            if (!user?.id) return;
-                            const next = Math.max(0, item.volume_remaining_ml - 0.1);
-                            void updateVialVolume(item.id, parseFloat(next.toFixed(2)), user.id);
-                          },
-                        },
-                        {
-                          text: '−0.2 mL',
-                          onPress: () => {
-                            if (!user?.id) return;
-                            const next = Math.max(0, item.volume_remaining_ml - 0.2);
-                            void updateVialVolume(item.id, parseFloat(next.toFixed(2)), user.id);
-                          },
-                        },
-                      ],
-                    );
-                  }}
-                >
-                  <Text style={styles.useDoseText}>Use Dose</Text>
-                </Pressable>
-
-                <Pressable
-                  style={styles.deleteBtn}
-                  onPress={() => {
-                    Alert.alert(
-                      'Delete Vial',
-                      `Remove ${item.peptide_name} from inventory?`,
-                      [
-                        { text: 'Cancel', style: 'cancel' },
-                        {
-                          text: 'Delete',
-                          style: 'destructive',
-                          onPress: () => {
-                            if (!user?.id) return;
-                            void deleteVial(item.id, user.id);
-                          },
-                        },
-                      ],
-                    );
-                  }}
-                >
-                  <Text style={styles.deleteBtnText}>🗑</Text>
-                </Pressable>
-              </View>
-            </View>
+            </Pressable>
           );
         }}
       />
+      <View style={styles.bottomCtaWrap}>
+        <Pressable style={styles.bottomCtaBtn} onPress={() => setOpen(true)}>
+          <Text style={styles.bottomCtaText}>+ Add Item</Text>
+        </Pressable>
+      </View>
 
       <Modal visible={open} animationType="slide" transparent onRequestClose={() => setOpen(false)}>
         <KeyboardAvoidingView
@@ -184,28 +217,31 @@ export default function InventoryScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: Colors.background },
-  listContent: { padding: 16, paddingBottom: 32 },
-  card: { backgroundColor: Colors.card, borderWidth: 1, borderColor: Colors.border, borderRadius: 14, padding: 14, marginBottom: 10 },
-  cardRow: { flexDirection: 'row', alignItems: 'center', gap: 12 },
-  vialIcon: { width: 48, height: 48, borderRadius: 12, backgroundColor: Colors.accentLight, justifyContent: 'center', alignItems: 'center' },
+  listContent: { padding: 16, paddingBottom: 120 },
+  headerWrap: { marginBottom: 10, gap: 10 },
+  statsCard: { backgroundColor: Colors.card, borderWidth: 1, borderColor: Colors.border, borderRadius: 14, flexDirection: 'row' },
+  statChip: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingVertical: 12 },
+  statChipBorder: { borderLeftWidth: 1, borderColor: Colors.border },
+  statValue: { color: Colors.text, fontSize: 20, fontWeight: '700' },
+  statLabel: { color: Colors.textSecondary, fontSize: 12, marginTop: 2 },
+  searchBar: { backgroundColor: Colors.card, borderWidth: 1, borderColor: Colors.border, borderRadius: 12, paddingHorizontal: 12, height: 44, alignItems: 'center', flexDirection: 'row' },
+  searchIcon: { marginRight: 8 },
+  searchInput: { flex: 1, color: Colors.text, fontSize: 14 },
+  rowCard: { backgroundColor: Colors.card, borderWidth: 1, borderColor: Colors.border, borderRadius: 14, padding: 12, marginBottom: 10 },
+  rowContent: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+  vialIcon: { width: 36, height: 36, borderRadius: 18, backgroundColor: Colors.accentLight, justifyContent: 'center', alignItems: 'center' },
+  rowTextWrap: { flex: 1 },
   cardName: { color: Colors.text, fontSize: 15, fontWeight: '600' },
   cardMeta: { color: Colors.textSecondary, fontSize: 13, marginTop: 2 },
-  statusBadge: { paddingHorizontal: 8, paddingVertical: 3, borderRadius: 999 },
-  badgeActive: { backgroundColor: Colors.accentLight },
-  badgeLow: { backgroundColor: '#FEF3C7' },
-  badgeExpired: { backgroundColor: '#FEE2E2' },
-  badgeEmpty: { backgroundColor: '#F3F4F6' },
-  statusText: { fontSize: 11, fontWeight: '700' },
-  textActive: { color: Colors.accent },
-  textLow: { color: '#D97706' },
-  textExpired: { color: '#DC2626' },
-  textEmpty: { color: '#9CA3AF' },
-  actionDivider: { height: 1, backgroundColor: Colors.border, marginTop: 10, marginBottom: 10 },
-  actionRow: { flexDirection: 'row', gap: 8 },
-  useDoseBtn: { flex: 1, backgroundColor: Colors.accentLight, borderRadius: 8, paddingVertical: 8, alignItems: 'center' },
-  useDoseText: { color: Colors.accent, fontSize: 13, fontWeight: '600' },
-  deleteBtn: { width: 40, backgroundColor: '#FEE2E2', borderRadius: 8, paddingVertical: 8, alignItems: 'center' },
-  deleteBtnText: { fontSize: 16 },
+  qtyBadge: { backgroundColor: Colors.accentLight, borderRadius: 999, paddingHorizontal: 8, paddingVertical: 4 },
+  qtyText: { color: Colors.accent, fontSize: 12, fontWeight: '600' },
+  statusDot: { width: 8, height: 8, borderRadius: 4 },
+  dotActive: { backgroundColor: Colors.accent },
+  dotLow: { backgroundColor: '#D97706' },
+  dotExpired: { backgroundColor: '#DC2626' },
+  bottomCtaWrap: { position: 'absolute', left: 16, right: 16, bottom: 18 },
+  bottomCtaBtn: { backgroundColor: Colors.accent, borderRadius: 12, paddingVertical: 14, alignItems: 'center' },
+  bottomCtaText: { color: Colors.white, fontSize: 16, fontWeight: '700' },
   overlay: { flex: 1, justifyContent: 'flex-end' },
   dismissArea: { flex: 1, backgroundColor: '#00000066' },
   modal: { backgroundColor: Colors.background, borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: 20, paddingBottom: 40, maxHeight: '90%' },
