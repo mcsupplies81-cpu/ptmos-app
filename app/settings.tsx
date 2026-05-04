@@ -57,7 +57,7 @@ export default function SettingsScreen() {
     if (!user?.id) return;
     try {
       setSaving(true);
-      const { data, error } = await supabase
+      const { error } = await supabase
         .from('profiles')
         .upsert({
           id: user.id,
@@ -66,10 +66,16 @@ export default function SettingsScreen() {
           height_inches: heightInches ? Number(heightInches) : null,
           weight_lbs: weightLbs ? Number(weightLbs) : null,
           goal: selectedGoal || null,
-        })
-        .select('*')
-        .single();
+        });
       if (error) throw error;
+
+      const { data, error: fetchError } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('id', user.id)
+        .single();
+      if (fetchError) throw fetchError;
+
       setProfile(data as Profile);
       Alert.alert('Saved', 'Profile updated.');
     } catch (e: any) {
