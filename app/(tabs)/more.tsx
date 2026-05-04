@@ -48,7 +48,7 @@ export default function MoreTabScreen() {
       label: 'Sign Out',
       onPress: () => {
         signOut();
-        router.replace('/(auth)/login');
+        router.replace('/(auth)/sign-in');
       },
     },
   ];
