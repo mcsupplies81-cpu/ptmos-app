@@ -1,10 +1,11 @@
-import React, { useState } from 'react';
-import { KeyboardAvoidingView, Platform, Pressable, SafeAreaView, ScrollView, Text, TextInput, View } from 'react-native';
+import React, { useMemo, useState } from 'react';
+import { FlatList, KeyboardAvoidingView, Platform, Pressable, SafeAreaView, ScrollView, Text, TextInput, View } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useProtocolStore } from '@/stores/protocolStore';
 import { useAuthStore } from '@/stores/authStore';
 import Colors from '@/constants/Colors';
 import ScreenHeader from '@/components/ScreenHeader';
+import { COMPOUNDS, searchCompounds, type Compound } from '@/constants/compounds';
 
 const DOSE_UNITS = ['mcg', 'mg', 'IU', 'mL'] as const;
 const FREQUENCY_OPTIONS = ['Daily', 'Weekly', 'Specific Days'] as const;
@@ -20,6 +21,11 @@ export default function CreateProtocolScreen() {
   const [timeOfDay, setTimeOfDay] = useState('09:00');
   const [notes, setNotes] = useState('');
   const [saving, setSaving] = useState(false);
+  const [compoundQuery, setCompoundQuery] = useState('');
+  const [selectedCompound, setSelectedCompound] = useState<Compound | null>(null);
+  const [showCompoundPicker, setShowCompoundPicker] = useState(false);
+
+  const compoundResults = useMemo(() => searchCompounds(compoundQuery).slice(0, 10), [compoundQuery]);
 
   const handleSave = async () => {
     if (!name.trim() || !user?.id) return;
@@ -45,8 +51,86 @@ export default function CreateProtocolScreen() {
       <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
         <ScreenHeader title="New Protocol" />
         <ScrollView contentContainerStyle={{ padding: 16, paddingBottom: 28 }} keyboardShouldPersistTaps="handled">
-          <Text style={labelStyle}>PEPTIDE NAME</Text>
-          <TextInput value={name} onChangeText={setName} returnKeyType="next" style={[inputStyle, { marginBottom: 16 }]} />
+          <Text style={labelStyle}>COMPOUND</Text>
+          {selectedCompound ? (
+            <View style={{ marginBottom: 10 }}>
+              <View style={{
+                alignSelf: 'flex-start',
+                flexDirection: 'row',
+                alignItems: 'center',
+                backgroundColor: '#1F8A5A',
+                borderRadius: 999,
+                paddingVertical: 8,
+                paddingHorizontal: 12,
+                gap: 8,
+              }}>
+                <Text style={{ color: Colors.white, fontWeight: '700' }}>{selectedCompound.name}</Text>
+                <Pressable
+                  onPress={() => {
+                    setSelectedCompound(null);
+                    setShowCompoundPicker(true);
+                    setCompoundQuery(name);
+                  }}
+                >
+                  <Text style={{ color: Colors.white, fontSize: 16, lineHeight: 16 }}>×</Text>
+                </Pressable>
+              </View>
+            </View>
+          ) : (
+            <View style={{ marginBottom: 16 }}>
+              <TextInput
+                value={name}
+                onChangeText={(text) => {
+                  setName(text);
+                  setCompoundQuery(text);
+                  setShowCompoundPicker(true);
+                }}
+                onFocus={() => {
+                  setShowCompoundPicker(true);
+                  setCompoundQuery(name);
+                }}
+                placeholder="Search compounds"
+                placeholderTextColor={Colors.muted}
+                returnKeyType="next"
+                style={inputStyle}
+              />
+              {showCompoundPicker && (
+                <View style={{ maxHeight: 180, marginTop: 8, borderWidth: 1, borderColor: Colors.border, borderRadius: 10, overflow: 'hidden', backgroundColor: Colors.card }}>
+                  <FlatList
+                    keyboardShouldPersistTaps="handled"
+                    data={[...compoundResults, { id: 'custom-compound', name: 'Custom compound', aliases: [], category: 'other', summary: '' } as Compound]}
+                    keyExtractor={(item) => item.id}
+                    renderItem={({ item }) => (
+                      <Pressable
+                        onPress={() => {
+                          if (item.id === 'custom-compound') {
+                            setSelectedCompound(null);
+                            setShowCompoundPicker(false);
+                            return;
+                          }
+                          setSelectedCompound(item);
+                          setName(item.name);
+                          setCompoundQuery(item.name);
+                          setShowCompoundPicker(false);
+                        }}
+                        style={{ paddingHorizontal: 12, paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: Colors.border }}
+                      >
+                        <Text style={{ color: Colors.text, fontWeight: '600' }}>{item.name}</Text>
+                        {item.id !== 'custom-compound' && <Text style={{ color: Colors.textSecondary, fontSize: 12 }}>{item.category}</Text>}
+                      </Pressable>
+                    )}
+                  />
+                </View>
+              )}
+            </View>
+          )}
+
+          {selectedCompound && (
+            <View style={{ marginBottom: 16, backgroundColor: Colors.card, borderRadius: 10, borderWidth: 1, borderColor: Colors.border, padding: 12 }}>
+              <Text style={{ color: Colors.text, marginBottom: 6 }}>{selectedCompound.summary}</Text>
+              <Text style={{ color: Colors.textSecondary, fontSize: 12 }}>This is educational information only.</Text>
+            </View>
+          )}
 
           <View style={{ flexDirection: 'row', gap: 8, marginBottom: 16, alignItems: 'flex-end' }}>
             <View style={{ flex: 1 }}>
