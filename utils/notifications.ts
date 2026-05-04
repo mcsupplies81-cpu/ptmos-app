@@ -1,5 +1,5 @@
 import * as Notifications from 'expo-notifications';
-import { SchedulableTriggerInputTypes } from 'expo-notifications';
+import { SchedulableTriggerInputTypes, type DailyTriggerInput, type WeeklyTriggerInput } from 'expo-notifications';
 
 type ProtocolReminder = {
   id: string;
@@ -30,9 +30,9 @@ export async function scheduleProtocolReminder(protocol: ProtocolReminder): Prom
       return;
     }
 
-    const trigger = protocol.frequency === 'Daily'
-      ? { type: SchedulableTriggerInputTypes.DAILY, hour, minute, repeats: true }
-      : { type: SchedulableTriggerInputTypes.WEEKLY, weekday: 2, hour, minute, repeats: true };
+    const trigger: DailyTriggerInput | WeeklyTriggerInput = protocol.frequency === 'Daily'
+      ? { type: SchedulableTriggerInputTypes.DAILY, hour, minute }
+      : { type: SchedulableTriggerInputTypes.WEEKLY, weekday: 2, hour, minute };
 
     await Notifications.scheduleNotificationAsync({
       identifier,
