@@ -497,6 +497,19 @@ export default function ChatScreen() {
               return <View style={styles.userBubble}><Text style={styles.userText}>{message.text}</Text></View>;
             }
             if (message.role === 'assistant') {
+              if (message.text.startsWith('✅')) {
+                return (
+                  <View style={styles.receiptCard}>
+                    <View style={styles.receiptHeader}>
+                      <View style={styles.receiptCheckCircle}>
+                        <Text style={styles.receiptCheckText}>✓</Text>
+                      </View>
+                      <Text style={styles.receiptTitle}>Logged</Text>
+                    </View>
+                    <Text style={styles.receiptBody}>{message.text}</Text>
+                  </View>
+                );
+              }
               return <View style={styles.assistantBubble}><Text style={styles.assistantText}>{message.text}</Text></View>;
             }
             if (message.role === 'success') {
@@ -633,6 +646,28 @@ const styles = StyleSheet.create({
     marginVertical: 2,
   },
   assistantText: { color: Colors.text, fontSize: 15 },
+  receiptCard: {
+    backgroundColor: Colors.card,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: Colors.accentLight,
+    padding: 12,
+    marginVertical: 2,
+    alignSelf: 'flex-start',
+    maxWidth: '80%',
+  },
+  receiptHeader: { flexDirection: 'row', alignItems: 'center' },
+  receiptCheckCircle: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    backgroundColor: Colors.accent,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  receiptCheckText: { color: Colors.white, fontSize: 14, fontWeight: '700' },
+  receiptTitle: { fontSize: 14, fontWeight: '700', color: Colors.text, marginLeft: 8 },
+  receiptBody: { fontSize: 13, color: Colors.textSecondary, marginTop: 6, lineHeight: 18 },
 
   reconCard: {
     backgroundColor: Colors.card,
