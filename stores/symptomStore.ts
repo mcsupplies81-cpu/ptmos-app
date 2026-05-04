@@ -1,12 +1,10 @@
 import { create } from 'zustand';
 import { supabase } from '@/lib/supabase';
 
-export type SymptomType = 'fatigue' | 'headache' | 'nausea' | 'joint pain' | 'other';
-
 export interface SymptomLog {
   id: string;
   user_id: string;
-  symptom_type: SymptomType;
+  symptom: string;
   severity: number;
   notes: string | null;
   logged_at: string;

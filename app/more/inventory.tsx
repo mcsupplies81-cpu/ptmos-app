@@ -14,7 +14,7 @@ export default function InventoryScreen() {
   const [concentration, setConcentration] = useState('');
   const [volume, setVolume] = useState('');
   const [expiryDate, setExpiryDate] = useState('');
-  const [notes, setNotes] = useState('');
+  const [storageNotes, setStorageNotes] = useState('');
 
   useEffect(() => {
     if (user?.id) fetchInventory(user.id);
@@ -29,12 +29,12 @@ export default function InventoryScreen() {
           concentration_mg_per_ml: Number(concentration) || 0,
           volume_remaining_ml: Number(volume) || 0,
           expiry_date: expiryDate.trim() || new Date(Date.now() + 90 * 86400000).toISOString().slice(0, 10),
-          notes: notes.trim() || null,
+          storage_notes: storageNotes.trim() || null,
         },
         user.id,
       );
       setOpen(false);
-      setName(''); setConcentration(''); setVolume(''); setExpiryDate(''); setNotes('');
+      setName(''); setConcentration(''); setVolume(''); setExpiryDate(''); setStorageNotes('');
     } catch (e: any) {
       Alert.alert('Save failed', e?.message ?? 'Could not save vial. Please try again.');
     }
@@ -166,7 +166,7 @@ export default function InventoryScreen() {
               <TextInput style={styles.input} placeholder="YYYY-MM-DD" placeholderTextColor={Colors.textSecondary} value={expiryDate} onChangeText={setExpiryDate} keyboardType="numbers-and-punctuation" />
 
               <Text style={styles.fieldLabel}>Notes (optional)</Text>
-              <TextInput style={[styles.input, { minHeight: 72, textAlignVertical: 'top' }]} placeholder="Any notes..." placeholderTextColor={Colors.textSecondary} value={notes} onChangeText={setNotes} multiline />
+              <TextInput style={[styles.input, { minHeight: 72, textAlignVertical: 'top' }]} placeholder="Any notes..." placeholderTextColor={Colors.textSecondary} value={storageNotes} onChangeText={setStorageNotes} multiline />
 
               <Pressable style={[styles.saveBtn, !name.trim() && { opacity: 0.4 }]} onPress={saveVial} disabled={!name.trim()}>
                 <Text style={styles.saveBtnText}>Save Vial</Text>

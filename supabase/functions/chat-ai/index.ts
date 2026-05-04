@@ -107,6 +107,20 @@ const TOOLS = [
   {
     type: 'function',
     function: {
+      name: 'log_steps',
+      description: 'Log step count for today',
+      parameters: {
+        type: 'object',
+        properties: {
+          steps: { type: 'number', description: 'Number of steps. Parse "1K" as 1000, "10K" as 10000.' },
+        },
+        required: ['steps'],
+      },
+    },
+  },
+  {
+    type: 'function',
+    function: {
       name: 'log_sleep',
       description: 'Log hours of sleep',
       parameters: {

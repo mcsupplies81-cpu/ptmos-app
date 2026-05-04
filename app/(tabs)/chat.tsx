@@ -2,9 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   Alert,
   FlatList,
-  Image,
   KeyboardAvoidingView,
-  Platform,
   Pressable,
   SafeAreaView,
   StyleSheet,
@@ -12,7 +10,6 @@ import {
   TextInput,
   View,
 } from 'react-native';
-import * as ImagePicker from 'expo-image-picker';
 
 import Colors from '@/constants/Colors';
 import { supabase } from '@/lib/supabase';
@@ -22,7 +19,7 @@ import { useDoseLogStore } from '@/stores/doseLogStore';
 import { useLifestyleStore } from '@/stores/lifestyleStore';
 import { useInventoryStore } from '@/stores/inventoryStore';
 import { useProtocolStore } from '@/stores/protocolStore';
-import { SymptomType, useSymptomStore } from '@/stores/symptomStore';
+import { useSymptomStore } from '@/stores/symptomStore';
 
 function calcReconstitution(vialMg: number, waterMl: number, peptide: string | null) {
   const concentrationMgPerMl = vialMg / waterMl;
@@ -115,6 +112,21 @@ function mockParse(text: string): ParsedIntent {
     }
   }
 
+  // Steps
+  if (/(steps|step count|walked|step)/i.test(lower)) {
+    const kMatch = text.match(/(\d+(?:\.\d+)?)\s*k/i);
+    const numMatch = text.match(/(\d+(?:,\d{3})*(?:\.\d+)?)/);
+    let steps = 0;
+    if (kMatch) steps = Math.round(Number(kMatch[1]) * 1000);
+    else if (numMatch) steps = Math.round(Number(numMatch[1].replace(/,/g, '')));
+    return {
+      intent: 'log_steps' as const,
+      payload: { steps },
+      confidence: steps > 0 ? 'high' as const : 'medium' as const,
+      displaySummary: `Log steps: ${steps > 0 ? steps.toLocaleString() : '?'}`,
+    };
+  }
+
   if (/(slept|sleep|hours of sleep|bed)/i.test(text)) {
     const hours = Number(text.match(/\d+(?:\.\d+)?/)?.[0] ?? '') || null;
     return {
@@ -193,7 +205,6 @@ function buildSummary(intent: string, payload: Record<string, string | number | 
 
 export default function ChatScreen() {
   const [inputText, setInputText] = useState('');
-  const [selectedImage, setSelectedImage] = useState<string | null>(null);
   const flatListRef = useRef<FlatList<ChatMessage>>(null);
   const textInputRef = useRef<TextInput>(null);
   const { messages, addMessage, updateMessageStatus, clearMessages } = useChatStore();
@@ -217,7 +228,7 @@ export default function ChatScreen() {
 
   useEffect(() => {
     if (messages.length > 0) {
-      setTimeout(() => flatListRef.current?.scrollToEnd({ animated: true }), 50);
+      flatListRef.current?.scrollToEnd({ animated: true });
     }
   }, [messages.length]);
 
@@ -230,7 +241,7 @@ export default function ChatScreen() {
       if (intent === 'log_dose') {
         await supabase.from('dose_logs').insert({
           user_id: user.id,
-          peptide_name: payload.peptide ?? null,
+          peptide_name: String(payload.peptide ?? 'Unknown'),
           amount: Number(payload.amount) || 0,
           unit: payload.unit ?? 'mcg',
           injection_site: payload.site ?? null,
@@ -261,22 +272,25 @@ export default function ChatScreen() {
       }
 
       else if (intent === 'log_symptom') {
-        const normalized = (payload.symptom as string ?? '').toLowerCase().trim();
-        const symptomType: SymptomType =
-          normalized === 'fatigue' ? 'fatigue' :
-          normalized === 'headache' ? 'headache' :
-          normalized === 'nausea' ? 'nausea' :
-          normalized === 'joint pain' ? 'joint pain' : 'other';
         await addSymptom(
           {
-            symptom_type: symptomType,
+            symptom: String(payload.symptom ?? 'symptom'),
             severity: Number(payload.severity) || 5,
-            notes: symptomType === 'other' ? (payload.symptom as string) : null,
+            notes: null,
             logged_at: new Date().toISOString(),
           },
           user.id
         );
         addMessage({ role: 'success', text: `Symptom logged ✓` });
+      }
+
+      else if (intent === 'log_steps') {
+        const today = new Date().toISOString().slice(0, 10);
+        await upsertLifestyle(
+          { date: today, steps: Number(payload.steps) || null, weight_lbs: null, water_oz: null, calories: null, protein_g: null, sleep_hours: null, workout_notes: null, mood: null, energy: null, meal_notes: null },
+          user.id
+        );
+        addMessage({ role: 'success', text: `Steps logged: ${Number(payload.steps).toLocaleString()} ✓` });
       }
 
       else if (intent === 'log_water') {
@@ -302,7 +316,7 @@ export default function ChatScreen() {
             concentration_mg_per_ml: concentration,
             volume_remaining_ml: p.bac_water_ml ?? 1,
             expiry_date: new Date(Date.now() + 90 * 86400000).toISOString().slice(0, 10),
-            notes: p.bac_water_ml ? `Reconstituted with ${p.bac_water_ml}mL BAC water` : null,
+            storage_notes: p.bac_water_ml ? `Reconstituted with ${p.bac_water_ml}mL BAC water` : null,
           }, user.id);
         }
         await fetchInventory(user.id);
@@ -360,45 +374,10 @@ export default function ChatScreen() {
     }
   }, [doseLogs, protocols]);
 
-  const handleImagePick = useCallback(async () => {
-    Alert.alert('Add Image', 'Choose a source', [
-      {
-        text: 'Camera',
-        onPress: async () => {
-          const perm = await ImagePicker.requestCameraPermissionsAsync();
-          if (!perm.granted) { Alert.alert('Permission required', 'Camera access is needed.'); return; }
-          const result = await ImagePicker.launchCameraAsync({
-            base64: true, quality: 0.7,
-            mediaTypes: ImagePicker.MediaTypeOptions.Images,
-          });
-          if (!result.canceled && result.assets[0].base64) {
-            setSelectedImage(result.assets[0].base64);
-          }
-        },
-      },
-      {
-        text: 'Photo Library',
-        onPress: async () => {
-          const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
-          if (!perm.granted) { Alert.alert('Permission required', 'Photo library access is needed.'); return; }
-          const result = await ImagePicker.launchImageLibraryAsync({
-            base64: true, quality: 0.7,
-            mediaTypes: ImagePicker.MediaTypeOptions.Images,
-          });
-          if (!result.canceled && result.assets[0].base64) {
-            setSelectedImage(result.assets[0].base64);
-          }
-        },
-      },
-      { text: 'Cancel', style: 'cancel' },
-    ]);
-  }, []);
-
   const handleSend = useCallback(async (overrideText?: string, imageBase64?: string) => {
     const text = (overrideText ?? inputText).trim();
     if (!text && !imageBase64) return;
     if (!overrideText) setInputText('');
-    setSelectedImage(null);
 
     if (text) addMessage({ role: 'user', text });
     if (imageBase64) addMessage({ role: 'user', text: text || '📷 Image sent' });
@@ -438,7 +417,7 @@ export default function ChatScreen() {
 
     if (aiResult.type === 'action' && aiResult.intent) {
       const validIntents: ParsedIntent['intent'][] = [
-        'log_dose','log_symptom','log_weight','log_water','log_sleep',
+        'log_dose','log_symptom','log_weight','log_water','log_sleep','log_steps',
         'log_lifestyle','update_inventory','ask_adherence','ask_last_dose',
         'ask_next_dose','ask_inventory','reconstitute'
       ];
@@ -463,27 +442,39 @@ export default function ChatScreen() {
   }, [inputText, addMessage, callAI, mockParse, doseLogs, protocols]);
 
   return (
-    <KeyboardAvoidingView
-      style={{ flex: 1, backgroundColor: Colors.background }}
-      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-      keyboardVerticalOffset={Platform.OS === 'ios' ? 83 : 0}
-    >
-      <SafeAreaView style={{ flex: 1, backgroundColor: Colors.background }}>
+    <SafeAreaView style={{ flex: 1, backgroundColor: Colors.background }}>
+      <KeyboardAvoidingView
+        style={{ flex: 1 }}
+        behavior="padding"
+        keyboardVerticalOffset={0}
+      >
         <View style={styles.header}>
           <View>
             <Text style={styles.title}>PT-OS</Text>
             <Text style={styles.subtitle}>AI Assistant</Text>
           </View>
-          <Pressable
-            onPress={() =>
-              Alert.alert('Clear Chat', 'Clear all chat history?', [
-                { text: 'Cancel', style: 'cancel' },
-                { text: 'Clear', style: 'destructive', onPress: clearMessages },
-              ])
-            }
-          >
-            <Text style={styles.clearText}>Clear</Text>
-          </Pressable>
+          <View style={styles.headerActions}>
+            <Pressable
+              onPress={() =>
+                Alert.alert('New Chat', 'Start a new conversation?', [
+                  { text: 'Cancel', style: 'cancel' },
+                  { text: 'New Chat', onPress: clearMessages },
+                ])
+              }
+            >
+              <Text style={styles.newChatText}>New Chat</Text>
+            </Pressable>
+            <Pressable
+              onPress={() =>
+                Alert.alert('Clear Chat', 'Clear all chat history?', [
+                  { text: 'Cancel', style: 'cancel' },
+                  { text: 'Clear', style: 'destructive', onPress: clearMessages },
+                ])
+              }
+            >
+              <Text style={styles.clearText}>Clear</Text>
+            </Pressable>
+          </View>
         </View>
 
         <FlatList
@@ -492,6 +483,8 @@ export default function ChatScreen() {
           keyExtractor={(item) => item.id}
           style={styles.messages}
           contentContainerStyle={styles.messagesContent}
+          automaticallyAdjustKeyboardInsets={true}
+          maintainVisibleContentPosition={{ minIndexForVisible: 0 }}
           onLayout={() => flatListRef.current?.scrollToEnd({ animated: false })}
           ListEmptyComponent={
             <View style={styles.emptyState}>
@@ -579,22 +572,7 @@ export default function ChatScreen() {
           }}
         />
 
-        {selectedImage && (
-          <View style={{ paddingHorizontal: 12, paddingTop: 8, flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-            <Image
-              source={{ uri: `data:image/jpeg;base64,${selectedImage}` }}
-              style={{ width: 56, height: 56, borderRadius: 8 }}
-            />
-            <Pressable onPress={() => setSelectedImage(null)}>
-              <Text style={{ color: Colors.textSecondary, fontSize: 20 }}>✕</Text>
-            </Pressable>
-          </View>
-        )}
-
         <View style={styles.inputBar}>
-          <Pressable style={styles.imageButton} onPress={() => { void handleImagePick(); }}>
-            <Text style={{ fontSize: 22, color: Colors.textSecondary }}>＋</Text>
-          </Pressable>
           <TextInput
             ref={textInputRef}
             style={styles.input}
@@ -604,18 +582,19 @@ export default function ChatScreen() {
             placeholderTextColor={Colors.textSecondary}
             returnKeyType="send"
             multiline
+            textAlignVertical="top"
             onSubmitEditing={() => { void handleSend(); }}
           />
           <Pressable
-            style={[styles.sendButton, { opacity: (inputText.trim() || selectedImage) ? 1 : 0.4 }]}
-            onPress={() => { void handleSend(undefined, selectedImage ?? undefined); }}
-            disabled={!inputText.trim() && !selectedImage}
+            style={[styles.sendButton, { opacity: inputText.trim() ? 1 : 0.4 }]}
+            onPress={() => { void handleSend(); }}
+            disabled={!inputText.trim()}
           >
             <Text style={styles.sendText}>↑</Text>
           </Pressable>
         </View>
-      </SafeAreaView>
-    </KeyboardAvoidingView>
+      </KeyboardAvoidingView>
+    </SafeAreaView>
   );
 }
 
@@ -632,13 +611,15 @@ const styles = StyleSheet.create({
   },
   title: { fontSize: 17, fontWeight: '700', color: Colors.text },
   subtitle: { fontSize: 12, color: Colors.textSecondary },
+  headerActions: { flexDirection: 'row', alignItems: 'center', gap: 14 },
+  newChatText: { fontSize: 13, color: Colors.accent, fontWeight: '600' },
   clearText: { fontSize: 13, color: Colors.textSecondary },
   messages: { flex: 1 },
   messagesContent: { paddingHorizontal: 16, paddingVertical: 12, gap: 10 },
   emptyState: { alignItems: 'center', justifyContent: 'center', paddingTop: 80 },
   emptyEmoji: { fontSize: 32 },
   emptyText: { color: Colors.textSecondary, fontSize: 14, textAlign: 'center' },
-  userBubble: { backgroundColor: Colors.accent, borderRadius: 18, borderBottomRightRadius: 4, padding: 12, maxWidth: '80%', alignSelf: 'flex-end' },
+  userBubble: { backgroundColor: Colors.accent, borderRadius: 18, borderBottomRightRadius: 4, padding: 12, maxWidth: '80%', alignSelf: 'flex-end', marginVertical: 2 },
   userText: { color: '#FFFFFF', fontSize: 15 },
   assistantBubble: {
     backgroundColor: Colors.card,
@@ -649,6 +630,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: Colors.border,
     alignSelf: 'flex-start',
+    marginVertical: 2,
   },
   assistantText: { color: Colors.text, fontSize: 15 },
 
@@ -687,8 +669,7 @@ const styles = StyleSheet.create({
   errorPill: { backgroundColor: '#FEE2E2', borderRadius: 999, paddingHorizontal: 12, paddingVertical: 6, alignSelf: 'flex-start' },
   errorText: { color: '#DC2626', fontSize: 13, fontWeight: '600' },
   inputBar: { flexDirection: 'row', paddingHorizontal: 12, paddingVertical: 10, gap: 8, borderTopWidth: 1, borderTopColor: Colors.border, backgroundColor: Colors.background },
-  imageButton: { width: 36, height: 36, justifyContent: 'center', alignItems: 'center' },
-  input: { flex: 1, borderWidth: 1, borderColor: Colors.border, borderRadius: 20, paddingHorizontal: 14, paddingVertical: 10, fontSize: 15, color: Colors.text, backgroundColor: Colors.card, maxHeight: 100 },
+  input: { flex: 1, borderWidth: 1, borderColor: Colors.border, borderRadius: 20, paddingHorizontal: 14, paddingVertical: 10, fontSize: 15, color: Colors.text, backgroundColor: Colors.card, maxHeight: 80 },
   sendButton: { width: 44, height: 44, borderRadius: 22, backgroundColor: Colors.accent, justifyContent: 'center', alignItems: 'center' },
   sendText: { color: '#FFFFFF', fontSize: 20, fontWeight: '700' },
 });

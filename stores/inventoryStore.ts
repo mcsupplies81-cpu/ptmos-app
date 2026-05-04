@@ -8,7 +8,7 @@ export interface InventoryItem {
   concentration_mg_per_ml: number;
   volume_remaining_ml: number;
   expiry_date: string;
-  notes: string | null;
+  storage_notes: string | null;
 }
 
 type InsertInventoryItem = Omit<InventoryItem, 'id' | 'user_id'>;

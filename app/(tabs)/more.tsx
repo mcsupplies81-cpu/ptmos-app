@@ -81,7 +81,7 @@ export default function MoreTabScreen() {
     <SafeAreaView style={styles.container}>
       <View style={{ paddingTop: 16 }} />
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
-        <View style={styles.userCard}>
+        <Pressable style={styles.userCard} onPress={() => router.push('/settings')}>
           <View style={styles.avatar}>
             <Text style={styles.initials}>{initials}</Text>
           </View>
@@ -89,10 +89,8 @@ export default function MoreTabScreen() {
             <Text style={styles.userName}>{displayName}</Text>
             <Text style={styles.userEmail}>{email}</Text>
           </View>
-          <Pressable onPress={() => router.push('/settings')}>
-            <Text style={styles.cardChevron}>›</Text>
-          </Pressable>
-        </View>
+          <Text style={styles.cardChevron}>›</Text>
+        </Pressable>
 
         {renderSection('TRACKING', trackingRows)}
         {renderSection('LEARN', learnRows)}

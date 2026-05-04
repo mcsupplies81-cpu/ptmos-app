@@ -92,7 +92,7 @@ export default function WeeklySummaryScreen() {
   const mostCommonSymptom = useMemo(() => {
     if (!symptomsThisWeek.length) return null;
     const counts = symptomsThisWeek.reduce<Record<string, number>>((acc, log) => {
-      acc[log.symptom_type] = (acc[log.symptom_type] ?? 0) + 1;
+      acc[log.symptom] = (acc[log.symptom] ?? 0) + 1;
       return acc;
     }, {});
     const [name] = Object.entries(counts).sort((a, b) => b[1] - a[1])[0];
