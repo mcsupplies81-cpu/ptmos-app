@@ -9,6 +9,7 @@ import { useAuthStore } from '@/stores/authStore';
 import { useDoseLogStore } from '@/stores/doseLogStore';
 import { useInjectionSiteStore } from '@/stores/injectionSiteStore';
 import { useProtocolStore } from '@/stores/protocolStore';
+import * as Haptics from 'expo-haptics';
 
 const moodOptions = [
   { emoji: '😞', label: 'Bad' },
@@ -56,6 +57,7 @@ export default function DoseLogScreen() {
     setSaving(true);
     const logged_at = new Date(`${logDate}T${logTime}:00`).toISOString();
     await addDoseLog({ protocol_id: protocolId, peptide_name: peptideName.trim() || null, amount: Number(amount) || 0, unit, logged_at, injection_site: selectedSite, mood, notes: notes || null }, user.id);
+    await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     setSaving(false);
     router.back();
   };

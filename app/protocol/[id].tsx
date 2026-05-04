@@ -59,7 +59,7 @@ export default function ProtocolDetailScreen() {
       <ScreenHeader
         title={protocol.name}
         rightLabel="Edit"
-        onRightPress={() => router.push(`/protocol/edit/${protocol.id}`)}
+        onRightPress={() => router.push({ pathname: '/protocol/edit', params: { protocolId: protocol.id } })}
       />
 
       <ScrollView contentContainerStyle={styles.scrollContent}>

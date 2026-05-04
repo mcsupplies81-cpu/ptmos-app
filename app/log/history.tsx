@@ -1,17 +1,30 @@
 import { useEffect, useMemo, useState } from 'react';
-import { FlatList, Pressable, SafeAreaView, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { Alert, FlatList, Pressable, SafeAreaView, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 
 import EmptyState from '@/components/EmptyState';
 import ScreenHeader from '@/components/ScreenHeader';
 import Colors from '@/constants/Colors';
 import { useAuthStore } from '@/stores/authStore';
 import { useDoseLogStore } from '@/stores/doseLogStore';
+import { supabase } from '@/lib/supabase';
 
 export default function DoseHistoryScreen() {
   const user = useAuthStore((s) => s.user);
   const doseLogs = useDoseLogStore((s) => s.doseLogs);
   const fetchDoseLogs = useDoseLogStore((s) => s.fetchDoseLogs);
   const [searchQuery, setSearchQuery] = useState('');
+
+  const handleDelete = async (id: string) => {
+    await supabase.from('dose_logs').delete().eq('id', id);
+    if (user?.id) await fetchDoseLogs(user.id);
+  };
+
+  const onPressRow = (id: string) => {
+    Alert.alert('Dose Log', 'What would you like to do?', [
+      { text: 'Delete', style: 'destructive', onPress: () => void handleDelete(id) },
+      { text: 'Cancel', style: 'cancel' },
+    ]);
+  };
   const [selectedFilter, setSelectedFilter] = useState('All');
 
   useEffect(() => {
@@ -83,7 +96,7 @@ export default function DoseHistoryScreen() {
         keyExtractor={(item) => item.id}
         contentContainerStyle={styles.listContent}
         renderItem={({ item }) => (
-          <View style={styles.card}>
+          <Pressable style={styles.card} onPress={() => onPressRow(item.id)}>
             <View style={styles.rowTop}>
               <Text style={styles.peptideName}>{item.peptide_name ?? 'Unknown compound'}</Text>
               <Text style={styles.amount}>{item.amount} {item.unit}</Text>
@@ -107,7 +120,7 @@ export default function DoseHistoryScreen() {
                 })}
               </Text>
             </View>
-          </View>
+          </Pressable>
         )}
         ListEmptyComponent={
           <EmptyState

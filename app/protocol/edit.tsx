@@ -5,6 +5,8 @@ import { useProtocolStore } from '@/stores/protocolStore';
 import { useAuthStore } from '@/stores/authStore';
 import Colors from '@/constants/Colors';
 import ScreenHeader from '@/components/ScreenHeader';
+import * as Haptics from 'expo-haptics';
+import { cancelProtocolReminder, scheduleProtocolReminder } from '@/utils/notifications';
 
 const DOSE_UNITS = ['mcg', 'mg', 'IU', 'mL'] as const;
 const FREQUENCY_OPTIONS = ['Daily', 'Weekly', 'Specific Days'] as const;
@@ -39,6 +41,9 @@ export default function EditProtocolScreen() {
       notes: notes || null,
       status,
     }, user.id);
+    if (status === 'active') await scheduleProtocolReminder({ id: protocol.id, name, time_of_day: timeOfDay, frequency });
+    else await cancelProtocolReminder(protocol.id);
+    await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     setSaving(false);
     router.back();
   };

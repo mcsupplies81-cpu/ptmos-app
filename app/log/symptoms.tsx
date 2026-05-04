@@ -4,6 +4,7 @@ import Colors from '@/constants/Colors';
 import ScreenHeader from '@/components/ScreenHeader';
 import { useSymptomStore } from '@/stores/symptomStore';
 import { useAuthStore } from '@/stores/authStore';
+import * as Haptics from 'expo-haptics';
 
 const PRESET_SYMPTOMS = [
   'Fatigue',
@@ -72,6 +73,7 @@ export default function SymptomsScreen() {
       user.id,
     );
 
+    await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     setSelected(null);
     setSeverity(5);
   };
