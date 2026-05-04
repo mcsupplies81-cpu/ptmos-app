@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { Alert, SafeAreaView, FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Alert, SafeAreaView, FlatList, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { router } from 'expo-router';
 import Colors from '@/constants/Colors';
 import { useProtocolStore } from '@/stores/protocolStore';
@@ -7,44 +7,46 @@ import { useAuthStore } from '@/stores/authStore';
 import EmptyState from '@/components/EmptyState';
 import LoadingScreen from '@/components/LoadingScreen';
 
-type Filter = 'all' | 'active' | 'completed';
+type Filter = 'All' | 'Active' | 'Paused' | 'Completed';
 
 export default function ProtocolsScreen() {
   const user = useAuthStore((state) => state.user);
   const { protocols, fetchProtocols } = useProtocolStore();
-  const [filter, setFilter] = useState<Filter>('all');
+  const [filter, setFilter] = useState<Filter>('All');
 
   useEffect(() => {
     if (user?.id) fetchProtocols(user.id);
   }, [fetchProtocols, user?.id]);
 
   const filteredProtocols = useMemo(() => {
-    if (filter === 'all') return protocols;
-    return protocols.filter((p) => p.status === filter);
+    return filter === 'All' ? protocols : protocols.filter((p) => p.status === filter.toLowerCase());
   }, [protocols, filter]);
 
-  if (protocols.length === 0 && filter === 'all') {
+  if (protocols.length === 0 && filter === 'All') {
     return <LoadingScreen message="Loading protocols..." />;
   }
 
   return (
     <SafeAreaView style={styles.container}>
-      <View style={styles.chipsContainer}>
-        {(['All', 'Active', 'Completed'] as const).map((label) => {
-          const value = label.toLowerCase() as Filter;
-          const selected = filter === value;
+      <ScrollView
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        contentContainerStyle={styles.chipsContainer}
+      >
+        {(['All', 'Active', 'Paused', 'Completed'] as const).map((label) => {
+          const selected = filter === label;
 
           return (
             <Pressable
               key={label}
-              onPress={() => setFilter(value)}
+              onPress={() => setFilter(label)}
               style={[styles.chip, selected ? styles.chipSelected : styles.chipUnselected]}
             >
               <Text style={[styles.chipText, selected ? styles.chipTextSelected : styles.chipTextUnselected]}>{label}</Text>
             </Pressable>
           );
         })}
-      </View>
+      </ScrollView>
 
       <FlatList
         data={filteredProtocols}
@@ -54,7 +56,7 @@ export default function ProtocolsScreen() {
           <EmptyState
             emoji="💊"
             title="No protocols found"
-            subtitle={filter === 'active' ? 'No active protocols. Create one to get started.' : 'No completed protocols yet.'}
+            subtitle={filter === 'Active' ? 'No active protocols. Create one to get started.' : 'No protocols match this filter yet.'}
             actionLabel="Create Protocol"
             onAction={() => router.push('/protocol/create')}
           />
@@ -102,11 +104,11 @@ export default function ProtocolsScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: Colors.background },
-  chipsContainer: { flexDirection: 'row', gap: 8, paddingHorizontal: 16, paddingTop: 12, paddingBottom: 4 },
-  chip: { borderRadius: 999, paddingHorizontal: 10, paddingVertical: 4 },
-  chipSelected: { backgroundColor: Colors.accent },
-  chipUnselected: { backgroundColor: Colors.card, borderWidth: 1, borderColor: Colors.border },
-  chipText: { fontWeight: '700', fontSize: 12 },
+  chipsContainer: { flexDirection: 'row', gap: 8, paddingHorizontal: 16, marginBottom: 12 },
+  chip: { borderRadius: 999, paddingHorizontal: 12, paddingVertical: 6, borderWidth: 1 },
+  chipSelected: { backgroundColor: Colors.accent, borderColor: Colors.accent },
+  chipUnselected: { backgroundColor: Colors.card, borderColor: Colors.border },
+  chipText: { fontWeight: '600', fontSize: 13 },
   chipTextSelected: { color: Colors.white },
   chipTextUnselected: { color: Colors.textSecondary },
   listContent: { padding: 16, gap: 10, paddingBottom: 120 },
