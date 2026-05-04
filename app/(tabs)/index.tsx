@@ -131,30 +131,56 @@ export default function DashboardScreen() {
   return (
     <SafeAreaView style={styles.safeArea}>
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
-        <View style={styles.headerCard}>
-          <Text style={styles.greeting}>{firstName ? `${greeting}, ${firstName}` : greeting}</Text>
+        <View style={styles.headerSection}>
+          <View style={styles.headerTopRow}>
+            <Text style={styles.brandLabel}>PT-OS</Text>
+            <Pressable style={styles.avatarButton} onPress={() => router.push('/settings')}>
+              <Text style={styles.avatarText}>
+                {(profile?.full_name ?? '')
+                  .split(' ')
+                  .map((part) => part[0])
+                  .filter(Boolean)
+                  .slice(0, 2)
+                  .join('')
+                  .toUpperCase() || 'U'}
+              </Text>
+            </Pressable>
+          </View>
+          <Text style={styles.greetingLine}>{`${greeting},`}</Text>
+          <Text style={styles.nameLine}>{firstName || 'there'}</Text>
           <Text style={styles.date}>{todayDate}</Text>
         </View>
 
-        <Pressable style={styles.card} onPress={() => router.push('/(tabs)/chat')}>
-          <Text style={styles.askTitle}>💬 Ask PT-OS anything...</Text>
-          <Text style={styles.askSub}>Log dose · weight · water · symptom</Text>
+        <Pressable style={styles.askCard} onPress={() => router.push('/(tabs)/chat')}>
+          <View style={styles.askLeft}>
+            <Text style={styles.askEmoji}>💬</Text>
+            <View>
+              <Text style={styles.askTitle}>Ask PT-OS anything...</Text>
+              <Text style={styles.askSub}>Your peptide & protocol assistant</Text>
+            </View>
+          </View>
+          <View style={styles.askArrowCircle}><Text style={styles.askArrow}>→</Text></View>
         </Pressable>
 
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.chipsRow}>
-          <Pressable style={styles.chip} onPress={() => router.push('/log/dose')}><Text style={styles.chipText}>Log Dose</Text></Pressable>
-          <Pressable style={styles.chip} onPress={() => router.push('/log/lifestyle')}><Text style={styles.chipText}>Log Weight</Text></Pressable>
-          <Pressable style={styles.chip} onPress={() => router.push('/log/lifestyle')}><Text style={styles.chipText}>Log Water</Text></Pressable>
-          <Pressable style={styles.chip} onPress={() => router.push('/(tabs)/chat?prompt=Add%20Protocol')}><Text style={styles.chipText}>Add Protocol</Text></Pressable>
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.quickRow}>
+          <Pressable style={styles.quickChip} onPress={() => router.push('/log/dose')}><View style={styles.quickIcon}><Text>💉</Text></View><Text style={styles.quickLabel}>Log Dose</Text></Pressable>
+          <Pressable style={styles.quickChip} onPress={() => router.push('/(tabs)/protocols')}><View style={styles.quickIcon}><Text>🗓</Text></View><Text style={styles.quickLabel}>Protocols</Text></Pressable>
+          <Pressable style={styles.quickChip} onPress={() => router.push('/more/inventory')}><View style={styles.quickIcon}><Text>📦</Text></View><Text style={styles.quickLabel}>Inventory</Text></Pressable>
+          <Pressable style={styles.quickChip} onPress={() => router.push('/log/lifestyle')}><View style={styles.quickIcon}><Text>🌿</Text></View><Text style={styles.quickLabel}>Lifestyle</Text></Pressable>
         </ScrollView>
 
-        <Text style={styles.sectionTitle}>TODAY'S STACK</Text>
+        <View style={styles.sectionHeaderRow}>
+          <Text style={styles.sectionTitle}>TODAY'S STACK</Text>
+          <Pressable onPress={() => router.push('/(tabs)/protocols')}><Text style={styles.link}>Edit</Text></Pressable>
+        </View>
         <View style={styles.card}>
-          {activeProtocols.length === 0 ? <Text style={styles.empty}>No active protocols. Tap + to add one.</Text> : activeProtocols.map((p) => {
+          {activeProtocols.length === 0 ? <Text style={styles.empty}>No active protocols — tap + to add one</Text> : activeProtocols.map((p, idx) => {
             const logged = loggedTodayByProtocol.has(p.id) || loggedTodayByName.has(p.name.toLowerCase());
             return (
-              <View key={p.id} style={styles.row}>
-                <Text style={styles.status}>{logged ? '✓' : '○'}</Text>
+              <View key={p.id} style={[styles.protocolRow, idx === activeProtocols.length - 1 && styles.lastRow]}>
+                <View style={[styles.statusCircle, logged ? styles.statusCircleDone : styles.statusCircleOpen]}>
+                  {logged ? <Text style={styles.statusCheck}>✓</Text> : null}
+                </View>
                 <View style={styles.rowMain}>
                   <Text style={styles.name}>{p.name}</Text>
                   <Text style={styles.sub}>{p.dose_amount} {p.dose_unit}</Text>
@@ -162,8 +188,8 @@ export default function DashboardScreen() {
                 <View style={styles.rowRight}>
                   <Text style={styles.sub}>{p.time_of_day}</Text>
                   {!logged && (
-                    <Pressable style={styles.logButton} onPress={() => router.push('/log/dose')}>
-                      <Text style={styles.logButtonText}>Log Now</Text>
+                    <Pressable style={styles.logPill} onPress={() => router.push('/log/dose')}>
+                      <Text style={styles.logPillText}>Log Now</Text>
                     </Pressable>
                   )}
                 </View>
@@ -174,29 +200,54 @@ export default function DashboardScreen() {
 
         <View style={styles.nextDoseCard}>
           <Text style={styles.sectionTitle}>NEXT DOSE</Text>
-          <Text style={styles.name}>{nextDose?.protocol.name ?? 'No upcoming dose'}</Text>
-          <Text style={styles.sub}>{nextDose ? `${nextDose.protocol.dose_amount} ${nextDose.protocol.dose_unit}` : '—'}</Text>
-          <Text style={styles.countdown}>{countdown}</Text>
-          <Pressable style={styles.logButton} onPress={() => router.push('/log/dose')}>
-            <Text style={styles.logButtonText}>Log Now</Text>
-          </Pressable>
+          {nextDose ? (
+            <>
+              <Text style={styles.nextDoseName}>{nextDose.protocol.name}</Text>
+              <Text style={styles.sub}>{nextDose.protocol.dose_amount} {nextDose.protocol.dose_unit}</Text>
+              <View style={styles.nextDoseFooter}>
+                <Text style={styles.countdown}>{countdown}</Text>
+                <Pressable style={styles.logButton} onPress={() => router.push('/log/dose')}>
+                  <Text style={styles.logButtonText}>Log Dose</Text>
+                </Pressable>
+              </View>
+            </>
+          ) : (
+            <Text style={styles.nextEmpty}>All caught up for today 🎉</Text>
+          )}
         </View>
 
         <Text style={styles.sectionTitle}>KEY METRICS</Text>
-        <View style={styles.grid}>
-          <Pressable style={styles.metricCard} onPress={() => router.push('/log/lifestyle')}><Text style={styles.metricLabel}>⚖️ Weight</Text><Text style={styles.metricValue}>{todayLifestyle?.weight_lbs != null ? `${todayLifestyle.weight_lbs} lbs` : '—'}</Text></Pressable>
-          <Pressable style={styles.metricCard} onPress={() => router.push('/log/lifestyle')}><Text style={styles.metricLabel}>💧 Water</Text><Text style={styles.metricValue}>{todayLifestyle?.water_oz != null ? `${todayLifestyle.water_oz} oz` : '—'}</Text></Pressable>
-          <View style={styles.metricCard}><Text style={styles.metricLabel}>📊 7-Day Adherence</Text><Text style={styles.metricValue}>{adherencePct}%</Text></View>
-          <View style={styles.metricCard}><Text style={styles.metricLabel}>🦶 Steps</Text><Text style={styles.metricValue}>{todayLifestyle?.steps != null ? todayLifestyle.steps.toLocaleString() : '—'}</Text></View>
+        <View style={styles.metricsGrid}>
+          <Pressable style={styles.metricCard} onPress={() => router.push('/log/lifestyle')}>
+            <Text style={styles.metricTop}>⚖️ Weight</Text>
+            <Text style={styles.metricValue}>{todayLifestyle?.weight_lbs != null ? `${todayLifestyle.weight_lbs}` : '—'}</Text>
+            <Text style={styles.metricMeta}>lbs</Text>
+          </Pressable>
+          <Pressable style={styles.metricCard} onPress={() => router.push('/log/lifestyle')}>
+            <Text style={styles.metricTop}>💧 Water</Text>
+            <Text style={styles.metricValue}>{todayLifestyle?.water_oz != null ? `${todayLifestyle.water_oz} oz` : '—'}</Text>
+            <Text style={styles.metricMeta}>today</Text>
+          </Pressable>
+          <Pressable style={styles.metricCard} onPress={() => router.push('/log/lifestyle')}>
+            <Text style={styles.metricTop}>😴 Sleep</Text>
+            <Text style={styles.metricValue}>{todayLifestyle?.sleep_hours != null ? `${todayLifestyle.sleep_hours}h` : '—'}</Text>
+            <Text style={styles.metricMeta}>last night</Text>
+          </Pressable>
+          <View style={styles.metricCard}>
+            <Text style={styles.metricTop}>📊 Adherence</Text>
+            <Text style={styles.metricValue}>{adherencePct}%</Text>
+            <Text style={styles.metricMeta}>7-day</Text>
+          </View>
         </View>
 
         <View style={styles.sectionHeaderRow}>
           <Text style={styles.sectionTitle}>RECENT ACTIVITY</Text>
-          <Pressable onPress={() => router.push('/log/history')}><Text style={styles.viewAll}>View all</Text></Pressable>
+          <Pressable onPress={() => router.push('/log/history')}><Text style={styles.link}>View All</Text></Pressable>
         </View>
         <View style={styles.card}>
-          {recentActivity.length === 0 ? <Text style={styles.empty}>No doses logged yet.</Text> : recentActivity.map((d) => (
-            <View key={d.id} style={styles.row}>
+          {recentActivity.length === 0 ? <Text style={styles.empty}>No doses logged yet</Text> : recentActivity.map((d, idx) => (
+            <View key={d.id} style={[styles.activityRow, idx === recentActivity.length - 1 && styles.lastRow]}>
+              <View style={styles.activityDot} />
               <View style={styles.rowMain}>
                 <Text style={styles.name}>{d.peptide_name ?? 'Dose'}</Text>
                 <Text style={styles.sub}>{d.amount} {d.unit}</Text>
@@ -212,32 +263,55 @@ export default function DashboardScreen() {
 
 const styles = StyleSheet.create({
   safeArea: { flex: 1, backgroundColor: Colors.background },
-  content: { padding: 16, paddingBottom: 100, gap: 12 },
-  headerCard: { backgroundColor: Colors.card, borderRadius: 16, borderWidth: 1, borderColor: Colors.border, padding: 16 },
-  greeting: { fontSize: 26, fontWeight: '700', color: Colors.text },
-  date: { marginTop: 4, color: Colors.textSecondary },
-  card: { backgroundColor: Colors.card, borderRadius: 16, borderWidth: 1, borderColor: Colors.border, padding: 14, gap: 10 },
-  askTitle: { fontSize: 16, color: Colors.text, fontWeight: '600' },
+  content: { padding: 16, paddingBottom: 100, gap: 14, backgroundColor: Colors.background },
+  headerSection: { paddingVertical: 4, gap: 4 },
+  headerTopRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  brandLabel: { fontSize: 12, letterSpacing: 1.4, fontWeight: '700', color: Colors.textSecondary },
+  avatarButton: { width: 36, height: 36, borderRadius: 18, backgroundColor: Colors.card, borderWidth: 1, borderColor: Colors.border, alignItems: 'center', justifyContent: 'center' },
+  avatarText: { color: Colors.text, fontSize: 13, fontWeight: '700' },
+  greetingLine: { fontSize: 30, fontWeight: '700', color: Colors.text },
+  nameLine: { fontSize: 34, fontWeight: '800', color: Colors.text },
+  date: { marginTop: 2, color: Colors.textSecondary, fontSize: 13 },
+  askCard: { backgroundColor: Colors.accentLight, borderRadius: 16, borderWidth: 1, borderColor: Colors.border, padding: 16, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  askLeft: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+  askEmoji: { fontSize: 20 },
+  askTitle: { fontSize: 17, color: Colors.text, fontWeight: '700' },
   askSub: { color: Colors.textSecondary, fontSize: 13 },
-  chipsRow: { gap: 8 },
-  chip: { backgroundColor: Colors.card, borderRadius: 999, borderWidth: 1, borderColor: Colors.border, paddingHorizontal: 12, paddingVertical: 8 },
-  chipText: { color: Colors.text, fontSize: 13 },
-  sectionTitle: { fontSize: 12, fontWeight: '700', color: Colors.textSecondary, letterSpacing: 0.5 },
-  row: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: 6, borderBottomWidth: 1, borderBottomColor: Colors.border },
-  status: { width: 20, color: '#16A34A', fontSize: 16, fontWeight: '700' },
+  askArrowCircle: { width: 32, height: 32, borderRadius: 16, backgroundColor: Colors.accent, alignItems: 'center', justifyContent: 'center' },
+  askArrow: { color: '#fff', fontSize: 17, fontWeight: '700' },
+  quickRow: { gap: 10, paddingRight: 8 },
+  quickChip: { width: 78, backgroundColor: Colors.card, borderRadius: 14, borderWidth: 1, borderColor: Colors.border, paddingVertical: 10, paddingHorizontal: 8, alignItems: 'center', gap: 8 },
+  quickIcon: { width: 28, height: 28, borderRadius: 14, backgroundColor: Colors.background, alignItems: 'center', justifyContent: 'center' },
+  quickLabel: { fontSize: 13, color: Colors.text, textAlign: 'center' },
+  sectionHeaderRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+  sectionTitle: { fontSize: 11, fontWeight: '700', letterSpacing: 1.5, color: Colors.textSecondary },
+  link: { color: Colors.accent, fontSize: 13, fontWeight: '600' },
+  card: { backgroundColor: Colors.card, borderRadius: 16, borderWidth: 1, borderColor: Colors.border, padding: 16 },
+  protocolRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: Colors.border, gap: 10 },
+  statusCircle: { width: 22, height: 22, borderRadius: 11, alignItems: 'center', justifyContent: 'center' },
+  statusCircleDone: { backgroundColor: Colors.accent },
+  statusCircleOpen: { borderWidth: 1.5, borderColor: Colors.accent, backgroundColor: 'transparent' },
+  statusCheck: { color: '#fff', fontWeight: '800', fontSize: 12 },
   rowMain: { flex: 1 },
-  rowRight: { alignItems: 'flex-end', gap: 4 },
+  rowRight: { alignItems: 'flex-end', gap: 6 },
   name: { color: Colors.text, fontWeight: '700', fontSize: 15 },
   sub: { color: Colors.textSecondary, fontSize: 13 },
-  logButton: { backgroundColor: Colors.accent, borderRadius: 10, paddingHorizontal: 10, paddingVertical: 6 },
-  logButtonText: { color: '#fff', fontSize: 12, fontWeight: '700' },
-  nextDoseCard: { backgroundColor: '#E8F6EC', borderRadius: 16, borderWidth: 1, borderColor: Colors.border, padding: 14, gap: 6 },
-  countdown: { color: '#166534', fontWeight: '700' },
-  grid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
-  metricCard: { width: '48%', backgroundColor: Colors.card, borderRadius: 16, borderWidth: 1, borderColor: Colors.border, padding: 12, minHeight: 80 },
-  metricLabel: { color: Colors.textSecondary, fontSize: 12 },
-  metricValue: { marginTop: 6, color: Colors.text, fontSize: 18, fontWeight: '700' },
-  sectionHeaderRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  viewAll: { color: Colors.accent, fontWeight: '600', fontSize: 13 },
-  empty: { color: Colors.textSecondary, textAlign: 'center', paddingVertical: 10 },
+  logPill: { backgroundColor: Colors.accentLight, borderRadius: 999, paddingHorizontal: 10, paddingVertical: 5 },
+  logPillText: { color: Colors.accent, fontSize: 12, fontWeight: '700' },
+  nextDoseCard: { backgroundColor: '#E8F6EC', borderRadius: 16, borderWidth: 1, borderColor: Colors.border, padding: 16, gap: 6 },
+  nextDoseName: { fontSize: 24, fontWeight: '800', color: Colors.text },
+  nextDoseFooter: { marginTop: 2, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  nextEmpty: { color: Colors.text, fontSize: 15 },
+  countdown: { color: Colors.accent, fontWeight: '700', fontSize: 15 },
+  logButton: { backgroundColor: Colors.accent, borderRadius: 10, paddingHorizontal: 12, paddingVertical: 8 },
+  logButtonText: { color: '#fff', fontSize: 13, fontWeight: '700' },
+  metricsGrid: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between', gap: 10 },
+  metricCard: { width: '48%', backgroundColor: Colors.card, borderRadius: 16, borderWidth: 1, borderColor: Colors.border, padding: 12, minHeight: 118, justifyContent: 'space-between' },
+  metricTop: { color: Colors.text, fontSize: 15, fontWeight: '600' },
+  metricValue: { color: Colors.text, fontSize: 24, fontWeight: '800' },
+  metricMeta: { color: Colors.textSecondary, fontSize: 13 },
+  activityRow: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: Colors.border },
+  activityDot: { width: 8, height: 8, borderRadius: 4, backgroundColor: Colors.accent },
+  lastRow: { borderBottomWidth: 0 },
+  empty: { color: Colors.textSecondary, textAlign: 'center', paddingVertical: 12, fontSize: 15 },
 });
