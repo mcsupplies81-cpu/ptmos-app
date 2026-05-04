@@ -40,7 +40,7 @@ export default function DisclaimerScreen() {
         <ScrollView contentContainerStyle={styles.scrollContent}>
           <Text style={styles.sectionHeading}>Not Medical Advice</Text>
           <Text style={styles.bodyText}>
-            PTMOS is a personal tracking tool. It does not provide medical advice, diagnose conditions, or recommend
+            PT-OS is a personal tracking tool. It does not provide medical advice, diagnose conditions, or recommend
             treatments. Always consult a licensed healthcare provider before starting any protocol.
           </Text>
 
@@ -52,13 +52,13 @@ export default function DisclaimerScreen() {
 
           <Text style={styles.sectionHeading}>Your Responsibility</Text>
           <Text style={styles.bodyText}>
-            You are solely responsible for any decisions you make regarding your health and protocols. PTMOS tracks
+            You are solely responsible for any decisions you make regarding your health and protocols. PT-OS tracks
             what you log — nothing more.
           </Text>
 
           <Text style={styles.sectionHeading}>Provider Directory</Text>
           <Text style={styles.bodyText}>
-            Provider listings are for informational purposes. PTMOS does not endorse, verify, or guarantee any listed
+            Provider listings are for informational purposes. PT-OS does not endorse, verify, or guarantee any listed
             provider.
           </Text>
 
@@ -67,7 +67,7 @@ export default function DisclaimerScreen() {
               {accepted ? <Text style={styles.checkmark}>✓</Text> : null}
             </View>
             <Text style={styles.acceptanceText}>
-              I understand that PTMOS is a tracking tool and not a medical service.
+              I understand that PT-OS is a tracking tool and not a medical service.
             </Text>
           </Pressable>
 

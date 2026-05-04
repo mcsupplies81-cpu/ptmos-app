@@ -22,18 +22,22 @@ export default function InventoryScreen() {
 
   const saveVial = async () => {
     if (!user?.id || !name.trim()) return;
-    await addVial(
-      {
-        peptide_name: name.trim(),
-        concentration_mg_per_ml: Number(concentration),
-        volume_remaining_ml: Number(volume),
-        expiry_date: expiryDate,
-        notes: notes.trim() || null,
-      },
-      user.id,
-    );
-    setOpen(false);
-    setName(''); setConcentration(''); setVolume(''); setExpiryDate(''); setNotes('');
+    try {
+      await addVial(
+        {
+          peptide_name: name.trim(),
+          concentration_mg_per_ml: Number(concentration) || 0,
+          volume_remaining_ml: Number(volume) || 0,
+          expiry_date: expiryDate.trim() || new Date(Date.now() + 90 * 86400000).toISOString().slice(0, 10),
+          notes: notes.trim() || null,
+        },
+        user.id,
+      );
+      setOpen(false);
+      setName(''); setConcentration(''); setVolume(''); setExpiryDate(''); setNotes('');
+    } catch (e: any) {
+      Alert.alert('Save failed', e?.message ?? 'Could not save vial. Please try again.');
+    }
   };
 
   const today = new Date().toISOString().slice(0, 10);

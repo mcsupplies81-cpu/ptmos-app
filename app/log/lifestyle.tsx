@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import {
+  Alert,
   KeyboardAvoidingView,
   Platform,
   Pressable,
@@ -72,7 +73,6 @@ export default function LifestyleScreen() {
 
   const handleSave = async () => {
     if (!user?.id) return;
-
     setSaving(true);
     try {
       await upsertLog(
@@ -92,7 +92,9 @@ export default function LifestyleScreen() {
         user.id,
       );
       setSaved(true);
-      setTimeout(() => setSaved(false), 900);
+      setTimeout(() => setSaved(false), 2000);
+    } catch (e: any) {
+      Alert.alert('Save failed', e?.message ?? 'Something went wrong. Please try again.');
     } finally {
       setSaving(false);
     }

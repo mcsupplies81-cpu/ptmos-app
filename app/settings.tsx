@@ -4,11 +4,11 @@ import { Alert, Pressable, SafeAreaView, ScrollView, StyleSheet, Switch, Text, T
 
 import ScreenHeader from '@/components/ScreenHeader';
 import Colors from '@/constants/Colors';
-import supabase from '@/lib/supabase';
+import { supabase } from '@/lib/supabase';
 import { cancelAllReminders, scheduleProtocolReminders } from '@/lib/notifications';
 import { useAuthStore } from '@/stores/authStore';
 import { useLifestyleStore } from '@/stores/lifestyleStore';
-import { useProfileStore } from '@/stores/profileStore';
+import { Profile, useProfileStore } from '@/stores/profileStore';
 import { useProtocolStore } from '@/stores/protocolStore';
 
 const goals = ['Peptide Research', 'Sleep & Recovery', 'Energy & Focus', 'Body Composition', 'Health Optimization', 'Cognitive Enhancement', 'Recovery & Healing'];
@@ -26,12 +26,9 @@ export default function SettingsScreen() {
   const [firstName, setFirstName] = useState('');
   const [lastName, setLastName] = useState('');
   const [dob, setDob] = useState('');
-  const [sex, setSex] = useState<'M' | 'F' | 'Other'>('Other');
-  const [height, setHeight] = useState('');
-  const [weight, setWeight] = useState('');
-  const [bodyFat, setBodyFat] = useState('');
-  const [experience, setExperience] = useState<'Beginner' | 'Intermediate' | 'Advanced'>('Beginner');
-  const [selectedGoals, setSelectedGoals] = useState<string[]>([]);
+  const [heightInches, setHeightInches] = useState('');
+  const [weightLbs, setWeightLbs] = useState('');
+  const [selectedGoal, setSelectedGoal] = useState('');
 
   useEffect(() => {
     if (user?.id) fetchLogs(user.id);
@@ -42,20 +39,17 @@ export default function SettingsScreen() {
     const parts = (profile.full_name ?? '').split(' ').filter(Boolean);
     setFirstName(parts[0] ?? '');
     setLastName(parts.slice(1).join(' '));
-    const profileAny = profile as any;
-    setDob(profileAny.date_of_birth ?? '');
-    setSex((profileAny.sex as 'M' | 'F' | 'Other') ?? 'Other');
-    setHeight(profileAny.height ?? '');
-    setBodyFat(profileAny.body_fat_pct ? String(profileAny.body_fat_pct) : '');
-    setExperience((profileAny.experience_level as 'Beginner' | 'Intermediate' | 'Advanced') ?? 'Beginner');
-    setSelectedGoals(Array.isArray(profileAny.goals) ? profileAny.goals : []);
+    setDob(profile.date_of_birth ?? '');
+    setHeightInches(profile.height_inches ? String(profile.height_inches) : '');
+    setWeightLbs(profile.weight_lbs ? String(profile.weight_lbs) : '');
+    setSelectedGoal(profile.goal ?? '');
   }, [profile]);
 
   useEffect(() => {
-    if (weight) return;
+    if (weightLbs) return;
     const latest = logs[0];
-    if (latest?.weight_lbs) setWeight(String(latest.weight_lbs));
-  }, [logs, weight]);
+    if (latest?.weight_lbs) setWeightLbs(String(latest.weight_lbs));
+  }, [logs, weightLbs]);
 
   const initials = useMemo(() => `${firstName[0] ?? ''}${lastName[0] ?? ''}`.toUpperCase() || '?', [firstName, lastName]);
 
@@ -63,21 +57,21 @@ export default function SettingsScreen() {
     if (!user?.id) return;
     try {
       setSaving(true);
-      const payload: any = {
-        id: user.id,
-        full_name: `${firstName} ${lastName}`.trim() || null,
-        date_of_birth: dob || null,
-        sex,
-        height: height || null,
-        weight: weight ? Number(weight) : null,
-        body_fat_pct: bodyFat ? Number(bodyFat) : null,
-        experience_level: experience,
-        goals: selectedGoals,
-      };
-      const { data, error } = await supabase.from('profiles').upsert(payload).select('*').single();
+      const { data, error } = await supabase
+        .from('profiles')
+        .upsert({
+          id: user.id,
+          full_name: `${firstName} ${lastName}`.trim() || null,
+          date_of_birth: dob || null,
+          height_inches: heightInches ? Number(heightInches) : null,
+          weight_lbs: weightLbs ? Number(weightLbs) : null,
+          goal: selectedGoal || null,
+        })
+        .select('*')
+        .single();
       if (error) throw error;
-      setProfile((data as any) ?? null);
-      Alert.alert('Saved', 'Profile updated successfully.');
+      setProfile(data as Profile);
+      Alert.alert('Saved', 'Profile updated.');
     } catch (e: any) {
       Alert.alert('Save failed', e?.message ?? 'Please try again.');
     } finally {
@@ -101,21 +95,18 @@ export default function SettingsScreen() {
             <TextInput value={lastName} onChangeText={setLastName} placeholder="Last Name" placeholderTextColor={Colors.textSecondary} style={styles.inputHalf} />
           </View>
           <TextInput value={dob} onChangeText={setDob} placeholder="Date of Birth (YYYY-MM-DD)" placeholderTextColor={Colors.textSecondary} style={styles.input} />
-          <View style={styles.pillsRow}>{(['M', 'F', 'Other'] as const).map((option) => <Pressable key={option} onPress={() => setSex(option)} style={[styles.pill, sex === option && styles.pillActive]}><Text style={[styles.pillText, sex === option && styles.pillTextActive]}>{option}</Text></Pressable>)}</View>
           <Pressable style={styles.saveBtn} onPress={handleSave} disabled={saving}><Text style={styles.saveText}>{saving ? 'Saving...' : 'Save Profile'}</Text></Pressable>
         </View>
 
         <View style={styles.sectionCard}>
-          <TextInput value={height} onChangeText={setHeight} placeholder="Height (ft/in or cm)" placeholderTextColor={Colors.textSecondary} style={styles.input} />
-          <TextInput value={weight} onChangeText={setWeight} placeholder="Weight" keyboardType="decimal-pad" placeholderTextColor={Colors.textSecondary} style={styles.input} />
-          <TextInput value={bodyFat} onChangeText={setBodyFat} placeholder="Body fat % (optional)" keyboardType="decimal-pad" placeholderTextColor={Colors.textSecondary} style={styles.input} />
-          <View style={styles.pillsRow}>{(['Beginner', 'Intermediate', 'Advanced'] as const).map((option) => <Pressable key={option} onPress={() => setExperience(option)} style={[styles.pill, experience === option && styles.pillActive]}><Text style={[styles.pillText, experience === option && styles.pillTextActive]}>{option}</Text></Pressable>)}</View>
+          <TextInput value={heightInches} onChangeText={setHeightInches} placeholder="Height (inches)" keyboardType="number-pad" placeholderTextColor={Colors.textSecondary} style={styles.input} />
+          <TextInput value={weightLbs} onChangeText={setWeightLbs} placeholder="Weight (lbs)" keyboardType="decimal-pad" placeholderTextColor={Colors.textSecondary} style={styles.input} />
         </View>
 
         <View style={styles.sectionCard}>
           <View style={styles.goalsWrap}>{goals.map((goal) => {
-            const selected = selectedGoals.includes(goal);
-            return <Pressable key={goal} onPress={() => setSelectedGoals((prev) => selected ? prev.filter((g) => g !== goal) : [...prev, goal])} style={[styles.goalPill, selected && styles.goalPillActive]}><Text style={[styles.goalText, selected && styles.goalTextActive]}>{goal}</Text></Pressable>;
+            const selected = selectedGoal === goal;
+            return <Pressable key={goal} onPress={() => setSelectedGoal(goal)} style={[styles.goalPill, selected && styles.goalPillActive]}><Text style={[styles.goalText, selected && styles.goalTextActive]}>{goal}</Text></Pressable>;
           })}</View>
         </View>
 
