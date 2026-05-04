@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from 'react';
-import { FlatList, KeyboardAvoidingView, Platform, Pressable, SafeAreaView, ScrollView, Text, TextInput, View } from 'react-native';
+import { FlatList, KeyboardAvoidingView, Modal, Platform, Pressable, SafeAreaView, ScrollView, Text, TextInput, View } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useProtocolStore } from '@/stores/protocolStore';
 import { useAuthStore } from '@/stores/authStore';
@@ -23,7 +23,7 @@ export default function CreateProtocolScreen() {
   const [saving, setSaving] = useState(false);
   const [compoundQuery, setCompoundQuery] = useState('');
   const [selectedCompound, setSelectedCompound] = useState<Compound | null>(null);
-  const [showCompoundPicker, setShowCompoundPicker] = useState(false);
+  const [showCompoundModal, setShowCompoundModal] = useState(false);
 
   const compoundResults = useMemo(() => searchCompounds(compoundQuery).slice(0, 10), [compoundQuery]);
 
@@ -68,7 +68,7 @@ export default function CreateProtocolScreen() {
                 <Pressable
                   onPress={() => {
                     setSelectedCompound(null);
-                    setShowCompoundPicker(true);
+                    setShowCompoundModal(true);
                     setCompoundQuery(name);
                   }}
                 >
@@ -83,10 +83,9 @@ export default function CreateProtocolScreen() {
                 onChangeText={(text) => {
                   setName(text);
                   setCompoundQuery(text);
-                  setShowCompoundPicker(true);
                 }}
                 onFocus={() => {
-                  setShowCompoundPicker(true);
+                  setShowCompoundModal(true);
                   setCompoundQuery(name);
                 }}
                 placeholder="Search compounds"
@@ -94,34 +93,6 @@ export default function CreateProtocolScreen() {
                 returnKeyType="next"
                 style={inputStyle}
               />
-              {showCompoundPicker && (
-                <View style={{ maxHeight: 180, marginTop: 8, borderWidth: 1, borderColor: Colors.border, borderRadius: 10, overflow: 'hidden', backgroundColor: Colors.card }}>
-                  <FlatList
-                    keyboardShouldPersistTaps="handled"
-                    data={[...compoundResults, { id: 'custom-compound', name: 'Custom compound', aliases: [], category: 'other', summary: '' } as Compound]}
-                    keyExtractor={(item) => item.id}
-                    renderItem={({ item }) => (
-                      <Pressable
-                        onPress={() => {
-                          if (item.id === 'custom-compound') {
-                            setSelectedCompound(null);
-                            setShowCompoundPicker(false);
-                            return;
-                          }
-                          setSelectedCompound(item);
-                          setName(item.name);
-                          setCompoundQuery(item.name);
-                          setShowCompoundPicker(false);
-                        }}
-                        style={{ paddingHorizontal: 12, paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: Colors.border }}
-                      >
-                        <Text style={{ color: Colors.text, fontWeight: '600' }}>{item.name}</Text>
-                        {item.id !== 'custom-compound' && <Text style={{ color: Colors.textSecondary, fontSize: 12 }}>{item.category}</Text>}
-                      </Pressable>
-                    )}
-                  />
-                </View>
-              )}
             </View>
           )}
 
@@ -168,6 +139,49 @@ export default function CreateProtocolScreen() {
             <Text style={{ color: Colors.white, fontSize: 16, fontWeight: '700' }}>{saving ? 'Saving...' : 'Save Protocol'}</Text>
           </Pressable>
         </ScrollView>
+        <Modal visible={showCompoundModal} animationType="slide" presentationStyle="pageSheet">
+          <SafeAreaView style={{ flex: 1, backgroundColor: Colors.background }}>
+            <View style={{ padding: 16, gap: 12 }}>
+              <Text style={{ fontSize: 18, fontWeight: '700', color: Colors.text }}>Select Compound</Text>
+              <TextInput
+                autoFocus
+                value={compoundQuery}
+                onChangeText={setCompoundQuery}
+                placeholder="Search compounds..."
+                placeholderTextColor={Colors.muted}
+                style={inputStyle}
+              />
+            </View>
+            <FlatList
+              keyboardShouldPersistTaps="handled"
+              data={[...compoundResults, { id: 'custom-compound', name: 'Custom compound', aliases: [], category: 'other', summary: '' } as Compound]}
+              keyExtractor={(item) => item.id}
+              renderItem={({ item }) => (
+                <Pressable
+                  onPress={() => {
+                    if (item.id === 'custom-compound') {
+                      setSelectedCompound(null);
+                      setShowCompoundModal(false);
+                      setName(compoundQuery);
+                      return;
+                    }
+                    setSelectedCompound(item);
+                    setName(item.name);
+                    setCompoundQuery(item.name);
+                    setShowCompoundModal(false);
+                  }}
+                  style={{ paddingHorizontal: 16, paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: Colors.border }}
+                >
+                  <Text style={{ color: Colors.text, fontWeight: '600' }}>{item.name}</Text>
+                  {item.id !== 'custom-compound' && <Text style={{ color: Colors.textSecondary, fontSize: 12 }}>{item.category}</Text>}
+                </Pressable>
+              )}
+            />
+            <Pressable onPress={() => setShowCompoundModal(false)} style={{ padding: 16 }}>
+              <Text style={{ color: Colors.textSecondary, textAlign: 'center' }}>Cancel</Text>
+            </Pressable>
+          </SafeAreaView>
+        </Modal>
       </KeyboardAvoidingView>
     </SafeAreaView>
   );
