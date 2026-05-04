@@ -95,18 +95,41 @@ export default function SettingsScreen() {
       <ScreenHeader hideBack={true} title="Profile" />
       <ScrollView contentContainerStyle={styles.content}>
         <View style={styles.sectionCard}>
-          <View style={styles.avatar}><Text style={styles.avatarText}>{initials}</Text></View>
-          <View style={styles.row2}>
-            <TextInput value={firstName} onChangeText={setFirstName} placeholder="First Name" placeholderTextColor={Colors.textSecondary} style={styles.inputHalf} />
-            <TextInput value={lastName} onChangeText={setLastName} placeholder="Last Name" placeholderTextColor={Colors.textSecondary} style={styles.inputHalf} />
+          <View style={styles.avatarWrap}>
+            <View style={styles.avatar}><Text style={styles.avatarText}>{initials}</Text></View>
+            <View style={styles.cameraBadge}><Text>📷</Text></View>
           </View>
-          <TextInput value={dob} onChangeText={setDob} placeholder="Date of Birth (YYYY-MM-DD)" placeholderTextColor={Colors.textSecondary} style={styles.input} />
-          <Pressable style={styles.saveBtn} onPress={handleSave} disabled={saving}><Text style={styles.saveText}>{saving ? 'Saving...' : 'Save Profile'}</Text></Pressable>
+          <Text style={styles.profileName}>{`${firstName} ${lastName}`.trim() || 'Your Name'}</Text>
+          <Text style={styles.profileEmail}>{user?.email ?? ''}</Text>
         </View>
 
         <View style={styles.sectionCard}>
-          <TextInput value={heightInches} onChangeText={setHeightInches} placeholder="Height (inches)" keyboardType="number-pad" placeholderTextColor={Colors.textSecondary} style={styles.input} />
-          <TextInput value={weightLbs} onChangeText={setWeightLbs} placeholder="Weight (lbs)" keyboardType="decimal-pad" placeholderTextColor={Colors.textSecondary} style={styles.input} />
+          <View style={styles.infoRow}>
+            <Text style={styles.infoLabel}>First Name</Text>
+            <TextInput value={firstName} onChangeText={setFirstName} placeholder="First Name" placeholderTextColor={Colors.textSecondary} style={styles.infoInput} />
+            <Text style={styles.chevron}>›</Text>
+          </View>
+          <View style={styles.infoRow}>
+            <Text style={styles.infoLabel}>Last Name</Text>
+            <TextInput value={lastName} onChangeText={setLastName} placeholder="Last Name" placeholderTextColor={Colors.textSecondary} style={styles.infoInput} />
+            <Text style={styles.chevron}>›</Text>
+          </View>
+          <View style={styles.infoRow}>
+            <Text style={styles.infoLabel}>Date of Birth</Text>
+            <TextInput value={dob} onChangeText={setDob} placeholder="YYYY-MM-DD" placeholderTextColor={Colors.textSecondary} style={styles.infoInput} />
+            <Text style={styles.chevron}>›</Text>
+          </View>
+          <View style={styles.infoRow}>
+            <Text style={styles.infoLabel}>Height</Text>
+            <TextInput value={heightInches} onChangeText={setHeightInches} placeholder="inches" keyboardType="decimal-pad" placeholderTextColor={Colors.textSecondary} style={styles.infoInput} />
+            <Text style={styles.chevron}>›</Text>
+          </View>
+          <View style={[styles.infoRow, styles.infoRowLast]}>
+            <Text style={styles.infoLabel}>Weight</Text>
+            <TextInput value={weightLbs} onChangeText={setWeightLbs} placeholder="lbs" keyboardType="decimal-pad" placeholderTextColor={Colors.textSecondary} style={styles.infoInput} />
+            <Text style={styles.chevron}>›</Text>
+          </View>
+          <Pressable style={styles.saveBtn} onPress={handleSave} disabled={saving}><Text style={styles.saveText}>{saving ? 'Saving...' : 'Save Profile'}</Text></Pressable>
         </View>
 
         <View style={styles.sectionCard}>
@@ -132,17 +155,23 @@ const styles = StyleSheet.create({
   safeArea: { flex: 1, backgroundColor: Colors.background },
   content: { padding: 16, paddingBottom: 36, gap: 12 },
   sectionCard: { backgroundColor: Colors.card, borderRadius: 16, borderWidth: 1, borderColor: Colors.border, padding: 14, gap: 10 },
-  avatar: { width: 70, height: 70, borderRadius: 35, alignSelf: 'center', backgroundColor: Colors.accentLight, alignItems: 'center', justifyContent: 'center' },
+  avatarWrap: { alignSelf: 'center', position: 'relative' },
+  avatar: { width: 80, height: 80, borderRadius: 40, alignSelf: 'center', backgroundColor: Colors.accentLight, alignItems: 'center', justifyContent: 'center' },
+  cameraBadge: { width: 24, height: 24, borderRadius: 12, backgroundColor: Colors.white, alignItems: 'center', justifyContent: 'center', position: 'absolute', right: -2, bottom: -2 },
   avatarText: { color: Colors.accent, fontSize: 24, fontWeight: '800' },
-  row2: { flexDirection: 'row', gap: 8 },
-  input: { borderWidth: 1, borderColor: Colors.border, borderRadius: 12, paddingHorizontal: 12, paddingVertical: 11, color: Colors.text, backgroundColor: Colors.background },
-  inputHalf: { flex: 1, borderWidth: 1, borderColor: Colors.border, borderRadius: 12, paddingHorizontal: 12, paddingVertical: 11, color: Colors.text, backgroundColor: Colors.background },
+  profileName: { color: Colors.text, fontSize: 18, fontWeight: '700', textAlign: 'center' },
+  profileEmail: { color: Colors.textSecondary, fontSize: 14, textAlign: 'center' },
+  infoRow: { paddingHorizontal: 16, paddingVertical: 14, flexDirection: 'row', alignItems: 'center', borderBottomWidth: 1, borderColor: Colors.border },
+  infoRowLast: { borderBottomWidth: 0 },
+  infoLabel: { fontSize: 15, color: Colors.textSecondary, width: 110 },
+  infoInput: { flex: 1, textAlign: 'right', fontSize: 15, color: Colors.text, padding: 0 },
+  chevron: { color: Colors.textSecondary, marginLeft: 8, fontSize: 18, lineHeight: 18 },
   pillsRow: { flexDirection: 'row', gap: 8, flexWrap: 'wrap' },
   pill: { paddingHorizontal: 12, paddingVertical: 8, borderRadius: 999, borderWidth: 1, borderColor: Colors.border, backgroundColor: Colors.background },
   pillActive: { backgroundColor: Colors.accentLight, borderColor: Colors.accent },
   pillText: { color: Colors.textSecondary, fontWeight: '600' },
   pillTextActive: { color: Colors.accent },
-  saveBtn: { backgroundColor: Colors.accent, borderRadius: 12, paddingVertical: 12, alignItems: 'center' },
+  saveBtn: { backgroundColor: Colors.accent, borderRadius: 12, paddingVertical: 12, alignItems: 'center', marginTop: 8 },
   saveText: { color: '#fff', fontWeight: '700', fontSize: 15 },
   goalsWrap: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
   goalPill: { paddingHorizontal: 12, paddingVertical: 8, borderRadius: 999, borderWidth: 1, borderColor: Colors.border },
