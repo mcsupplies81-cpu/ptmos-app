@@ -1,39 +1,20 @@
 import { useEffect } from 'react';
 import { router } from 'expo-router';
 import { Pressable, SafeAreaView, ScrollView, StyleSheet, Text, View } from 'react-native';
+
 import Colors from '@/constants/Colors';
 import { useAuthStore } from '@/stores/authStore';
 import { useProfileStore } from '@/stores/profileStore';
 
-type SectionRow = {
-  icon: string;
-  iconBg: string;
+type MenuItem = {
+  emoji: string;
   label: string;
-  path: string;
-  isUpgrade?: boolean;
+  onPress: () => void;
 };
-
-const trackingRows: SectionRow[] = [
-  { icon: '💉', iconBg: '#E8F5E9', label: 'Log Dose', path: '/log/dose' },
-  { icon: '🗓️', iconBg: '#E8F5E9', label: 'Injection Sites', path: '/more/injection-sites' },
-  { icon: '📦', iconBg: '#E8F5E9', label: 'Inventory', path: '/more/inventory' },
-  { icon: '🩺', iconBg: '#E8F5E9', label: 'Symptoms', path: '/log/symptoms' },
-  { icon: '🏃', iconBg: '#E8F5E9', label: 'Lifestyle Log', path: '/log/lifestyle' },
-];
-
-const learnRows: SectionRow[] = [
-  { icon: '🔬', iconBg: '#EDE9FE', label: 'Research Library', path: '/research' },
-  { icon: '🏥', iconBg: '#EDE9FE', label: 'Find Providers', path: '/providers' },
-  { icon: '🧮', iconBg: '#EDE9FE', label: 'Dosage Calculator', path: '/log/calculator' },
-];
-
-const accountRows: SectionRow[] = [
-  { icon: '⚙️', iconBg: '#F3F4F6', label: 'Settings', path: '/settings' },
-  { icon: '✨', iconBg: Colors.accentLight, label: 'Go Pro', path: '/paywall', isUpgrade: true },
-];
 
 export default function MoreTabScreen() {
   const user = useAuthStore((s) => s.user);
+  const signOut = useAuthStore((s) => s.signOut);
   const profile = useProfileStore((s) => s.profile);
   const fetchProfile = useProfileStore((s) => s.fetchProfile);
 
@@ -43,58 +24,75 @@ export default function MoreTabScreen() {
     }
   }, [fetchProfile, user?.id]);
 
-  const initials = profile?.full_name
-    ? profile.full_name
-        .split(' ')
-        .map((w) => w[0])
-        .join('')
-        .slice(0, 2)
-        .toUpperCase()
-    : '?';
-
-  const displayName = profile?.full_name || 'Your Profile';
+  const displayName = profile?.full_name?.trim() || 'Your Profile';
   const email = user?.email || 'Add your email in settings';
+  const initial = displayName.charAt(0).toUpperCase() || '?';
 
-  const renderSection = (title: string, rows: SectionRow[]) => (
-    <>
-      <Text style={styles.sectionHeader}>{title}</Text>
+  const trackingItems: MenuItem[] = [
+    { emoji: '💉', label: 'Protocols', onPress: () => router.push('/(tabs)/protocols') },
+    { emoji: '📋', label: 'Dose History', onPress: () => router.push('/log/history') },
+    { emoji: '🩺', label: 'Symptoms', onPress: () => router.push('/log/symptoms') },
+    { emoji: '🏃', label: 'Lifestyle', onPress: () => router.push('/log/lifestyle') },
+  ];
+
+  const insightsItems: MenuItem[] = [
+    { emoji: '📊', label: 'Weekly Summary', onPress: () => router.push('/insights/weekly-summary') },
+    { emoji: '🧪', label: 'Inventory', onPress: () => router.push('/more/inventory') },
+  ];
+
+  const accountItems: MenuItem[] = [
+    { emoji: '⚙️', label: 'Settings', onPress: () => router.push('/settings') },
+    { emoji: '📄', label: 'Disclaimer', onPress: () => router.push('/disclaimer-modal') },
+    {
+      emoji: '🚪',
+      label: 'Sign Out',
+      onPress: () => {
+        signOut();
+        router.replace('/(auth)/sign-in');
+      },
+    },
+  ];
+
+  const renderSection = (title: string, items: MenuItem[]) => (
+    <View>
+      <Text style={styles.sectionLabel}>{title}</Text>
       <View style={styles.sectionCard}>
-        {rows.map((row, index) => (
-          <Pressable
-            key={row.path}
-            style={[styles.row, index === rows.length - 1 && styles.rowLast]}
-            onPress={() => router.push(row.path as any)}
-          >
-            <View style={[styles.iconCircle, { backgroundColor: row.iconBg }]}>
-              <Text style={styles.iconText}>{row.icon}</Text>
-            </View>
-            <Text style={styles.rowLabel}>{row.label}</Text>
-            {row.isUpgrade && <Text style={styles.upgradeBadge}>UPGRADE</Text>}
-            <Text style={styles.chevron}>›</Text>
-          </Pressable>
-        ))}
+        {items.map((item, index) => {
+          const isLast = index === items.length - 1;
+          return (
+            <Pressable
+              key={`${title}-${item.label}`}
+              style={[styles.itemRow, isLast && styles.itemRowLast]}
+              onPress={item.onPress}
+            >
+              <View style={styles.itemLeft}>
+                <View style={styles.emojiCircle}>
+                  <Text style={styles.emoji}>{item.emoji}</Text>
+                </View>
+                <Text style={styles.itemLabel}>{item.label}</Text>
+              </View>
+              <Text style={styles.chevron}>›</Text>
+            </Pressable>
+          );
+        })}
       </View>
-    </>
+    </View>
   );
 
   return (
     <SafeAreaView style={styles.container}>
-      <View style={{ paddingTop: 16 }} />
-      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
-        <Pressable style={styles.userCard} onPress={() => router.push('/settings')}>
+      <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
+        <Pressable style={styles.profileHeader} onPress={() => router.push('/settings')}>
           <View style={styles.avatar}>
-            <Text style={styles.initials}>{initials}</Text>
+            <Text style={styles.avatarText}>{initial}</Text>
           </View>
-          <View style={styles.userInfo}>
-            <Text style={styles.userName}>{displayName}</Text>
-            <Text style={styles.userEmail}>{email}</Text>
-          </View>
-          <Text style={styles.cardChevron}>›</Text>
+          <Text style={styles.displayName}>{displayName}</Text>
+          <Text style={styles.email}>{email}</Text>
         </Pressable>
 
-        {renderSection('TRACKING', trackingRows)}
-        {renderSection('LEARN', learnRows)}
-        {renderSection('ACCOUNT', accountRows)}
+        {renderSection('TRACKING', trackingItems)}
+        {renderSection('INSIGHTS', insightsItems)}
+        {renderSection('ACCOUNT', accountItems)}
       </ScrollView>
     </SafeAreaView>
   );
@@ -102,89 +100,85 @@ export default function MoreTabScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: Colors.background },
-  scrollContent: { paddingBottom: 40 },
-  userCard: {
-    margin: 16,
-    marginTop: 8,
+  scrollContent: { padding: 16, paddingBottom: 60 },
+  profileHeader: {
+    alignItems: 'center',
+    paddingVertical: 20,
+  },
+  avatar: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: Colors.accent,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 10,
+  },
+  avatarText: {
+    color: '#FFFFFF',
+    fontSize: 18,
+    fontWeight: '800',
+  },
+  displayName: {
+    fontSize: 17,
+    fontWeight: '700',
+    color: Colors.text,
+  },
+  email: {
+    fontSize: 13,
+    color: Colors.textSecondary,
+    marginTop: 4,
+  },
+  sectionLabel: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: Colors.textSecondary,
+    letterSpacing: 1,
+    marginBottom: 6,
+    marginTop: 4,
+  },
+  sectionCard: {
     backgroundColor: Colors.card,
     borderRadius: 16,
     borderWidth: 1,
     borderColor: Colors.border,
-    padding: 16,
+    marginBottom: 12,
+  },
+  itemRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 14,
-  },
-  avatar: {
-    width: 56,
-    height: 56,
-    borderRadius: 28,
-    backgroundColor: Colors.accentLight,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  initials: {
-    fontSize: 20,
-    fontWeight: '700',
-    color: Colors.accent,
-  },
-  userInfo: { flex: 1 },
-  userName: { fontSize: 17, fontWeight: '700', color: Colors.text },
-  userEmail: { fontSize: 13, color: Colors.textSecondary, marginTop: 2 },
-  cardChevron: { fontSize: 22, color: Colors.textSecondary },
-  sectionHeader: {
-    fontSize: 10,
-    fontWeight: '600',
-    letterSpacing: 1.5,
-    color: Colors.textSecondary,
-    paddingHorizontal: 20,
-    paddingTop: 24,
-    paddingBottom: 8,
-  },
-  sectionCard: {
-    borderRadius: 14,
-    overflow: 'hidden',
-    marginHorizontal: 16,
-    borderWidth: 1,
-    borderColor: Colors.border,
-  },
-  row: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    justifyContent: 'space-between',
     paddingHorizontal: 16,
     paddingVertical: 14,
-    backgroundColor: Colors.card,
     borderBottomWidth: 1,
-    borderColor: Colors.border,
-    gap: 14,
+    borderBottomColor: Colors.border,
   },
-  rowLast: {
+  itemRowLast: {
     borderBottomWidth: 0,
   },
-  iconCircle: {
+  itemLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  emojiCircle: {
     width: 36,
     height: 36,
     borderRadius: 18,
+    backgroundColor: Colors.accentLight,
     justifyContent: 'center',
     alignItems: 'center',
   },
-  iconText: { fontSize: 16 },
-  rowLabel: {
+  emoji: {
+    fontSize: 16,
+  },
+  itemLabel: {
     fontSize: 15,
+    fontWeight: '600',
     color: Colors.text,
-    flex: 1,
+    marginLeft: 12,
   },
   chevron: {
-    fontSize: 18,
+    fontSize: 20,
     color: Colors.textSecondary,
-  },
-  upgradeBadge: {
-    backgroundColor: Colors.accentLight,
-    color: Colors.accent,
-    fontSize: 10,
-    fontWeight: '700',
-    borderRadius: 999,
-    paddingHorizontal: 7,
-    paddingVertical: 2,
   },
 });
