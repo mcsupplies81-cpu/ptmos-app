@@ -9,6 +9,7 @@ export type ParsedIntent = {
     | 'log_weight'
     | 'log_water'
     | 'log_sleep'
+    | 'log_steps'
     | 'log_lifestyle'
     | 'update_inventory'
     | 'ask_adherence'

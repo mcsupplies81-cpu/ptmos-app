@@ -22,7 +22,7 @@ import { useDoseLogStore } from '@/stores/doseLogStore';
 import { useLifestyleStore } from '@/stores/lifestyleStore';
 import { useInventoryStore } from '@/stores/inventoryStore';
 import { useProtocolStore } from '@/stores/protocolStore';
-import { SymptomType, useSymptomStore } from '@/stores/symptomStore';
+import { useSymptomStore } from '@/stores/symptomStore';
 
 function calcReconstitution(vialMg: number, waterMl: number, peptide: string | null) {
   const concentrationMgPerMl = vialMg / waterMl;
@@ -113,6 +113,21 @@ function mockParse(text: string): ParsedIntent {
         displaySummary: `Log water: ${oz >= 128 ? oz / 128 + ' gallon(s)' : oz + ' oz'}`,
       };
     }
+  }
+
+  // Steps
+  if (/(steps|step count|walked|step)/i.test(lower)) {
+    const kMatch = text.match(/(\d+(?:\.\d+)?)\s*k/i);
+    const numMatch = text.match(/(\d+(?:,\d{3})*(?:\.\d+)?)/);
+    let steps = 0;
+    if (kMatch) steps = Math.round(Number(kMatch[1]) * 1000);
+    else if (numMatch) steps = Math.round(Number(numMatch[1].replace(/,/g, '')));
+    return {
+      intent: 'log_steps' as const,
+      payload: { steps },
+      confidence: steps > 0 ? 'high' as const : 'medium' as const,
+      displaySummary: `Log steps: ${steps > 0 ? steps.toLocaleString() : '?'}`,
+    };
   }
 
   if (/(slept|sleep|hours of sleep|bed)/i.test(text)) {
@@ -230,7 +245,7 @@ export default function ChatScreen() {
       if (intent === 'log_dose') {
         await supabase.from('dose_logs').insert({
           user_id: user.id,
-          peptide_name: payload.peptide ?? null,
+          peptide_name: String(payload.peptide ?? 'Unknown'),
           amount: Number(payload.amount) || 0,
           unit: payload.unit ?? 'mcg',
           injection_site: payload.site ?? null,
@@ -261,22 +276,25 @@ export default function ChatScreen() {
       }
 
       else if (intent === 'log_symptom') {
-        const normalized = (payload.symptom as string ?? '').toLowerCase().trim();
-        const symptomType: SymptomType =
-          normalized === 'fatigue' ? 'fatigue' :
-          normalized === 'headache' ? 'headache' :
-          normalized === 'nausea' ? 'nausea' :
-          normalized === 'joint pain' ? 'joint pain' : 'other';
         await addSymptom(
           {
-            symptom_type: symptomType,
+            symptom: String(payload.symptom ?? 'symptom'),
             severity: Number(payload.severity) || 5,
-            notes: symptomType === 'other' ? (payload.symptom as string) : null,
+            notes: null,
             logged_at: new Date().toISOString(),
           },
           user.id
         );
         addMessage({ role: 'success', text: `Symptom logged ✓` });
+      }
+
+      else if (intent === 'log_steps') {
+        const today = new Date().toISOString().slice(0, 10);
+        await upsertLifestyle(
+          { date: today, steps: Number(payload.steps) || null, weight_lbs: null, water_oz: null, calories: null, protein_g: null, sleep_hours: null, workout_notes: null, mood: null, energy: null, meal_notes: null },
+          user.id
+        );
+        addMessage({ role: 'success', text: `Steps logged: ${Number(payload.steps).toLocaleString()} ✓` });
       }
 
       else if (intent === 'log_water') {
@@ -302,7 +320,7 @@ export default function ChatScreen() {
             concentration_mg_per_ml: concentration,
             volume_remaining_ml: p.bac_water_ml ?? 1,
             expiry_date: new Date(Date.now() + 90 * 86400000).toISOString().slice(0, 10),
-            notes: p.bac_water_ml ? `Reconstituted with ${p.bac_water_ml}mL BAC water` : null,
+            storage_notes: p.bac_water_ml ? `Reconstituted with ${p.bac_water_ml}mL BAC water` : null,
           }, user.id);
         }
         await fetchInventory(user.id);
@@ -438,7 +456,7 @@ export default function ChatScreen() {
 
     if (aiResult.type === 'action' && aiResult.intent) {
       const validIntents: ParsedIntent['intent'][] = [
-        'log_dose','log_symptom','log_weight','log_water','log_sleep',
+        'log_dose','log_symptom','log_weight','log_water','log_sleep','log_steps',
         'log_lifestyle','update_inventory','ask_adherence','ask_last_dose',
         'ask_next_dose','ask_inventory','reconstitute'
       ];
