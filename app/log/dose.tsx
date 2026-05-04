@@ -76,9 +76,9 @@ export default function DoseLogScreen() {
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: Colors.background }}>
+      <ScreenHeader title="Log Dose" rightLabel="Save" onRightPress={handleSave} />
       <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
         <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={{ padding: 16, paddingBottom: 40 }}>
-          <ScreenHeader title="Log Dose" rightActionLabel="Save" onRightAction={handleSave} />
 
           <View style={styles.card}>
             <Pressable style={styles.row} onPress={() => { setShowCompoundModal(true); setCompoundQuery(peptideName); }}>
