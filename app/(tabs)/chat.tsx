@@ -2,9 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   Alert,
   FlatList,
-  Image,
   KeyboardAvoidingView,
-  Platform,
   Pressable,
   SafeAreaView,
   StyleSheet,
@@ -12,7 +10,6 @@ import {
   TextInput,
   View,
 } from 'react-native';
-import * as ImagePicker from 'expo-image-picker';
 
 import Colors from '@/constants/Colors';
 import { supabase } from '@/lib/supabase';
@@ -208,7 +205,6 @@ function buildSummary(intent: string, payload: Record<string, string | number | 
 
 export default function ChatScreen() {
   const [inputText, setInputText] = useState('');
-  const [selectedImage, setSelectedImage] = useState<string | null>(null);
   const flatListRef = useRef<FlatList<ChatMessage>>(null);
   const textInputRef = useRef<TextInput>(null);
   const { messages, addMessage, updateMessageStatus, clearMessages } = useChatStore();
@@ -232,7 +228,7 @@ export default function ChatScreen() {
 
   useEffect(() => {
     if (messages.length > 0) {
-      setTimeout(() => flatListRef.current?.scrollToEnd({ animated: true }), 50);
+      flatListRef.current?.scrollToEnd({ animated: true });
     }
   }, [messages.length]);
 
@@ -378,45 +374,10 @@ export default function ChatScreen() {
     }
   }, [doseLogs, protocols]);
 
-  const handleImagePick = useCallback(async () => {
-    Alert.alert('Add Image', 'Choose a source', [
-      {
-        text: 'Camera',
-        onPress: async () => {
-          const perm = await ImagePicker.requestCameraPermissionsAsync();
-          if (!perm.granted) { Alert.alert('Permission required', 'Camera access is needed.'); return; }
-          const result = await ImagePicker.launchCameraAsync({
-            base64: true, quality: 0.7,
-            mediaTypes: ImagePicker.MediaTypeOptions.Images,
-          });
-          if (!result.canceled && result.assets[0].base64) {
-            setSelectedImage(result.assets[0].base64);
-          }
-        },
-      },
-      {
-        text: 'Photo Library',
-        onPress: async () => {
-          const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
-          if (!perm.granted) { Alert.alert('Permission required', 'Photo library access is needed.'); return; }
-          const result = await ImagePicker.launchImageLibraryAsync({
-            base64: true, quality: 0.7,
-            mediaTypes: ImagePicker.MediaTypeOptions.Images,
-          });
-          if (!result.canceled && result.assets[0].base64) {
-            setSelectedImage(result.assets[0].base64);
-          }
-        },
-      },
-      { text: 'Cancel', style: 'cancel' },
-    ]);
-  }, []);
-
   const handleSend = useCallback(async (overrideText?: string, imageBase64?: string) => {
     const text = (overrideText ?? inputText).trim();
     if (!text && !imageBase64) return;
     if (!overrideText) setInputText('');
-    setSelectedImage(null);
 
     if (text) addMessage({ role: 'user', text });
     if (imageBase64) addMessage({ role: 'user', text: text || '📷 Image sent' });
@@ -481,27 +442,39 @@ export default function ChatScreen() {
   }, [inputText, addMessage, callAI, mockParse, doseLogs, protocols]);
 
   return (
-    <KeyboardAvoidingView
-      style={{ flex: 1, backgroundColor: Colors.background }}
-      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-      keyboardVerticalOffset={Platform.OS === 'ios' ? 83 : 0}
-    >
-      <SafeAreaView style={{ flex: 1, backgroundColor: Colors.background }}>
+    <SafeAreaView style={{ flex: 1, backgroundColor: Colors.background }}>
+      <KeyboardAvoidingView
+        style={{ flex: 1 }}
+        behavior="padding"
+        keyboardVerticalOffset={0}
+      >
         <View style={styles.header}>
           <View>
             <Text style={styles.title}>PT-OS</Text>
             <Text style={styles.subtitle}>AI Assistant</Text>
           </View>
-          <Pressable
-            onPress={() =>
-              Alert.alert('Clear Chat', 'Clear all chat history?', [
-                { text: 'Cancel', style: 'cancel' },
-                { text: 'Clear', style: 'destructive', onPress: clearMessages },
-              ])
-            }
-          >
-            <Text style={styles.clearText}>Clear</Text>
-          </Pressable>
+          <View style={styles.headerActions}>
+            <Pressable
+              onPress={() =>
+                Alert.alert('New Chat', 'Start a new conversation?', [
+                  { text: 'Cancel', style: 'cancel' },
+                  { text: 'New Chat', onPress: clearMessages },
+                ])
+              }
+            >
+              <Text style={styles.newChatText}>New Chat</Text>
+            </Pressable>
+            <Pressable
+              onPress={() =>
+                Alert.alert('Clear Chat', 'Clear all chat history?', [
+                  { text: 'Cancel', style: 'cancel' },
+                  { text: 'Clear', style: 'destructive', onPress: clearMessages },
+                ])
+              }
+            >
+              <Text style={styles.clearText}>Clear</Text>
+            </Pressable>
+          </View>
         </View>
 
         <FlatList
@@ -510,6 +483,8 @@ export default function ChatScreen() {
           keyExtractor={(item) => item.id}
           style={styles.messages}
           contentContainerStyle={styles.messagesContent}
+          automaticallyAdjustKeyboardInsets={true}
+          maintainVisibleContentPosition={{ minIndexForVisible: 0 }}
           onLayout={() => flatListRef.current?.scrollToEnd({ animated: false })}
           ListEmptyComponent={
             <View style={styles.emptyState}>
@@ -597,22 +572,7 @@ export default function ChatScreen() {
           }}
         />
 
-        {selectedImage && (
-          <View style={{ paddingHorizontal: 12, paddingTop: 8, flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-            <Image
-              source={{ uri: `data:image/jpeg;base64,${selectedImage}` }}
-              style={{ width: 56, height: 56, borderRadius: 8 }}
-            />
-            <Pressable onPress={() => setSelectedImage(null)}>
-              <Text style={{ color: Colors.textSecondary, fontSize: 20 }}>✕</Text>
-            </Pressable>
-          </View>
-        )}
-
         <View style={styles.inputBar}>
-          <Pressable style={styles.imageButton} onPress={() => { void handleImagePick(); }}>
-            <Text style={{ fontSize: 22, color: Colors.textSecondary }}>＋</Text>
-          </Pressable>
           <TextInput
             ref={textInputRef}
             style={styles.input}
@@ -622,18 +582,19 @@ export default function ChatScreen() {
             placeholderTextColor={Colors.textSecondary}
             returnKeyType="send"
             multiline
+            textAlignVertical="top"
             onSubmitEditing={() => { void handleSend(); }}
           />
           <Pressable
-            style={[styles.sendButton, { opacity: (inputText.trim() || selectedImage) ? 1 : 0.4 }]}
-            onPress={() => { void handleSend(undefined, selectedImage ?? undefined); }}
-            disabled={!inputText.trim() && !selectedImage}
+            style={[styles.sendButton, { opacity: inputText.trim() ? 1 : 0.4 }]}
+            onPress={() => { void handleSend(); }}
+            disabled={!inputText.trim()}
           >
             <Text style={styles.sendText}>↑</Text>
           </Pressable>
         </View>
-      </SafeAreaView>
-    </KeyboardAvoidingView>
+      </KeyboardAvoidingView>
+    </SafeAreaView>
   );
 }
 
@@ -650,13 +611,15 @@ const styles = StyleSheet.create({
   },
   title: { fontSize: 17, fontWeight: '700', color: Colors.text },
   subtitle: { fontSize: 12, color: Colors.textSecondary },
+  headerActions: { flexDirection: 'row', alignItems: 'center', gap: 14 },
+  newChatText: { fontSize: 13, color: Colors.accent, fontWeight: '600' },
   clearText: { fontSize: 13, color: Colors.textSecondary },
   messages: { flex: 1 },
   messagesContent: { paddingHorizontal: 16, paddingVertical: 12, gap: 10 },
   emptyState: { alignItems: 'center', justifyContent: 'center', paddingTop: 80 },
   emptyEmoji: { fontSize: 32 },
   emptyText: { color: Colors.textSecondary, fontSize: 14, textAlign: 'center' },
-  userBubble: { backgroundColor: Colors.accent, borderRadius: 18, borderBottomRightRadius: 4, padding: 12, maxWidth: '80%', alignSelf: 'flex-end' },
+  userBubble: { backgroundColor: Colors.accent, borderRadius: 18, borderBottomRightRadius: 4, padding: 12, maxWidth: '80%', alignSelf: 'flex-end', marginVertical: 2 },
   userText: { color: '#FFFFFF', fontSize: 15 },
   assistantBubble: {
     backgroundColor: Colors.card,
@@ -667,6 +630,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: Colors.border,
     alignSelf: 'flex-start',
+    marginVertical: 2,
   },
   assistantText: { color: Colors.text, fontSize: 15 },
 
@@ -705,8 +669,7 @@ const styles = StyleSheet.create({
   errorPill: { backgroundColor: '#FEE2E2', borderRadius: 999, paddingHorizontal: 12, paddingVertical: 6, alignSelf: 'flex-start' },
   errorText: { color: '#DC2626', fontSize: 13, fontWeight: '600' },
   inputBar: { flexDirection: 'row', paddingHorizontal: 12, paddingVertical: 10, gap: 8, borderTopWidth: 1, borderTopColor: Colors.border, backgroundColor: Colors.background },
-  imageButton: { width: 36, height: 36, justifyContent: 'center', alignItems: 'center' },
-  input: { flex: 1, borderWidth: 1, borderColor: Colors.border, borderRadius: 20, paddingHorizontal: 14, paddingVertical: 10, fontSize: 15, color: Colors.text, backgroundColor: Colors.card, maxHeight: 100 },
+  input: { flex: 1, borderWidth: 1, borderColor: Colors.border, borderRadius: 20, paddingHorizontal: 14, paddingVertical: 10, fontSize: 15, color: Colors.text, backgroundColor: Colors.card, maxHeight: 80 },
   sendButton: { width: 44, height: 44, borderRadius: 22, backgroundColor: Colors.accent, justifyContent: 'center', alignItems: 'center' },
   sendText: { color: '#FFFFFF', fontSize: 20, fontWeight: '700' },
 });
