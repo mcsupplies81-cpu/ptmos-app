@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { Pressable, SafeAreaView, ScrollView, StyleSheet, Text, View } from 'react-native';
 import Colors from '@/constants/Colors';
 import ScreenHeader from '@/components/ScreenHeader';
-import { SymptomType, useSymptomStore } from '@/stores/symptomStore';
+import { useSymptomStore } from '@/stores/symptomStore';
 import { useAuthStore } from '@/stores/authStore';
 
 const PRESET_SYMPTOMS = [
@@ -18,22 +18,10 @@ const PRESET_SYMPTOMS = [
   'Joint Pain',
 ];
 
-const toSymptomType = (value: string): SymptomType => {
-  const normalized = value.trim().toLowerCase();
-  if (normalized === 'fatigue') return 'fatigue';
-  if (normalized === 'headache') return 'headache';
-  if (normalized === 'nausea') return 'nausea';
-  if (normalized === 'joint pain') return 'joint pain';
-  return 'other';
-};
-
-const symptomLabel = (value: SymptomType, notes: string | null): string => {
-  if (value === 'other') {
-    return notes || 'Other';
-  }
+const symptomLabel = (value: string): string => {
   return value
     .split(' ')
-    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+    .map((part: string) => part.charAt(0).toUpperCase() + part.slice(1))
     .join(' ');
 };
 
@@ -66,7 +54,7 @@ export default function SymptomsScreen() {
   );
 
   const loggedNamesToday = useMemo(() => {
-    return new Set(todaysLogs.map((log) => symptomLabel(log.symptom_type, log.notes).toLowerCase()));
+    return new Set(todaysLogs.map((log) => symptomLabel(log.symptom).toLowerCase()));
   }, [todaysLogs]);
 
   const quickAddItems = PRESET_SYMPTOMS.filter((item) => !loggedNamesToday.has(item.toLowerCase()));
@@ -76,9 +64,9 @@ export default function SymptomsScreen() {
 
     await addLog(
       {
-        symptom_type: toSymptomType(selected),
+        symptom: selected.trim(),
         severity,
-        notes: toSymptomType(selected) === 'other' ? selected : null,
+        notes: null,
         logged_at: new Date().toISOString(),
       },
       user.id,
@@ -110,7 +98,7 @@ export default function SymptomsScreen() {
                 <View style={styles.logRow}>
                   <View style={styles.logNameRow}>
                     <View style={[styles.dot, { backgroundColor: color }]} />
-                    <Text style={styles.logName}>{symptomLabel(log.symptom_type, log.notes)}</Text>
+                    <Text style={styles.logName}>{symptomLabel(log.symptom)}</Text>
                   </View>
                   <View style={styles.rightWrap}>
                     <Text style={[styles.severityText, { color }]}>{log.severity}/10</Text>

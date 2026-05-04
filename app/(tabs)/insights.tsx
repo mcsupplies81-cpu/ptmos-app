@@ -211,7 +211,7 @@ export default function InsightsScreen() {
           ) : (
             recentSymptoms.map((symptom) => {
               const severityColor = symptom.severity < 4 ? Colors.success : symptom.severity <= 6 ? Colors.warning : Colors.error;
-              const symptomName = `${symptom.symptom_type[0].toUpperCase()}${symptom.symptom_type.slice(1)}`;
+              const symptomName = `${symptom.symptom[0].toUpperCase()}${symptom.symptom.slice(1)}`;
               return (
                 <View key={symptom.id} style={styles.symptomRow}>
                   <Text style={styles.symptomType}>{symptomName}</Text>
