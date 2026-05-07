@@ -18,7 +18,8 @@
       "buildNumber": "1",
       "infoPlist": {
         "NSUserNotificationsUsageDescription": "PT-OS sends reminders for your protocol doses.",
-        "ITSAppUsesNonExemptEncryption": false
+        "ITSAppUsesNonExemptEncryption": false,
+        "NSPhotoLibraryUsageDescription": "PT-OS uses your photo library to set your profile picture."
       }
     },
     "android": {
