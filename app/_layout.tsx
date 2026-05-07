@@ -51,7 +51,12 @@ export default function RootLayout() {
       return;
     }
 
-    if (profile?.disclaimer_accepted && inAuth) {
+    if (profile.disclaimer_accepted && !profile.onboarding_complete) {
+      if (!inAuth || segments[1] !== 'profile-setup') router.replace('/(auth)/profile-setup');
+      return;
+    }
+
+    if (profile.disclaimer_accepted && profile.onboarding_complete && inAuth) {
       router.replace('/(tabs)');
     }
   }, [loading, session, profile, segments]);
