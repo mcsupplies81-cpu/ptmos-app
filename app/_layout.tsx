@@ -4,13 +4,11 @@ import { supabase } from '@/lib/supabase';
 import { useAuthStore } from '@/stores/authStore';
 import { useProfileStore } from '@/stores/profileStore';
 import { requestNotificationPermission } from '@/utils/notifications';
-import { initRevenueCat } from '@/lib/revenueCat';
 
 export default function RootLayout() {
   const router = useRouter();
   const segments = useSegments();
   const { session, loading, setSession, setLoading } = useAuthStore();
-  const user = useAuthStore((state) => state.session?.user);
   const { profile, fetchProfile } = useProfileStore();
 
   useEffect(() => {
@@ -31,10 +29,6 @@ export default function RootLayout() {
   }, [session?.user?.id]);
 
   useEffect(() => {
-    initRevenueCat(user?.id);
-  }, [user?.id]);
-
-  useEffect(() => {
     // Don't redirect until we know auth state
     if (loading) return;
 
@@ -47,13 +41,18 @@ export default function RootLayout() {
 
     if (profile === undefined) return; // still fetching profile
 
+    if (profile === null) {
+      if (!inAuth) router.replace('/(auth)/disclaimer');
+      return;
+    }
+
     if (profile !== null && !profile.disclaimer_accepted) {
       if (!inAuth || segments[1] !== 'disclaimer') router.replace('/(auth)/disclaimer');
       return;
     }
 
     if (profile?.disclaimer_accepted && inAuth) {
-      router.replace('/(tabs)/');
+      router.replace('/(tabs)');
     }
   }, [loading, session, profile, segments]);
 

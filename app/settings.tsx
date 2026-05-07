@@ -1,6 +1,6 @@
 import { router } from 'expo-router';
 import { useEffect, useMemo, useState } from 'react';
-import { Alert, Pressable, SafeAreaView, ScrollView, StyleSheet, Switch, Text, TextInput, View } from 'react-native';
+import { Alert, Linking, Pressable, SafeAreaView, ScrollView, StyleSheet, Switch, Text, TextInput, View } from 'react-native';
 
 import ScreenHeader from '@/components/ScreenHeader';
 import Colors from '@/constants/Colors';
@@ -144,6 +144,14 @@ export default function SettingsScreen() {
           <View style={styles.switchRow}><Text style={styles.rowLabel}>Light/Dark Mode</Text><Text style={styles.comingSoon}>Coming soon</Text></View>
           <View style={styles.switchRow}><Text style={styles.rowLabel}>Apple Health</Text><Text style={styles.comingSoon}>Coming soon</Text></View>
         </View>
+
+        <Pressable
+          style={[styles.infoRow, { marginTop: 8 }]}
+          onPress={() => void Linking.openURL('https://ptmos.app/privacy')}
+        >
+          <Text style={[styles.infoLabel, { width: 'auto', flex: 1 }]}>Privacy Policy</Text>
+          <Text style={{ color: Colors.textSecondary, fontSize: 18 }}>›</Text>
+        </Pressable>
 
         <Pressable style={styles.signOutBtn} onPress={handleSignOut}><Text style={styles.signOutText}>Sign Out</Text></Pressable>
       </ScrollView>
