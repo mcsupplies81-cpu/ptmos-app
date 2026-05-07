@@ -31,12 +31,19 @@ const METRICS = [
 const MOOD_EMOJI: Record<number, string> = { 1: '😞', 2: '😕', 3: '😐', 4: '🙂', 5: '😁' };
 const MOOD_LABELS: Record<number, string> = { 1: 'Bad', 2: 'Not Great', 3: 'Okay', 4: 'Good', 5: 'Great' };
 
-const dateKey = (d: Date) => d.toISOString().slice(0, 10);
+const dateKey = (d: Date) => {
+  const year = d.getFullYear();
+  const month = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+
+  return `${year}-${month}-${day}`;
+};
 
 export default function LifestyleScreen() {
   const user = useAuthStore((state) => state.user);
   const logs = useLifestyleStore((state) => state.logs);
   const upsertLog = useLifestyleStore((state) => state.upsertLog);
+  const fetchLogs = useLifestyleStore((state) => state.fetchLogs);
   const doseLogs = useDoseLogStore((state) => state.doseLogs);
 
   const today = new Date();
@@ -58,8 +65,17 @@ export default function LifestyleScreen() {
   const [mood, setMood] = useState<number | null>(null);
   const [energy, setEnergy] = useState<number | null>(null);
 
-  const selectedLog = useMemo(() => logs.find((l) => l.date === dateKey(selectedDate)), [logs, selectedDate]);
-  const isViewingToday = dateKey(selectedDate) === todayStr;
+  const selectedDateKey = dateKey(selectedDate);
+  const selectedLog = useMemo(() => logs.find((l) => l.date === selectedDateKey), [logs, selectedDateKey]);
+  const isViewingToday = selectedDateKey === todayStr;
+
+  useEffect(() => {
+    if (!user?.id) return;
+
+    void fetchLogs(user.id).catch((error: Error) => {
+      Alert.alert('Error', error.message);
+    });
+  }, [fetchLogs, user?.id]);
 
   useEffect(() => {
     const log = selectedLog;
@@ -86,7 +102,7 @@ export default function LifestyleScreen() {
     try {
       await upsertLog(
         {
-          date: dateKey(selectedDate),
+          date: selectedDateKey,
           weight_lbs: Number(weightLbs) || null,
           water_oz: Number(waterOz) || null,
           calories: Number(calories) || null,
@@ -103,8 +119,8 @@ export default function LifestyleScreen() {
       await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
       setSaved(true);
       setTimeout(() => setSaved(false), 2000);
-    } catch (e: any) {
-      Alert.alert('Save failed', e?.message ?? 'Something went wrong. Please try again.');
+    } catch (error) {
+      Alert.alert('Error', error instanceof Error ? error.message : 'Something went wrong. Please try again.');
     } finally {
       setSaving(false);
     }
