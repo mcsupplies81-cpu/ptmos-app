@@ -1,6 +1,6 @@
 {
   "expo": {
-    "name": "PTMOS",
+    "name": "PT-OS",
     "slug": "ptmos-app",
     "version": "1.0.0",
     "orientation": "portrait",
@@ -8,17 +8,22 @@
     "scheme": "ptmos",
     "userInterfaceStyle": "light",
     "splash": {
+      "image": "./assets/splash.png",
       "resizeMode": "contain",
-      "backgroundColor": "#FFFFFF"
+      "backgroundColor": "#14172A"
     },
     "ios": {
       "supportsTablet": false,
       "bundleIdentifier": "com.ptmos.app",
-      "buildNumber": "1"
+      "buildNumber": "1",
+      "infoPlist": {
+        "NSUserNotificationsUsageDescription": "PT-OS sends reminders for your protocol doses."
+      }
     },
     "android": {
       "adaptiveIcon": {
-        "backgroundColor": "#FFFFFF"
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#14172A"
       },
       "package": "com.ptmos.app",
       "versionCode": 1
@@ -27,7 +32,15 @@
       "bundler": "metro"
     },
     "plugins": [
-      "expo-router"
+      "expo-router",
+      [
+        "expo-notifications",
+        {
+          "icon": "./assets/notification-icon.png",
+          "color": "#2D6A4F",
+          "sounds": []
+        }
+      ]
     ],
     "experiments": {
       "typedRoutes": true

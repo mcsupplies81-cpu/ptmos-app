@@ -41,8 +41,6 @@ export default function LifestyleScreen() {
 
   const today = new Date();
   const todayStr = dateKey(today);
-  const todayLog = logs.find((l) => l.date === todayStr);
-
   const [selectedDate, setSelectedDate] = useState(today);
   const [isEditing, setIsEditing] = useState(false);
   const [focusedMetric, setFocusedMetric] = useState<string | null>(null);
@@ -58,41 +56,37 @@ export default function LifestyleScreen() {
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
   const [mood, setMood] = useState<number | null>(null);
-
-  useEffect(() => {
-    setWeightLbs(todayLog?.weight_lbs?.toString() ?? '');
-    setWaterOz(todayLog?.water_oz?.toString() ?? '');
-    setCalories(todayLog?.calories?.toString() ?? '');
-    setProteinG(todayLog?.protein_g?.toString() ?? '');
-    setSleepHours(todayLog?.sleep_hours?.toString() ?? '');
-    setSteps(todayLog?.steps?.toString() ?? '');
-    setWorkoutNotes(todayLog?.workout_notes ?? '');
-    setNotes(todayLog?.meal_notes ?? '');
-    setMood(todayLog?.mood ?? null);
-  }, [todayLog]);
+  const [energy, setEnergy] = useState<number | null>(null);
 
   const selectedLog = useMemo(() => logs.find((l) => l.date === dateKey(selectedDate)), [logs, selectedDate]);
   const isViewingToday = dateKey(selectedDate) === todayStr;
+
+  useEffect(() => {
+    const log = selectedLog;
+    setWeightLbs(log?.weight_lbs?.toString() ?? '');
+    setWaterOz(log?.water_oz?.toString() ?? '');
+    setCalories(log?.calories?.toString() ?? '');
+    setProteinG(log?.protein_g?.toString() ?? '');
+    setSleepHours(log?.sleep_hours?.toString() ?? '');
+    setSteps(log?.steps?.toString() ?? '');
+    setWorkoutNotes(log?.workout_notes ?? '');
+    setNotes(log?.meal_notes ?? '');
+    setMood(log?.mood ?? null);
+    setEnergy(log?.energy ?? null);
+  }, [selectedLog]);
 
   const formatTime = (logDate: string) => {
     if (logDate !== todayStr) return '';
     return new Date().toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
   };
 
-  const energyLabel = (value: number | null | undefined) => {
-    if (!value) return '—';
-    if (value <= 3) return 'Low';
-    if (value <= 6) return 'Moderate';
-    return 'High';
-  };
-
   const handleSave = async () => {
-    if (!user?.id) return;
+    if (!user?.id || !isViewingToday) return;
     setSaving(true);
     try {
       await upsertLog(
         {
-          date: todayStr,
+          date: dateKey(selectedDate),
           weight_lbs: Number(weightLbs) || null,
           water_oz: Number(waterOz) || null,
           calories: Number(calories) || null,
@@ -101,7 +95,7 @@ export default function LifestyleScreen() {
           steps: Number(steps) || null,
           workout_notes: workoutNotes.trim() || null,
           mood,
-          energy: todayLog?.energy ?? null,
+          energy,
           meal_notes: notes.trim() || null,
         },
         user.id,
@@ -127,7 +121,7 @@ export default function LifestyleScreen() {
       label: 'Mood',
       value: selectedLog?.mood ? `${MOOD_EMOJI[selectedLog.mood]} ${MOOD_LABELS[selectedLog.mood]}` : '—',
     },
-    { key: 'energy', emoji: '⚡', label: 'Energy', value: energyLabel(selectedLog?.energy) },
+    { key: 'energy', emoji: '⚡', label: 'Energy', value: selectedLog?.energy ? `${selectedLog.energy}/10` : '—' },
   ];
 
   const weekDays = useMemo(() => {
@@ -143,7 +137,7 @@ export default function LifestyleScreen() {
 
   return (
     <SafeAreaView style={styles.container}>
-      <ScreenHeader title="Lifestyle" rightLabel={isEditing ? 'Done' : 'Edit'} onRightPress={() => setIsEditing((v) => !v)} />
+      <ScreenHeader title="Lifestyle" rightLabel={isViewingToday ? (isEditing ? 'Done' : 'Edit') : undefined} onRightPress={isViewingToday ? () => setIsEditing((v) => !v) : undefined} />
       <KeyboardAvoidingView style={styles.keyboard} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
         <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={styles.content}>
           <View style={styles.dateNav}>
@@ -167,6 +161,7 @@ export default function LifestyleScreen() {
                 key={row.key}
                 style={styles.metricRow}
                 onPress={() => {
+                  if (!isViewingToday) return;
                   if (!isEditing) setIsEditing(true);
                   setFocusedMetric(row.key);
                 }}
@@ -182,11 +177,13 @@ export default function LifestyleScreen() {
             ))}
           </View>
 
-          <Pressable style={styles.addButton} onPress={() => setIsEditing(true)}>
-            <Text style={styles.addButtonText}>+ Add New Log</Text>
-          </Pressable>
+          {isViewingToday && (
+            <Pressable style={styles.addButton} onPress={() => setIsEditing(true)}>
+              <Text style={styles.addButtonText}>+ Add New Log</Text>
+            </Pressable>
+          )}
 
-          {isEditing && (
+          {isEditing && isViewingToday && (
             <View style={styles.formWrap}>
               {METRICS.map((metric) => {
                 const metricState = {
@@ -225,6 +222,7 @@ export default function LifestyleScreen() {
                 placeholderTextColor={Colors.textSecondary}
                 style={styles.notesInput}
               />
+              <Text style={styles.sectionHeader}>MOOD</Text>
               <View style={styles.moodRow}>
                 {[1, 2, 3, 4, 5].map((value) => (
                   <Pressable key={value} onPress={() => setMood(value)} style={[styles.moodChip, mood === value && styles.moodChipSelected]}>
@@ -232,7 +230,28 @@ export default function LifestyleScreen() {
                   </Pressable>
                 ))}
               </View>
-              <Pressable style={[styles.saveButton, saving && styles.saveButtonDisabled]} onPress={handleSave} disabled={saving}>
+              <Text style={styles.sectionHeader}>ENERGY</Text>
+              <View style={{ flexDirection: 'row', gap: 8, flexWrap: 'wrap', marginBottom: 16 }}>
+                {([1, 2, 3, 4, 5, 6, 7, 8, 9, 10] as const).map((n) => {
+                  const selected = energy === n;
+                  return (
+                    <Pressable
+                      key={n}
+                      onPress={() => setEnergy(n)}
+                      style={{
+                        width: 36, height: 36, borderRadius: 18,
+                        alignItems: 'center', justifyContent: 'center',
+                        backgroundColor: selected ? Colors.accent : Colors.card,
+                        borderWidth: 1,
+                        borderColor: selected ? Colors.accent : Colors.border,
+                      }}
+                    >
+                      <Text style={{ color: selected ? Colors.white : Colors.textSecondary, fontSize: 13, fontWeight: '600' }}>{n}</Text>
+                    </Pressable>
+                  );
+                })}
+              </View>
+              <Pressable style={[styles.saveButton, (saving || !isViewingToday) && styles.saveButtonDisabled]} onPress={handleSave} disabled={saving || !isViewingToday}>
                 <Text style={styles.saveButtonText}>{saving ? 'Saving...' : saved ? 'Saved ✓' : "Save Today's Log"}</Text>
               </Pressable>
             </View>
@@ -246,7 +265,7 @@ export default function LifestyleScreen() {
           </View>
           <View style={styles.weeklyChart}>
             {weekDays.map((d, idx) => {
-              const barColor = d.hasDose ? Colors.accent : d.hasLifestyle ? Colors.accentLight : '#E5E7EB';
+              const barColor = d.hasDose ? Colors.accent : d.hasLifestyle ? Colors.accentLight : Colors.border;
               return (
                 <View key={`${d.label}-${idx}`} style={styles.dayCol}>
                   <View style={[styles.bar, { backgroundColor: barColor }]} />
@@ -271,7 +290,7 @@ const styles = StyleSheet.create({
   sectionHeader: { fontSize: 12, fontWeight: '700', color: Colors.textSecondary, letterSpacing: 1, marginBottom: 10 },
   card: { backgroundColor: Colors.card, borderRadius: 12, overflow: 'hidden', borderWidth: 1, borderColor: Colors.border },
   metricRow: { paddingHorizontal: 16, paddingVertical: 13, flexDirection: 'row', alignItems: 'center', gap: 12, borderBottomWidth: 1, borderBottomColor: Colors.border },
-  emojiCircle: { width: 40, height: 40, borderRadius: 20, backgroundColor: '#F3F4F6', justifyContent: 'center', alignItems: 'center' },
+  emojiCircle: { width: 40, height: 40, borderRadius: 20, backgroundColor: Colors.backgroundSecondary, justifyContent: 'center', alignItems: 'center' },
   emoji: { fontSize: 20 },
   metricLabel: { fontSize: 15, fontWeight: '600', color: Colors.text },
   metricValue: { fontSize: 13, color: Colors.textSecondary, marginTop: 1, maxWidth: 180 },
