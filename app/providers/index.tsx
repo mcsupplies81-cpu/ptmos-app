@@ -1,90 +1,176 @@
-import { useEffect, useMemo, useState } from 'react';
-import { ActivityIndicator, FlatList, Pressable, SafeAreaView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { useMemo, useState } from 'react';
+import { FlatList, Pressable, SafeAreaView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { router } from 'expo-router';
 
 import Colors from '@/constants/Colors';
-import { Provider, useProviderStore } from '@/stores/providerStore';
-import ScreenHeader from '@/components/ScreenHeader';
+import { providers } from '@/constants/providers';
+import type { DirectoryProvider, ProviderType } from '@/constants/providers';
 
-const TABS: Array<'All' | Provider['type']> = ['All', 'Telehealth', 'Clinics', 'Wellness'];
+const FILTERS: Array<'All' | ProviderType> = ['All', 'Clinic', 'Med Spa', 'Online', 'Pharmacy'];
 
-export default function ProvidersIndexScreen() {
-  const [activeTab, setActiveTab] = useState<(typeof TABS)[number]>('All');
+const typeColors: Record<ProviderType, { backgroundColor: string; color: string }> = {
+  Clinic: { backgroundColor: '#DBEAFE', color: '#1D4ED8' },
+  'Med Spa': { backgroundColor: '#FCE7F3', color: '#BE185D' },
+  Online: { backgroundColor: Colors.accentLight, color: Colors.accent },
+  Pharmacy: { backgroundColor: '#FEF3C7', color: '#B45309' },
+};
+
+const formatLocation = (provider: DirectoryProvider) => provider.location ?? 'Ships Nationwide';
+
+export default function ProviderDirectoryScreen() {
+  const [activeFilter, setActiveFilter] = useState<(typeof FILTERS)[number]>('All');
   const [search, setSearch] = useState('');
-  const { providers, loading, fetchProviders } = useProviderStore();
 
-  useEffect(() => { fetchProviders(); }, [fetchProviders]);
+  // TODO: wire to RevenueCat entitlement check
+  const isSubscribed = true;
 
-  const filtered = useMemo(
-    () =>
-      providers.filter(
-        (p) =>
-          (activeTab === 'All' || p.type === activeTab) &&
-          p.name.toLowerCase().includes(search.toLowerCase()),
-      ),
-    [activeTab, providers, search],
-  );
+  const filteredProviders = useMemo(() => {
+    const query = search.trim().toLowerCase();
+
+    return providers.filter((provider) => {
+      const matchesFilter = activeFilter === 'All' || provider.type === activeFilter;
+      const searchableLocation = formatLocation(provider).toLowerCase();
+      const matchesSearch =
+        query.length === 0 ||
+        provider.name.toLowerCase().includes(query) ||
+        searchableLocation.includes(query);
+
+      return matchesFilter && matchesSearch;
+    });
+  }, [activeFilter, search]);
+
+  const renderProvider = ({ item }: { item: DirectoryProvider }) => {
+    const badge = typeColors[item.type];
+
+    return (
+      <Pressable style={styles.card} onPress={() => router.push(`/providers/${item.id}` as never)}>
+        <View style={styles.cardHeader}>
+          <View style={styles.cardTitleWrap}>
+            <Text style={styles.providerName}>{item.name}</Text>
+            {item.verified ? (
+              <View style={styles.verifiedBadge}>
+                <Text style={styles.verifiedText}>✓ Verified</Text>
+              </View>
+            ) : null}
+          </View>
+          <View style={[styles.typeBadge, { backgroundColor: badge.backgroundColor }]}>
+            <Text style={[styles.typeBadgeText, { color: badge.color }]}>{item.type.toUpperCase()}</Text>
+          </View>
+        </View>
+
+        <Text style={styles.location}>{formatLocation(item)}</Text>
+        <Text style={styles.rating}>⭐ {item.rating.toFixed(1)} ({item.reviewCount} reviews)</Text>
+        <Text style={styles.detailsLink}>View Details →</Text>
+      </Pressable>
+    );
+  };
 
   return (
     <SafeAreaView style={styles.container}>
-      <ScreenHeader title="Find Providers" />
-      <TextInput
-        value={search}
-        onChangeText={setSearch}
-        placeholder="Search providers..."
-        placeholderTextColor={Colors.textSecondary}
-        style={styles.search}
-      />
-      <View style={styles.tabs}>
-        {TABS.map((tab) => (
-          <Pressable key={tab} onPress={() => setActiveTab(tab)} style={[styles.tab, activeTab === tab && styles.activeTab]}>
-            <Text style={[styles.tabText, activeTab === tab && { color: Colors.white }]}>{tab}</Text>
-          </Pressable>
-        ))}
-      </View>
-      {loading ? (
-        <ActivityIndicator color={Colors.accent} style={{ marginTop: 40 }} />
-      ) : (
+      <View style={styles.content}>
+        <View style={styles.headerRow}>
+          <Text style={styles.title}>Provider Directory</Text>
+          <View style={styles.memberBadge}>
+            <Text style={styles.memberBadgeText}>MEMBERS ONLY</Text>
+          </View>
+        </View>
+
+        <View style={styles.searchWrap}>
+          <Text style={styles.searchIcon}>🔍</Text>
+          <TextInput
+            value={search}
+            onChangeText={setSearch}
+            placeholder="Search name or location"
+            placeholderTextColor={Colors.textSecondary}
+            style={styles.searchInput}
+            autoCapitalize="none"
+            autoCorrect={false}
+          />
+        </View>
+
+        <View style={styles.filters}>
+          {FILTERS.map((filter) => {
+            const selected = activeFilter === filter;
+            return (
+              <Pressable
+                key={filter}
+                onPress={() => setActiveFilter(filter)}
+                style={[styles.filterChip, selected && styles.filterChipActive]}
+              >
+                <Text style={[styles.filterText, selected && styles.filterTextActive]}>{filter}</Text>
+              </Pressable>
+            );
+          })}
+        </View>
+
         <FlatList
-          data={filtered}
+          data={filteredProviders}
           keyExtractor={(item) => item.id}
-          contentContainerStyle={{ padding: 16 }}
-          ListEmptyComponent={<Text style={styles.empty}>No providers found.</Text>}
-          renderItem={({ item }) => (
-            <Pressable style={styles.card} onPress={() => router.push(`/providers/${item.id}` as any)}>
-              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
-                <View style={styles.avatar}>
-                  <Text style={styles.avatarText}>{item.name.charAt(0)}</Text>
-                </View>
-                <View style={{ flex: 1 }}>
-                  <Text style={styles.cardTitle}>{item.name}</Text>
-                  <Text style={styles.cardSub}>{item.type} · {item.location ?? 'Nationwide'}</Text>
-                  {item.rating !== null && (
-                    <Text style={styles.rating}>★ {item.rating}</Text>
-                  )}
-                </View>
-                <Text style={{ color: Colors.textSecondary, fontSize: 20 }}>›</Text>
-              </View>
-            </Pressable>
-          )}
+          renderItem={renderProvider}
+          contentContainerStyle={styles.listContent}
+          showsVerticalScrollIndicator={false}
+          ListEmptyComponent={<Text style={styles.empty}>No providers match your search.</Text>}
         />
-      )}
+      </View>
+
+      {!isSubscribed ? (
+        <View style={styles.paywallOverlay}>
+          <View style={styles.lockCard}>
+            <Text style={styles.lockIcon}>🔒</Text>
+            <Text style={styles.lockTitle}>Members Only</Text>
+            <Text style={styles.lockSubtitle}>Unlock the Provider Directory</Text>
+            <Pressable style={styles.planButton} onPress={() => router.push('/paywall' as never)}>
+              <Text style={styles.planButtonText}>View Plans →</Text>
+            </Pressable>
+          </View>
+        </View>
+      ) : null}
     </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: Colors.background },
-  search: { margin: 16, marginBottom: 0, borderWidth: 1, borderColor: Colors.border, borderRadius: 10, padding: 10, color: Colors.text, backgroundColor: Colors.card },
-  tabs: { flexDirection: 'row', gap: 8, padding: 16, paddingBottom: 8 },
-  tab: { paddingHorizontal: 12, paddingVertical: 7, borderRadius: 999, backgroundColor: Colors.card, borderWidth: 1, borderColor: Colors.border },
-  activeTab: { backgroundColor: Colors.accent, borderColor: Colors.accent },
-  tabText: { color: Colors.textSecondary, fontSize: 13, fontWeight: '600' },
-  card: { backgroundColor: Colors.card, borderRadius: 12, padding: 14, marginBottom: 10, borderWidth: 1, borderColor: Colors.border },
-  avatar: { width: 48, height: 48, borderRadius: 14, backgroundColor: Colors.accentLight, justifyContent: 'center', alignItems: 'center' },
-  avatarText: { color: Colors.accent, fontWeight: '700', fontSize: 18 },
-  cardTitle: { color: Colors.text, fontWeight: '600', fontSize: 15 },
-  cardSub: { color: Colors.textSecondary, fontSize: 13, marginTop: 2 },
-  rating: { color: Colors.warning, fontSize: 13, fontWeight: '600', marginTop: 3 },
+  content: { flex: 1, paddingHorizontal: 16, paddingTop: 18 },
+  headerRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12, marginBottom: 18 },
+  title: { flex: 1, color: Colors.text, fontSize: 28, fontWeight: '800' },
+  memberBadge: { backgroundColor: Colors.accentLight, borderRadius: 999, paddingHorizontal: 10, paddingVertical: 5 },
+  memberBadgeText: { color: Colors.accent, fontSize: 10, fontWeight: '800', letterSpacing: 0.7 },
+  searchWrap: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: Colors.card,
+    borderColor: Colors.border,
+    borderWidth: 1,
+    borderRadius: 14,
+    paddingHorizontal: 12,
+    marginBottom: 14,
+  },
+  searchIcon: { color: Colors.textSecondary, fontSize: 16, marginRight: 8 },
+  searchInput: { flex: 1, color: Colors.text, fontSize: 15, paddingVertical: 12 },
+  filters: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 14 },
+  filterChip: { borderColor: Colors.border, borderWidth: 1, borderRadius: 999, paddingHorizontal: 13, paddingVertical: 8, backgroundColor: Colors.white },
+  filterChipActive: { borderColor: Colors.accent, backgroundColor: Colors.accent },
+  filterText: { color: Colors.textSecondary, fontSize: 13, fontWeight: '700' },
+  filterTextActive: { color: Colors.white },
+  listContent: { paddingBottom: 36 },
+  card: { backgroundColor: Colors.card, borderColor: Colors.border, borderWidth: 1, borderRadius: 18, padding: 16, marginBottom: 12 },
+  cardHeader: { flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between', gap: 10 },
+  cardTitleWrap: { flex: 1, gap: 8 },
+  providerName: { color: Colors.text, fontWeight: '700', fontSize: 16 },
+  typeBadge: { borderRadius: 999, paddingHorizontal: 9, paddingVertical: 5 },
+  typeBadgeText: { fontSize: 10, fontWeight: '800', letterSpacing: 0.4 },
+  verifiedBadge: { alignSelf: 'flex-start', backgroundColor: Colors.white, borderColor: Colors.accentLight, borderWidth: 1, borderRadius: 999, paddingHorizontal: 8, paddingVertical: 3 },
+  verifiedText: { color: Colors.success, fontSize: 11, fontWeight: '800' },
+  location: { color: Colors.textSecondary, fontSize: 14, marginTop: 12 },
+  rating: { color: Colors.text, fontSize: 14, fontWeight: '600', marginTop: 8 },
+  detailsLink: { color: Colors.accent, fontSize: 14, fontWeight: '800', marginTop: 12 },
   empty: { color: Colors.textSecondary, textAlign: 'center', marginTop: 40 },
+  paywallOverlay: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(255,255,255,0.86)', alignItems: 'center', justifyContent: 'center', padding: 24 },
+  lockCard: { width: '100%', maxWidth: 340, backgroundColor: Colors.white, borderColor: Colors.border, borderWidth: 1, borderRadius: 24, padding: 24, alignItems: 'center', shadowColor: '#000000', shadowOpacity: 0.12, shadowRadius: 18, shadowOffset: { width: 0, height: 10 }, elevation: 5 },
+  lockIcon: { fontSize: 36, marginBottom: 10 },
+  lockTitle: { color: Colors.text, fontSize: 22, fontWeight: '800' },
+  lockSubtitle: { color: Colors.textSecondary, fontSize: 15, marginTop: 6, marginBottom: 20, textAlign: 'center' },
+  planButton: { backgroundColor: Colors.accent, borderRadius: 14, paddingHorizontal: 22, paddingVertical: 13 },
+  planButtonText: { color: Colors.white, fontSize: 15, fontWeight: '800' },
 });
