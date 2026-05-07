@@ -1,17 +1,16 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { Alert, SafeAreaView, FlatList, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Alert, SafeAreaView, FlatList, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { router } from 'expo-router';
 import Colors from '@/constants/Colors';
 import { useProtocolStore } from '@/stores/protocolStore';
 import { useAuthStore } from '@/stores/authStore';
 import EmptyState from '@/components/EmptyState';
-import LoadingScreen from '@/components/LoadingScreen';
 
 type Filter = 'All' | 'Active' | 'Paused' | 'Completed';
 
 export default function ProtocolsScreen() {
   const user = useAuthStore((state) => state.user);
-  const { protocols, fetchProtocols } = useProtocolStore();
+  const { protocols, loading, error, fetchProtocols } = useProtocolStore();
   const [filter, setFilter] = useState<Filter>('All');
 
   useEffect(() => {
@@ -22,8 +21,35 @@ export default function ProtocolsScreen() {
     return filter === 'All' ? protocols : protocols.filter((p) => p.status === filter.toLowerCase());
   }, [protocols, filter]);
 
-  if (protocols.length === 0 && filter === 'All') {
-    return <LoadingScreen message="Loading protocols..." />;
+  const handleRetry = () => {
+    if (user?.id) {
+      fetchProtocols(user.id);
+    }
+  };
+
+  if (loading) {
+    return (
+      <SafeAreaView style={styles.container}>
+        <View style={styles.centerState}>
+          <ActivityIndicator size="large" color={Colors.accent} />
+          <Text style={styles.centerStateText}>Loading protocols...</Text>
+        </View>
+      </SafeAreaView>
+    );
+  }
+
+  if (error) {
+    return (
+      <SafeAreaView style={styles.container}>
+        <View style={styles.centerState}>
+          <Text style={styles.errorTitle}>Unable to load protocols</Text>
+          <Text style={styles.errorMessage}>{error}</Text>
+          <Pressable style={styles.retryButton} onPress={handleRetry}>
+            <Text style={styles.retryButtonText}>Retry</Text>
+          </Pressable>
+        </View>
+      </SafeAreaView>
+    );
   }
 
   return (
@@ -104,15 +130,21 @@ export default function ProtocolsScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: Colors.background },
+  centerState: { flex: 1, justifyContent: 'center', alignItems: 'center', paddingHorizontal: 24 },
+  centerStateText: { marginTop: 12, color: Colors.textSecondary, fontSize: 14 },
+  errorTitle: { color: Colors.text, fontSize: 18, fontWeight: '700', marginBottom: 8, textAlign: 'center' },
+  errorMessage: { color: Colors.textSecondary, fontSize: 14, marginBottom: 16, textAlign: 'center' },
+  retryButton: { backgroundColor: Colors.accent, borderRadius: 999, paddingHorizontal: 18, paddingVertical: 10 },
+  retryButtonText: { color: Colors.white, fontSize: 14, fontWeight: '700' },
   chipsContainer: { flexDirection: 'row', gap: 8, paddingHorizontal: 16, marginBottom: 12 },
-  chip: { borderRadius: 999, paddingHorizontal: 12, paddingVertical: 6, borderWidth: 1 },
-  chipSelected: { backgroundColor: Colors.accent, borderColor: Colors.accent },
-  chipUnselected: { backgroundColor: Colors.card, borderColor: Colors.border },
-  chipText: { fontWeight: '600', fontSize: 13 },
+  chip: { borderRadius: 999, paddingHorizontal: 12, paddingVertical: 6 },
+  chipSelected: { backgroundColor: Colors.accent, borderWidth: 1, borderColor: Colors.accent },
+  chipUnselected: { backgroundColor: Colors.card, borderWidth: 1, borderColor: Colors.border },
+  chipText: { fontWeight: '600', fontSize: 12 },
   chipTextSelected: { color: Colors.white },
   chipTextUnselected: { color: Colors.textSecondary },
   listContent: { padding: 16, gap: 10, paddingBottom: 120 },
-  card: { backgroundColor: Colors.card, borderRadius: 14, padding: 16, borderWidth: 1, borderColor: Colors.border },
+  card: { backgroundColor: Colors.card, borderRadius: 14, paddingHorizontal: 16, paddingVertical: 12, borderWidth: 1, borderColor: Colors.border },
   rowTop: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' },
   cardMain: { flex: 1, paddingRight: 8 },
   name: { fontSize: 16, fontWeight: '700', color: Colors.text },
