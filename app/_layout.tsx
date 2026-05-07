@@ -39,24 +39,8 @@ export default function RootLayout() {
       return;
     }
 
-    if (profile === undefined) return; // still fetching profile
-
-    if (profile === null) {
-      if (!inAuth) router.replace('/(auth)/disclaimer');
-      return;
-    }
-
-    if (profile !== null && !profile.disclaimer_accepted) {
-      if (!inAuth || segments[1] !== 'disclaimer') router.replace('/(auth)/disclaimer');
-      return;
-    }
-
-    if (profile.disclaimer_accepted && !profile.onboarding_complete) {
-      if (!inAuth || segments[1] !== 'profile-setup') router.replace('/(auth)/profile-setup');
-      return;
-    }
-
-    if (profile.disclaimer_accepted && profile.onboarding_complete && inAuth) {
+    // Onboarding gates removed for beta — route all authed users straight to tabs
+    if (inAuth) {
       router.replace('/(tabs)');
     }
   }, [loading, session, profile, segments]);
