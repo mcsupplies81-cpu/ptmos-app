@@ -4,6 +4,7 @@ import { supabase } from '@/lib/supabase';
 export type Profile = {
   id: string;
   full_name: string | null;
+  avatar_url: string | null;
   disclaimer_accepted: boolean;
   disclaimer_accepted_at: string | null;
   date_of_birth: string | null;
@@ -31,7 +32,7 @@ export const useProfileStore = create<ProfileState>((set, get) => ({
     set({ loading: true });
     const { data } = await supabase
       .from('profiles')
-      .select('id, full_name, disclaimer_accepted, disclaimer_accepted_at, date_of_birth, height_inches, weight_lbs, goal, onboarding_complete')
+      .select('id, full_name, avatar_url, disclaimer_accepted, disclaimer_accepted_at, date_of_birth, height_inches, weight_lbs, goal, onboarding_complete')
       .eq('id', userId)
       .maybeSingle();
     set({ profile: (data as Profile | null) ?? null, loading: false });
