@@ -44,22 +44,11 @@ export const useLifestyleStore = create<LifestyleStore>((set, get) => ({
     const { error } = await supabase
       .from('lifestyle_logs')
       .upsert({ ...log, user_id: userId }, { onConflict: 'user_id,date' });
-    if (error) throw new Error(error.message);
 
-    const { data: saved, error: fetchError } = await supabase
-      .from('lifestyle_logs')
-      .select('*')
-      .eq('user_id', userId)
-      .eq('date', log.date)
-      .single();
-    if (fetchError || !saved) return;
-
-    const savedRow = saved as LifestyleLog;
-    const existing = get().logs.find((e) => e.date === log.date);
-    if (existing) {
-      set({ logs: get().logs.map((e) => (e.date === log.date ? savedRow : e)) });
-    } else {
-      set({ logs: [savedRow, ...get().logs] });
+    if (error) {
+      throw new Error(error.message);
     }
+
+    await get().fetchLogs(userId);
   },
 }));
