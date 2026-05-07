@@ -2,6 +2,7 @@ import { router } from 'expo-router';
 import { useState } from 'react';
 import {
   ActivityIndicator,
+  Alert,
   KeyboardAvoidingView,
   Platform,
   Pressable,
@@ -16,6 +17,7 @@ import {
 import Colors from '@/constants/Colors';
 import { supabase } from '@/lib/supabase';
 import { useAuthStore } from '@/stores/authStore';
+import { signInWithProvider } from '@/utils/oauth';
 
 export default function SignInScreen() {
   const user = useAuthStore((state) => state.user);
@@ -23,6 +25,14 @@ export default function SignInScreen() {
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const [oauthLoading, setOauthLoading] = useState<'google' | 'apple' | null>(null);
+
+  const handleOAuth = async (provider: 'google' | 'apple') => {
+    setOauthLoading(provider);
+    const err = await signInWithProvider(provider);
+    setOauthLoading(null);
+    if (err) Alert.alert('Sign in failed', err);
+  };
 
   const onSignIn = async () => {
     if (loading) return;
@@ -89,8 +99,43 @@ export default function SignInScreen() {
 
             <View style={styles.dividerRow}>
               <View style={styles.dividerLine} />
-              <Text style={styles.dividerText}>or</Text>
+              <Text style={styles.dividerText}>or continue with</Text>
               <View style={styles.dividerLine} />
+            </View>
+
+            {/* Social login */}
+            <View style={styles.socialRow}>
+              <Pressable
+                style={[styles.socialButton, oauthLoading === 'google' && styles.socialDisabled]}
+                onPress={() => handleOAuth('google')}
+                disabled={oauthLoading !== null}
+              >
+                {oauthLoading === 'google' ? (
+                  <ActivityIndicator size="small" color={Colors.text} />
+                ) : (
+                  <>
+                    <Text style={styles.googleIcon}>G</Text>
+                    <Text style={styles.socialButtonText}>Google</Text>
+                  </>
+                )}
+              </Pressable>
+
+              {Platform.OS === 'ios' && (
+                <Pressable
+                  style={[styles.socialButton, styles.appleButton, oauthLoading === 'apple' && styles.socialDisabled]}
+                  onPress={() => handleOAuth('apple')}
+                  disabled={oauthLoading !== null}
+                >
+                  {oauthLoading === 'apple' ? (
+                    <ActivityIndicator size="small" color="#fff" />
+                  ) : (
+                    <>
+                      <Text style={styles.appleIcon}></Text>
+                      <Text style={styles.appleButtonText}>Apple</Text>
+                    </>
+                  )}
+                </Pressable>
+              )}
             </View>
 
             <Pressable style={styles.ghostButton} onPress={() => router.push('/(auth)/sign-up')}>
@@ -173,4 +218,23 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   ghostButtonText: { color: Colors.accent, fontSize: 15, fontWeight: '700' },
+  socialRow: { flexDirection: 'row', gap: 12, marginBottom: 16 },
+  socialButton: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    height: 48,
+    borderRadius: 12,
+    borderWidth: 1.5,
+    borderColor: Colors.border,
+    backgroundColor: Colors.card,
+    gap: 8,
+  },
+  socialDisabled: { opacity: 0.6 },
+  googleIcon: { fontSize: 15, fontWeight: '800', color: '#4285F4' },
+  socialButtonText: { fontSize: 14, fontWeight: '600', color: Colors.text },
+  appleButton: { backgroundColor: '#000', borderColor: '#000' },
+  appleIcon: { fontSize: 15, color: '#fff' },
+  appleButtonText: { fontSize: 14, fontWeight: '600', color: '#fff' },
 });
