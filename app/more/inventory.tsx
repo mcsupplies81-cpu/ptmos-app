@@ -1,41 +1,163 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Alert, FlatList, KeyboardAvoidingView, Modal, Platform, Pressable, SafeAreaView, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import Colors from '@/constants/Colors';
 import { useAuthStore } from '@/stores/authStore';
-import { useInventoryStore } from '@/stores/inventoryStore';
+import { useInventoryStore, type InventoryItem } from '@/stores/inventoryStore';
+import { useProtocolStore, type Protocol } from '@/stores/protocolStore';
 import ScreenHeader from '@/components/ScreenHeader';
 import EmptyState from '@/components/EmptyState';
+
+type DoseRemainingInfo = {
+  count: number;
+  label: string;
+  color: string;
+  vialMg: number;
+  doseMcg: number;
+  sourceLabel: string;
+};
+
+type ReconstitutionInfo = {
+  volumeMl: number;
+  vialMg: number;
+  concentrationMcgPerMl: number;
+};
+
+type InventoryDoseFields = InventoryItem & {
+  vial_mg?: number | null;
+  total_amount?: number | null;
+  water_ml?: number | null;
+  reconstitution_amount_ml?: number | null;
+  dose_amount?: number | null;
+  dose_mcg?: number | null;
+  manual_dose_mcg?: number | null;
+  protocol_id?: string | null;
+};
+
+const toPositiveNumber = (value: unknown): number | null => {
+  const numberValue = Number(value);
+  return Number.isFinite(numberValue) && numberValue > 0 ? numberValue : null;
+};
+
+const doseToMcg = (amount: number, unit?: string | null): number | null => {
+  if (!Number.isFinite(amount) || amount <= 0) return null;
+  if (unit === 'mcg') return amount;
+  if (unit === 'mg') return amount * 1000;
+  return null;
+};
+
+const getItemVialMg = (item: InventoryDoseFields): number | null => (
+  toPositiveNumber(item.vial_mg)
+  ?? toPositiveNumber(item.total_amount)
+  ?? toPositiveNumber(item.concentration_mg_per_ml * item.volume_remaining_ml)
+);
+
+const getItemWaterMl = (item: InventoryDoseFields): number | null => (
+  toPositiveNumber(item.water_ml)
+  ?? toPositiveNumber(item.reconstitution_amount_ml)
+  ?? toPositiveNumber(item.volume_remaining_ml)
+);
+
+const findLinkedProtocol = (item: InventoryDoseFields, protocols: Protocol[]): Protocol | undefined => {
+  if (item.protocol_id) {
+    const byId = protocols.find((protocol) => protocol.id === item.protocol_id);
+    if (byId) return byId;
+  }
+
+  const itemName = item.peptide_name.trim().toLowerCase();
+  return protocols.find((protocol) => protocol.name.trim().toLowerCase() === itemName && protocol.status === 'active')
+    ?? protocols.find((protocol) => protocol.name.trim().toLowerCase() === itemName);
+};
+
+const getDoseMcg = (item: InventoryDoseFields, protocol?: Protocol): { doseMcg: number; sourceLabel: string } | null => {
+  const noteDoseMatch = item.storage_notes?.match(/dose:\s*(\d+(?:\.\d+)?)\s*mcg/i);
+  const noteDoseMcg = noteDoseMatch ? Number(noteDoseMatch[1]) : null;
+  const manualDose = toPositiveNumber(item.dose_mcg) ?? toPositiveNumber(item.manual_dose_mcg) ?? toPositiveNumber(noteDoseMcg);
+  if (manualDose) return { doseMcg: manualDose, sourceLabel: 'Manual dose' };
+
+  const itemDoseAmount = toPositiveNumber(item.dose_amount);
+  if (itemDoseAmount) return { doseMcg: itemDoseAmount, sourceLabel: 'Manual dose' };
+
+  if (!protocol) return null;
+  const protocolDose = doseToMcg(protocol.dose_amount, protocol.dose_unit);
+  return protocolDose ? { doseMcg: protocolDose, sourceLabel: protocol.name } : null;
+};
+
+const getDosesRemainingInfo = (item: InventoryDoseFields, protocol?: Protocol): DoseRemainingInfo | null => {
+  const vialMg = getItemVialMg(item);
+  const doseInfo = getDoseMcg(item, protocol);
+  if (!vialMg || !doseInfo) return null;
+
+  const count = Math.floor((vialMg * 1000) / doseInfo.doseMcg);
+  if (!Number.isFinite(count)) return null;
+
+  if (count <= 1) {
+    return { count, label: 'Low supply', color: Colors.error, vialMg, ...doseInfo };
+  }
+
+  return {
+    count,
+    label: `${count} doses remaining`,
+    color: count > 5 ? Colors.success : Colors.warning,
+    vialMg,
+    ...doseInfo,
+  };
+};
+
+const getReconstitutionInfo = (item: InventoryDoseFields): ReconstitutionInfo | null => {
+  const waterMl = getItemWaterMl(item);
+  const vialMg = getItemVialMg(item);
+  if (!waterMl || !vialMg) return null;
+
+  return {
+    volumeMl: waterMl,
+    vialMg,
+    concentrationMcgPerMl: (vialMg * 1000) / waterMl,
+  };
+};
+
+const formatCompactNumber = (value: number): string => {
+  if (Number.isInteger(value)) return String(value);
+  return value.toFixed(2).replace(/\.?0+$/, '');
+};
 
 export default function InventoryScreen() {
   const user = useAuthStore((state) => state.user);
   const { items, fetchInventory, addVial, updateVialVolume, deleteVial } = useInventoryStore();
+  const { protocols, fetchProtocols } = useProtocolStore();
   const [open, setOpen] = useState(false);
   const [name, setName] = useState('');
   const [concentration, setConcentration] = useState('');
   const [volume, setVolume] = useState('');
+  const [manualDoseMcg, setManualDoseMcg] = useState('');
   const [expiryDate, setExpiryDate] = useState('');
   const [storageNotes, setStorageNotes] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
+  const [expandedReconIds, setExpandedReconIds] = useState<Record<string, boolean>>({});
 
   useEffect(() => {
-    if (user?.id) fetchInventory(user.id);
-  }, [fetchInventory, user?.id]);
+    if (user?.id) {
+      fetchInventory(user.id);
+      fetchProtocols(user.id);
+    }
+  }, [fetchInventory, fetchProtocols, user?.id]);
 
   const saveVial = async () => {
     if (!user?.id || !name.trim()) return;
     try {
+      const manualDoseNote = toPositiveNumber(manualDoseMcg) ? `Dose: ${formatCompactNumber(Number(manualDoseMcg))}mcg` : '';
+      const notes = [storageNotes.trim(), manualDoseNote].filter(Boolean).join(' · ');
       await addVial(
         {
           peptide_name: name.trim(),
           concentration_mg_per_ml: Number(concentration) || 0,
           volume_remaining_ml: Number(volume) || 0,
           expiry_date: expiryDate.trim() || new Date(Date.now() + 90 * 86400000).toISOString().slice(0, 10),
-          storage_notes: storageNotes.trim() || null,
+          storage_notes: notes || null,
         },
         user.id,
       );
       setOpen(false);
-      setName(''); setConcentration(''); setVolume(''); setExpiryDate(''); setStorageNotes('');
+      setName(''); setConcentration(''); setVolume(''); setManualDoseMcg(''); setExpiryDate(''); setStorageNotes('');
     } catch (e: any) {
       Alert.alert('Save failed', e?.message ?? 'Could not save vial. Please try again.');
     }
@@ -45,6 +167,12 @@ export default function InventoryScreen() {
   const now = new Date();
   const soonThreshold = new Date(now.getTime() + 30 * 86400000);
   const filteredItems = items.filter((i) => i.peptide_name.toLowerCase().includes(searchQuery.toLowerCase()));
+  const linkedProtocolsByItemId = useMemo(() => (
+    items.reduce<Record<string, Protocol | undefined>>((acc, item) => {
+      acc[item.id] = findLinkedProtocol(item, protocols);
+      return acc;
+    }, {})
+  ), [items, protocols]);
   const lowStockCount = items.filter((item) => {
     const expired = item.expiry_date < today;
     return !expired && item.volume_remaining_ml <= 0.5;
@@ -102,6 +230,10 @@ export default function InventoryScreen() {
         renderItem={({ item }) => {
           const expired = item.expiry_date < today;
           const low = !expired && item.volume_remaining_ml <= 0.5;
+          const linkedProtocol = linkedProtocolsByItemId[item.id];
+          const dosesRemaining = getDosesRemainingInfo(item, linkedProtocol);
+          const reconstitution = getReconstitutionInfo(item);
+          const reconExpanded = Boolean(expandedReconIds[item.id]);
           return (
             <Pressable
               style={styles.rowCard}
@@ -166,6 +298,36 @@ export default function InventoryScreen() {
                 </View>
                 <View style={[styles.statusDot, expired ? styles.dotExpired : low ? styles.dotLow : styles.dotActive]} />
               </View>
+              {dosesRemaining ? (
+                <Text style={[styles.dosesRemainingText, { color: dosesRemaining.color }]}>
+                  {dosesRemaining.label}
+                </Text>
+              ) : null}
+              {reconstitution ? (
+                <Pressable
+                  style={styles.reconHelper}
+                  onPress={() => setExpandedReconIds((current) => ({ ...current, [item.id]: !current[item.id] }))}
+                >
+                  <View style={styles.reconSummaryRow}>
+                    <Text style={styles.reconSummaryText}>
+                      {formatCompactNumber(reconstitution.volumeMl)}mL + {formatCompactNumber(reconstitution.vialMg)}mg = {formatCompactNumber(reconstitution.concentrationMcgPerMl)}mcg/mL
+                    </Text>
+                    <Text style={styles.reconChevron}>{reconExpanded ? '⌃' : '⌄'}</Text>
+                  </View>
+                  {reconExpanded ? (
+                    <View style={styles.reconBreakdown}>
+                      <Text style={styles.reconBreakdownText}>
+                        Concentration: ({formatCompactNumber(reconstitution.vialMg)}mg × 1000) ÷ {formatCompactNumber(reconstitution.volumeMl)}mL = {formatCompactNumber(reconstitution.concentrationMcgPerMl)}mcg/mL
+                      </Text>
+                      {dosesRemaining ? (
+                        <Text style={styles.reconBreakdownText}>
+                          Doses: floor(({formatCompactNumber(dosesRemaining.vialMg)}mg × 1000) ÷ {formatCompactNumber(dosesRemaining.doseMcg)}mcg) from {dosesRemaining.sourceLabel}
+                        </Text>
+                      ) : null}
+                    </View>
+                  ) : null}
+                </Pressable>
+              ) : null}
             </Pressable>
           );
         }}
@@ -194,6 +356,9 @@ export default function InventoryScreen() {
 
               <Text style={styles.fieldLabel}>Volume Remaining (mL)</Text>
               <TextInput style={styles.input} placeholder="e.g. 2" keyboardType="decimal-pad" placeholderTextColor={Colors.textSecondary} value={volume} onChangeText={setVolume} />
+
+              <Text style={styles.fieldLabel}>Dose Amount (mcg, optional)</Text>
+              <TextInput style={styles.input} placeholder="e.g. 250" keyboardType="decimal-pad" placeholderTextColor={Colors.textSecondary} value={manualDoseMcg} onChangeText={setManualDoseMcg} />
 
               <Text style={styles.fieldLabel}>Expiry Date</Text>
               <TextInput style={styles.input} placeholder="YYYY-MM-DD" placeholderTextColor={Colors.textSecondary} value={expiryDate} onChangeText={setExpiryDate} keyboardType="numbers-and-punctuation" />
@@ -239,6 +404,13 @@ const styles = StyleSheet.create({
   dotActive: { backgroundColor: Colors.accent },
   dotLow: { backgroundColor: '#D97706' },
   dotExpired: { backgroundColor: '#DC2626' },
+  dosesRemainingText: { fontSize: 13, fontWeight: '700', marginTop: 10 },
+  reconHelper: { backgroundColor: Colors.background, borderColor: Colors.border, borderRadius: 10, borderWidth: 1, marginTop: 10, padding: 10 },
+  reconSummaryRow: { alignItems: 'center', flexDirection: 'row', justifyContent: 'space-between', gap: 8 },
+  reconSummaryText: { color: Colors.text, flex: 1, fontSize: 12, fontWeight: '600' },
+  reconChevron: { color: Colors.textSecondary, fontSize: 16, fontWeight: '700' },
+  reconBreakdown: { borderTopColor: Colors.border, borderTopWidth: 1, gap: 4, marginTop: 8, paddingTop: 8 },
+  reconBreakdownText: { color: Colors.textSecondary, fontSize: 12, lineHeight: 17 },
   bottomCtaWrap: { position: 'absolute', left: 16, right: 16, bottom: 18 },
   bottomCtaBtn: { backgroundColor: Colors.accent, borderRadius: 12, paddingVertical: 14, alignItems: 'center' },
   bottomCtaText: { color: Colors.white, fontSize: 16, fontWeight: '700' },
