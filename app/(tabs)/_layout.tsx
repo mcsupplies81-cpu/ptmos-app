@@ -67,6 +67,7 @@ export default function TabsLayout() {
       >
         <Tabs.Screen name="index" options={{ title: 'Dashboard', tabBarIcon: ({ color }) => <HomeIcon color={color} /> }} />
         <Tabs.Screen name="protocols" options={{ href: null }} />
+        <Tabs.Screen name="chat" options={{ title: 'Chat', tabBarIcon: ({ color }) => <ChatIcon color={color} /> }} />
         <Tabs.Screen
           name="plus"
           options={{
@@ -94,7 +95,6 @@ export default function TabsLayout() {
             tabBarButton: (props) => <Pressable {...(props as any)} onPress={() => setPlusOpen(true)} />,
           }}
         />
-        <Tabs.Screen name="chat" options={{ title: 'Chat', tabBarIcon: ({ color }) => <ChatIcon color={color} /> }} />
         <Tabs.Screen name="insights" options={{ title: 'Insights', tabBarIcon: ({ color }) => <InsightsIcon color={color} /> }} />
         <Tabs.Screen name="more" options={{ title: 'More', tabBarIcon: ({ color }) => <MoreIcon color={color} /> }} />
         <Tabs.Screen name="log" options={{ href: null }} />

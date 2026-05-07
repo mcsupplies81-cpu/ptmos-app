@@ -136,7 +136,7 @@ const styles = StyleSheet.create({
   errorMessage: { color: Colors.textSecondary, fontSize: 14, marginBottom: 16, textAlign: 'center' },
   retryButton: { backgroundColor: Colors.accent, borderRadius: 999, paddingHorizontal: 18, paddingVertical: 10 },
   retryButtonText: { color: Colors.white, fontSize: 14, fontWeight: '700' },
-  chipsContainer: { flexDirection: 'row', gap: 8, paddingHorizontal: 16, marginBottom: 12 },
+  chipsContainer: { flexDirection: 'row', gap: 8, paddingHorizontal: 16, marginBottom: 12, alignItems: 'flex-start' },
   chip: { borderRadius: 999, paddingHorizontal: 12, paddingVertical: 6 },
   chipSelected: { backgroundColor: Colors.accent, borderWidth: 1, borderColor: Colors.accent },
   chipUnselected: { backgroundColor: Colors.card, borderWidth: 1, borderColor: Colors.border },
