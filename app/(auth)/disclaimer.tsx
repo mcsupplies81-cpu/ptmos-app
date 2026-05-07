@@ -17,7 +17,11 @@ export default function DisclaimerScreen() {
     setLoading(true);
     await supabase
       .from('profiles')
-      .update({ disclaimer_accepted: true, disclaimer_accepted_at: new Date().toISOString() })
+      .upsert({
+        id: session.user.id,
+        disclaimer_accepted: true,
+        disclaimer_accepted_at: new Date().toISOString(),
+      })
       .eq('id', session.user.id);
     await fetchProfile(session.user.id);
     setLoading(false);

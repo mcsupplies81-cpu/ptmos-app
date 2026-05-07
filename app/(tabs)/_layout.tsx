@@ -56,6 +56,7 @@ export default function TabsLayout() {
     <>
       <Tabs
         screenOptions={{
+          headerShown: false,
           tabBarStyle: {
             backgroundColor: Colors.tabBar,
             borderTopColor: Colors.tabBarBorder,
@@ -65,7 +66,7 @@ export default function TabsLayout() {
         }}
       >
         <Tabs.Screen name="index" options={{ title: 'Dashboard', tabBarIcon: ({ color }) => <HomeIcon color={color} /> }} />
-        <Tabs.Screen name="protocols" options={{ title: 'Protocols', tabBarIcon: ({ color }) => <ProtocolsIcon color={color} /> }} />
+        <Tabs.Screen name="protocols" options={{ href: null }} />
         <Tabs.Screen
           name="plus"
           options={{

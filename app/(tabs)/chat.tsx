@@ -446,7 +446,7 @@ export default function ChatScreen() {
       <KeyboardAvoidingView
         style={{ flex: 1 }}
         behavior="padding"
-        keyboardVerticalOffset={0}
+        keyboardVerticalOffset={88}
       >
         <View style={styles.header}>
           <View>
