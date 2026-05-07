@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import {
+  Alert,
   KeyboardAvoidingView,
   Modal,
   Platform,
@@ -14,6 +15,7 @@ import DateTimePicker from '@react-native-community/datetimepicker';
 import { useRouter } from 'expo-router';
 
 import Colors from '@/constants/Colors';
+import { supabase } from '@/lib/supabase';
 import { useAuthStore } from '@/stores/authStore';
 import { useProfileStore } from '@/stores/profileStore';
 
@@ -26,7 +28,7 @@ const IN_OPTIONS = Array.from({ length: 12 }, (_, i) => i);   // 0–11 in
 export default function ProfileSetupScreen() {
   const router = useRouter();
   const { user } = useAuthStore();
-  const { upsertProfile } = useProfileStore();
+  const { fetchProfile } = useProfileStore();
 
   const [firstName, setFirstName] = useState('');
   const [lastName, setLastName] = useState('');
@@ -52,18 +54,29 @@ export default function ProfileSetupScreen() {
   const onSave = async () => {
     if (!user?.id || !firstName.trim() || saving) return;
     setSaving(true);
-    const payload = {
-      full_name: `${firstName.trim()} ${lastName.trim()}`.trim() || null,
-      date_of_birth: dob ? dob.toISOString().slice(0, 10) : null,
-      height_inches: heightInches,
-      weight_lbs: weight.trim() ? Number(weight) : null,
-      goal,
-      disclaimer_accepted: true,
-      onboarding_complete: true,
-    };
     try {
-      await upsertProfile(user.id, payload);
+      // Write directly to Supabase so we can see any errors
+      const { error } = await supabase.from('profiles').upsert({
+        id: user.id,
+        full_name: `${firstName.trim()} ${lastName.trim()}`.trim() || null,
+        date_of_birth: dob ? dob.toISOString().slice(0, 10) : null,
+        height_inches: heightInches,
+        weight_lbs: weight.trim() ? Number(weight) : null,
+        goal,
+        disclaimer_accepted: true,
+        onboarding_complete: true,
+      });
+
+      if (error) {
+        Alert.alert('Save failed', `DB error: ${error.message}\nCode: ${error.code}`);
+        return;
+      }
+
+      // Refresh store with new profile
+      await fetchProfile(user.id);
       router.replace('/(tabs)');
+    } catch (e) {
+      Alert.alert('Error', String(e));
     } finally {
       setSaving(false);
     }
