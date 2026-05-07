@@ -85,6 +85,7 @@ export default function MoreTabScreen() {
 
   const insightsItems: MenuItem[] = [
     { emoji: '📊', label: 'Weekly Summary', onPress: () => router.push('/insights/weekly-summary') },
+    { emoji: '🏥', label: 'Providers', onPress: () => router.push('/providers') },
     { emoji: '🧪', label: 'Inventory', onPress: () => router.push('/more/inventory') },
   ];
 

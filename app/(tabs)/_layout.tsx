@@ -99,7 +99,6 @@ export default function TabsLayout() {
         <Tabs.Screen name="more" options={{ title: 'More', tabBarIcon: ({ color }) => <MoreIcon color={color} /> }} />
         <Tabs.Screen name="log" options={{ href: null }} />
         <Tabs.Screen name="research" options={{ href: null }} />
-        <Tabs.Screen name="providers" options={{ href: null }} />
         <Tabs.Screen name="settings" options={{ href: null }} />
       </Tabs>
       <PlusMenu visible={plusOpen} onClose={() => setPlusOpen(false)} />
