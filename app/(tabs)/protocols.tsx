@@ -2,15 +2,50 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { ActivityIndicator, Alert, SafeAreaView, FlatList, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { router } from 'expo-router';
 import Colors from '@/constants/Colors';
-import { useProtocolStore } from '@/stores/protocolStore';
+import { calcAdherence, useProtocolStore, type ProtocolStatus } from '@/stores/protocolStore';
+import { useDoseLogStore } from '@/stores/doseLogStore';
 import { useAuthStore } from '@/stores/authStore';
 import EmptyState from '@/components/EmptyState';
 
 type Filter = 'All' | 'Active' | 'Paused' | 'Completed';
 
+const getStatusStyles = (status: ProtocolStatus) => {
+  if (status === 'active') {
+    return {
+      accent: Colors.accent,
+      badgeBackground: Colors.accentLight,
+      badgeText: Colors.accent,
+      label: 'ACTIVE',
+    };
+  }
+
+  if (status === 'paused') {
+    return {
+      accent: Colors.warning,
+      badgeBackground: '#FEF3C7',
+      badgeText: Colors.warning,
+      label: 'PAUSED',
+    };
+  }
+
+  return {
+    accent: Colors.border,
+    badgeBackground: '#F3F4F6',
+    badgeText: Colors.textSecondary,
+    label: status === 'completed' ? 'COMPLETED' : status.toUpperCase(),
+  };
+};
+
+const getAdherenceColor = (adherence: number) => {
+  if (adherence >= 80) return Colors.accent;
+  if (adherence >= 50) return Colors.warning;
+  return Colors.error;
+};
+
 export default function ProtocolsScreen() {
   const user = useAuthStore((state) => state.user);
   const { protocols, loading, error, fetchProtocols } = useProtocolStore();
+  const doseLogs = useDoseLogStore((state) => state.doseLogs);
   const [filter, setFilter] = useState<Filter>('All');
 
   useEffect(() => {
@@ -20,6 +55,8 @@ export default function ProtocolsScreen() {
   const filteredProtocols = useMemo(() => {
     return filter === 'All' ? protocols : protocols.filter((p) => p.status === filter.toLowerCase());
   }, [protocols, filter]);
+
+  const activeProtocolCount = useMemo(() => protocols.filter((p) => p.status === 'active').length, [protocols]);
 
   const handleRetry = () => {
     if (user?.id) {
@@ -54,6 +91,19 @@ export default function ProtocolsScreen() {
 
   return (
     <SafeAreaView style={styles.container}>
+      <View style={styles.header}>
+        <View>
+          <Text style={styles.headerTitle}>My Protocols</Text>
+          <Text style={styles.headerSubtitle}>
+            {activeProtocolCount} active protocol{activeProtocolCount === 1 ? '' : 's'}
+          </Text>
+        </View>
+
+        <Pressable style={styles.addButton} onPress={() => router.push('/protocol/create')}>
+          <Text style={styles.addButtonText}>+ Add</Text>
+        </Pressable>
+      </View>
+
       <ScrollView
         horizontal
         showsHorizontalScrollIndicator={false}
@@ -87,40 +137,44 @@ export default function ProtocolsScreen() {
             onAction={() => router.push('/protocol/create')}
           />
         }
-        renderItem={({ item }) => (
-          <Pressable
-            onPress={() => router.push({ pathname: '/log/protocol-detail', params: { protocolId: item.id } })}
-            onLongPress={() =>
-              Alert.alert('Protocol Options', item.name, [
-                { text: 'Edit', onPress: () => router.push({ pathname: '/protocol/edit', params: { protocolId: item.id } }) },
-                { text: 'View Details', onPress: () => router.push({ pathname: '/log/protocol-detail', params: { protocolId: item.id } }) },
-                { text: 'Cancel', style: 'cancel' },
-              ])
-            }
-            style={styles.card}
-          >
-            <View style={styles.rowTop}>
-              <View style={styles.cardMain}>
-                <Text style={styles.name}>{item.name}</Text>
-                <Text style={styles.meta}>{item.dose_amount} {item.dose_unit} · {item.frequency}</Text>
-                <Text style={styles.time}>⏰ {item.time_of_day}</Text>
+        renderItem={({ item }) => {
+          const adherence = Math.max(0, Math.min(100, calcAdherence(item, doseLogs)));
+          const statusStyles = getStatusStyles(item.status);
+
+          return (
+            <Pressable
+              onPress={() => router.push({ pathname: '/log/protocol-detail', params: { protocolId: item.id } })}
+              onLongPress={() =>
+                Alert.alert('Protocol Options', item.name, [
+                  { text: 'Edit', onPress: () => router.push({ pathname: '/protocol/edit', params: { protocolId: item.id } }) },
+                  { text: 'View Details', onPress: () => router.push({ pathname: '/log/protocol-detail', params: { protocolId: item.id } }) },
+                  { text: 'Cancel', style: 'cancel' },
+                ])
+              }
+              style={styles.card}
+            >
+              <View style={[styles.accentBar, { backgroundColor: statusStyles.accent }]} />
+
+              <View style={styles.cardContent}>
+                <View style={styles.cardMain}>
+                  <Text style={styles.name}>{item.name}</Text>
+                  <Text style={styles.meta}>{item.name} · {item.dose_amount} {item.dose_unit}</Text>
+                  <Text style={styles.time}>{item.frequency} · Next dose {item.time_of_day}</Text>
+                </View>
+
+                <View style={styles.cardRight}>
+                  <View style={[styles.statusBadge, { backgroundColor: statusStyles.badgeBackground }]}>
+                    <Text style={[styles.statusBadgeText, { color: statusStyles.badgeText }]}>{statusStyles.label}</Text>
+                  </View>
+
+                  <View style={[styles.adherenceBadge, { backgroundColor: getAdherenceColor(adherence) }]}>
+                    <Text style={styles.adherenceText}>{adherence}%</Text>
+                  </View>
+                </View>
               </View>
-
-              <View style={[styles.badge, item.status === 'active' ? styles.badgeActive : item.status === 'completed' ? styles.badgeCompleted : styles.badgePaused]}>
-                <Text style={[styles.badgeText, item.status === 'active' ? styles.badgeTextActive : item.status === 'completed' ? styles.badgeTextCompleted : styles.badgeTextPaused]}>
-                  {item.status === 'active' ? 'Active' : item.status === 'completed' ? 'Done' : 'Paused'}
-                </Text>
-              </View>
-            </View>
-
-            <View style={styles.divider} />
-
-            <View style={styles.rowBottom}>
-              <Text style={styles.detailHint}>Tap to view details</Text>
-              <Text style={styles.chevron}>›</Text>
-            </View>
-          </Pressable>
-        )}
+            </Pressable>
+          );
+        }}
       />
 
       <Pressable style={styles.fab} onPress={() => router.push('/protocol/create')}><Text style={styles.fabText}>+</Text></Pressable>
@@ -136,6 +190,28 @@ const styles = StyleSheet.create({
   errorMessage: { color: Colors.textSecondary, fontSize: 14, marginBottom: 16, textAlign: 'center' },
   retryButton: { backgroundColor: Colors.accent, borderRadius: 999, paddingHorizontal: 18, paddingVertical: 10 },
   retryButtonText: { color: Colors.white, fontSize: 14, fontWeight: '700' },
+  header: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    paddingTop: 12,
+    paddingBottom: 14,
+  },
+  headerTitle: { color: Colors.text, fontSize: 26, fontWeight: '800', letterSpacing: -0.4 },
+  headerSubtitle: { marginTop: 4, color: Colors.textSecondary, fontSize: 13 },
+  addButton: {
+    backgroundColor: Colors.accent,
+    borderRadius: 999,
+    paddingHorizontal: 16,
+    paddingVertical: 9,
+    shadowColor: Colors.accent,
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.18,
+    shadowRadius: 12,
+    elevation: 3,
+  },
+  addButtonText: { color: Colors.white, fontSize: 13, fontWeight: '800' },
   chipsContainer: { flexDirection: 'row', gap: 8, paddingHorizontal: 16, marginBottom: 12, alignItems: 'flex-start' },
   chip: { borderRadius: 999, paddingHorizontal: 12, paddingVertical: 6 },
   chipSelected: { backgroundColor: Colors.accent, borderWidth: 1, borderColor: Colors.accent },
@@ -143,25 +219,49 @@ const styles = StyleSheet.create({
   chipText: { fontWeight: '600', fontSize: 12 },
   chipTextSelected: { color: Colors.white },
   chipTextUnselected: { color: Colors.textSecondary },
-  listContent: { padding: 16, gap: 10, paddingBottom: 120 },
-  card: { backgroundColor: Colors.card, borderRadius: 14, paddingHorizontal: 16, paddingVertical: 12, borderWidth: 1, borderColor: Colors.border },
-  rowTop: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' },
-  cardMain: { flex: 1, paddingRight: 8 },
+  listContent: { padding: 16, paddingTop: 4, gap: 12, paddingBottom: 120 },
+  card: {
+    flexDirection: 'row',
+    backgroundColor: Colors.white,
+    borderRadius: 18,
+    borderWidth: 1,
+    borderColor: Colors.border,
+    overflow: 'hidden',
+    shadowColor: '#0F172A',
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.08,
+    shadowRadius: 18,
+    elevation: 3,
+  },
+  accentBar: { width: 4, height: '100%', borderRadius: 2, alignSelf: 'stretch' },
+  cardContent: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 14,
+    paddingVertical: 14,
+  },
+  cardMain: { flex: 1, paddingRight: 12 },
   name: { fontSize: 16, fontWeight: '700', color: Colors.text },
-  meta: { marginTop: 3, fontSize: 13, color: Colors.textSecondary },
-  time: { marginTop: 2, fontSize: 12, color: Colors.textSecondary },
-  badge: { borderRadius: 999, paddingHorizontal: 10, paddingVertical: 4 },
-  badgeText: { fontWeight: '700', fontSize: 12 },
-  badgeActive: { backgroundColor: Colors.accentLight },
-  badgeTextActive: { color: Colors.accent },
-  badgeCompleted: { backgroundColor: '#F3F4F6' },
-  badgeTextCompleted: { color: '#6B7280' },
-  badgePaused: { backgroundColor: '#FEF3C7' },
-  badgeTextPaused: { color: '#D97706' },
-  divider: { height: 1, backgroundColor: Colors.border, marginVertical: 12 },
-  rowBottom: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  detailHint: { fontSize: 12, color: Colors.textSecondary },
-  chevron: { fontSize: 18, color: Colors.textSecondary },
+  meta: { marginTop: 5, fontSize: 13, color: Colors.textSecondary },
+  time: { marginTop: 5, fontSize: 12, color: Colors.textSecondary },
+  cardRight: { alignItems: 'flex-end', justifyContent: 'space-between', minHeight: 76 },
+  statusBadge: { borderRadius: 999, paddingHorizontal: 9, paddingVertical: 4 },
+  statusBadgeText: { fontWeight: '800', fontSize: 10, letterSpacing: 0.6 },
+  adherenceBadge: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    justifyContent: 'center',
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.14,
+    shadowRadius: 8,
+    elevation: 2,
+  },
+  adherenceText: { color: Colors.white, fontSize: 13, fontWeight: '800' },
   fab: {
     position: 'absolute',
     bottom: 80,
