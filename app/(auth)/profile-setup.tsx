@@ -58,6 +58,7 @@ export default function ProfileSetupScreen() {
       height_inches: heightInches,
       weight_lbs: weight.trim() ? Number(weight) : null,
       goal,
+      disclaimer_accepted: true,
       onboarding_complete: true,
     };
     try {

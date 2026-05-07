@@ -21,8 +21,8 @@ export default function DisclaimerScreen() {
         id: session.user.id,
         disclaimer_accepted: true,
         disclaimer_accepted_at: new Date().toISOString(),
-      })
-      .eq('id', session.user.id);
+        onboarding_complete: false,
+      });
     await fetchProfile(session.user.id);
     setLoading(false);
     router.replace('/(auth)/profile-setup');
