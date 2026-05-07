@@ -17,7 +17,8 @@
       "bundleIdentifier": "com.ptmos.app",
       "buildNumber": "1",
       "infoPlist": {
-        "NSUserNotificationsUsageDescription": "PT-OS sends reminders for your protocol doses."
+        "NSUserNotificationsUsageDescription": "PT-OS sends reminders for your protocol doses.",
+        "ITSAppUsesNonExemptEncryption": false
       }
     },
     "android": {
@@ -37,6 +38,13 @@
     ],
     "experiments": {
       "typedRoutes": true
-    }
+    },
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "e8b2b5e5-6000-47b1-be16-b615e62dfc2a"
+      }
+    },
+    "owner": "mcsupplies"
   }
 }
