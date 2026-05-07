@@ -236,7 +236,6 @@ export default function InsightsScreen() {
             <Text style={styles.aiTitle}>AI Summary</Text>
           </View>
           <Text style={styles.aiBody}>{summaryText}</Text>
-          <Text style={styles.aiFootnote}>Full AI analysis coming soon</Text>
         </View>
       </ScrollView>
     </SafeAreaView>

@@ -187,7 +187,6 @@ export default function WeeklySummaryScreen() {
           <Text style={styles.aiTitle}>AI SUMMARY</Text>
           <Text style={styles.aiBody}>{summaryText}</Text>
           <Text style={styles.bestDay}>Best day: {bestDay}</Text>
-          <Text style={styles.aiFootnote}>Full AI insights coming soon</Text>
         </View>
 
         <Pressable style={styles.linkRow} onPress={() => router.push('/(tabs)/insights')}>
