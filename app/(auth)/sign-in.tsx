@@ -35,7 +35,7 @@ export default function SignInScreen() {
       return;
     }
 
-    router.replace('/(tabs)/' as any);
+    router.replace('/(tabs)');
     setLoading(false);
   };
 
