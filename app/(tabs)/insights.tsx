@@ -1,7 +1,7 @@
 import { useEffect, useMemo } from 'react';
 import { router } from 'expo-router';
 import { Pressable, SafeAreaView, ScrollView, StyleSheet, Text, View } from 'react-native';
-import Svg, { Circle, Rect } from 'react-native-svg';
+import Svg, { Circle } from 'react-native-svg';
 
 import ScreenHeader from '@/components/ScreenHeader';
 import EmptyState from '@/components/EmptyState';
@@ -175,7 +175,7 @@ export default function InsightsScreen() {
               const has = loggedDates.has(date);
               return (
                 <View key={date} style={styles.barItem}>
-                  <Rect width={28} height={has ? 48 : 8} rx={4} fill={has ? Colors.accent : Colors.border} />
+                  <View style={{ width: 28, height: has ? 48 : 8, borderRadius: 4, backgroundColor: has ? Colors.accent : Colors.border }} />
                   <Text style={styles.barDay}>{DAY_LABELS[new Date(date).getDay()]}</Text>
                 </View>
               );
@@ -197,7 +197,7 @@ export default function InsightsScreen() {
                   </Text>
                 </View>
                 <View style={styles.badge}>
-                  <Text style={styles.badgeText}>{Math.round(calcAdherence(protocol, doseLogs))}%</Text>
+                  <Text style={styles.badgeText}>{Math.min(100, Math.round(calcAdherence(protocol, doseLogs)))}%</Text>
                 </View>
               </View>
             ))
@@ -327,7 +327,7 @@ const styles = StyleSheet.create({
   historyLinkArrow: { fontSize: 13, fontWeight: '600', color: Colors.accent },
   aiCard: {
     margin: 16,
-    backgroundColor: '#F0F9F4',
+    backgroundColor: Colors.accentLight,
     borderRadius: 14,
     padding: 16,
     borderWidth: 1,
