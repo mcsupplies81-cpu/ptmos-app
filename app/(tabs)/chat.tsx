@@ -439,7 +439,7 @@ export default function ChatScreen() {
       };
       addMessage({ role: 'confirmation', text: parsed.displaySummary, parsedIntent: parsed, status: 'pending' });
     }
-  }, [inputText, addMessage, callAI, mockParse, doseLogs, protocols]);
+  }, [inputText, addMessage, callAI, doseLogs, protocols]);
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: Colors.background }}>
@@ -633,7 +633,7 @@ const styles = StyleSheet.create({
   emptyEmoji: { fontSize: 32 },
   emptyText: { color: Colors.textSecondary, fontSize: 14, textAlign: 'center' },
   userBubble: { backgroundColor: Colors.accent, borderRadius: 18, borderBottomRightRadius: 4, padding: 12, maxWidth: '80%', alignSelf: 'flex-end', marginVertical: 2 },
-  userText: { color: '#FFFFFF', fontSize: 15 },
+  userText: { color: Colors.white, fontSize: 15 },
   assistantBubble: {
     backgroundColor: Colors.card,
     borderRadius: 18,
@@ -695,16 +695,16 @@ const styles = StyleSheet.create({
   summaryText: { fontSize: 16, fontWeight: '700', color: Colors.text, marginTop: 4, marginBottom: 12 },
   buttonRow: { gap: 8, flexDirection: 'row' },
   confirmButton: { flex: 1, backgroundColor: Colors.accent, borderRadius: 10, height: 40, justifyContent: 'center', alignItems: 'center' },
-  confirmButtonText: { color: '#FFFFFF', fontWeight: '700' },
+  confirmButtonText: { color: Colors.white, fontWeight: '700' },
   cancelButton: { flex: 1, borderWidth: 1, borderColor: Colors.border, borderRadius: 10, height: 40, justifyContent: 'center', alignItems: 'center' },
   cancelButtonText: { color: Colors.textSecondary },
   confirmedBadge: { color: Colors.success, fontSize: 12, fontWeight: '600' },
   successPill: { backgroundColor: Colors.accentLight, borderRadius: 999, paddingHorizontal: 12, paddingVertical: 6, alignSelf: 'flex-start' },
   successText: { color: Colors.accent, fontSize: 13, fontWeight: '600' },
-  errorPill: { backgroundColor: '#FEE2E2', borderRadius: 999, paddingHorizontal: 12, paddingVertical: 6, alignSelf: 'flex-start' },
-  errorText: { color: '#DC2626', fontSize: 13, fontWeight: '600' },
+  errorPill: { backgroundColor: Colors.backgroundSecondary, borderRadius: 999, paddingHorizontal: 12, paddingVertical: 6, alignSelf: 'flex-start' },
+  errorText: { color: Colors.error, fontSize: 13, fontWeight: '600' },
   inputBar: { flexDirection: 'row', paddingHorizontal: 12, paddingVertical: 10, gap: 8, borderTopWidth: 1, borderTopColor: Colors.border, backgroundColor: Colors.background },
   input: { flex: 1, borderWidth: 1, borderColor: Colors.border, borderRadius: 20, paddingHorizontal: 14, paddingVertical: 10, fontSize: 15, color: Colors.text, backgroundColor: Colors.card, maxHeight: 80 },
   sendButton: { width: 44, height: 44, borderRadius: 22, backgroundColor: Colors.accent, justifyContent: 'center', alignItems: 'center' },
-  sendText: { color: '#FFFFFF', fontSize: 20, fontWeight: '700' },
+  sendText: { color: Colors.white, fontSize: 20, fontWeight: '700' },
 });

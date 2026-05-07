@@ -76,27 +76,36 @@ export default function DashboardScreen() {
   );
 
   const nextDose = useMemo(() => {
-    const candidates = activeProtocols
+    // Separate: unlogged protocols due today (overdue or upcoming)
+    const todayTargets = activeProtocols
+      .filter((p) => !loggedTodayByProtocol.has(p.id) && !loggedTodayByName.has(p.name.toLowerCase()))
       .map((p) => {
         const parsed = parseTime(p.time_of_day);
         if (!parsed) return null;
         const scheduled = new Date();
         scheduled.setHours(parsed.h, parsed.m, 0, 0);
-        if (scheduled.getTime() < Date.now()) {
-          scheduled.setDate(scheduled.getDate() + 1);
-        }
         const deltaMin = Math.floor((scheduled.getTime() - Date.now()) / 60000);
-        return { protocol: p, scheduled, deltaMin };
+        return { protocol: p, scheduled, deltaMin, overdue: deltaMin < 0 };
       })
-      .filter((c): c is { protocol: (typeof activeProtocols)[number]; scheduled: Date; deltaMin: number } => Boolean(c))
+      .filter((c): c is NonNullable<typeof c> => Boolean(c))
       .sort((a, b) => a.deltaMin - b.deltaMin);
 
-    return candidates[0] ?? null;
-  }, [activeProtocols]);
+    // Show overdue first, then soonest upcoming
+    const overdue = todayTargets.filter((c) => c.overdue);
+    if (overdue.length > 0) return overdue[0];
+    if (todayTargets.length > 0) return todayTargets[0];
+    return null;
+  }, [activeProtocols, loggedTodayByProtocol, loggedTodayByName]);
 
   const countdown = useMemo(() => {
     if (!nextDose) return '—';
-    if (nextDose.deltaMin <= 0) return 'Due now';
+    if (nextDose.overdue) {
+      const missedMin = Math.abs(nextDose.deltaMin);
+      const h = Math.floor(missedMin / 60);
+      const m = missedMin % 60;
+      return h > 0 ? `overdue ${h}h ${m}m` : `overdue ${m}m`;
+    }
+    if (nextDose.deltaMin <= 5) return 'Due now';
     const h = Math.floor(nextDose.deltaMin / 60);
     const m = nextDose.deltaMin % 60;
     if (h <= 0) return `in ${m}m`;
@@ -205,7 +214,7 @@ export default function DashboardScreen() {
               <Text style={styles.nextDoseName}>{nextDose.protocol.name}</Text>
               <Text style={styles.sub}>{nextDose.protocol.dose_amount} {nextDose.protocol.dose_unit}</Text>
               <View style={styles.nextDoseFooter}>
-                <Text style={styles.countdown}>{countdown}</Text>
+                <Text style={[styles.countdown, nextDose?.overdue && { color: Colors.error }]}>{countdown}</Text>
                 <Pressable style={styles.logButton} onPress={() => router.push('/log/dose')}>
                   <Text style={styles.logButtonText}>Log Dose</Text>
                 </Pressable>
@@ -278,7 +287,7 @@ const styles = StyleSheet.create({
   askTitle: { fontSize: 17, color: Colors.text, fontWeight: '700' },
   askSub: { color: Colors.textSecondary, fontSize: 13 },
   askArrowCircle: { width: 32, height: 32, borderRadius: 16, backgroundColor: Colors.accent, alignItems: 'center', justifyContent: 'center' },
-  askArrow: { color: '#fff', fontSize: 17, fontWeight: '700' },
+  askArrow: { color: Colors.white, fontSize: 17, fontWeight: '700' },
   quickRow: { gap: 10, paddingRight: 8 },
   quickChip: { width: 78, backgroundColor: Colors.card, borderRadius: 14, borderWidth: 1, borderColor: Colors.border, paddingVertical: 10, paddingHorizontal: 8, alignItems: 'center', gap: 8 },
   quickIcon: { width: 28, height: 28, borderRadius: 14, backgroundColor: Colors.background, alignItems: 'center', justifyContent: 'center' },
@@ -291,20 +300,20 @@ const styles = StyleSheet.create({
   statusCircle: { width: 22, height: 22, borderRadius: 11, alignItems: 'center', justifyContent: 'center' },
   statusCircleDone: { backgroundColor: Colors.accent },
   statusCircleOpen: { borderWidth: 1.5, borderColor: Colors.accent, backgroundColor: 'transparent' },
-  statusCheck: { color: '#fff', fontWeight: '800', fontSize: 12 },
+  statusCheck: { color: Colors.white, fontWeight: '800', fontSize: 12 },
   rowMain: { flex: 1 },
   rowRight: { alignItems: 'flex-end', gap: 6 },
   name: { color: Colors.text, fontWeight: '700', fontSize: 15 },
   sub: { color: Colors.textSecondary, fontSize: 13 },
   logPill: { backgroundColor: Colors.accentLight, borderRadius: 999, paddingHorizontal: 10, paddingVertical: 5 },
   logPillText: { color: Colors.accent, fontSize: 12, fontWeight: '700' },
-  nextDoseCard: { backgroundColor: '#E8F6EC', borderRadius: 16, borderWidth: 1, borderColor: Colors.border, padding: 16, gap: 6 },
+  nextDoseCard: { backgroundColor: Colors.accentLight, borderRadius: 16, borderWidth: 1, borderColor: Colors.border, padding: 16, gap: 6 },
   nextDoseName: { fontSize: 24, fontWeight: '800', color: Colors.text },
   nextDoseFooter: { marginTop: 2, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   nextEmpty: { color: Colors.text, fontSize: 15 },
   countdown: { color: Colors.accent, fontWeight: '700', fontSize: 15 },
   logButton: { backgroundColor: Colors.accent, borderRadius: 10, paddingHorizontal: 12, paddingVertical: 8 },
-  logButtonText: { color: '#fff', fontSize: 13, fontWeight: '700' },
+  logButtonText: { color: Colors.white, fontSize: 13, fontWeight: '700' },
   metricsGrid: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between', gap: 10 },
   metricCard: { width: '48%', backgroundColor: Colors.card, borderRadius: 16, borderWidth: 1, borderColor: Colors.border, padding: 12, minHeight: 118, justifyContent: 'space-between' },
   metricTop: { color: Colors.text, fontSize: 15, fontWeight: '600' },

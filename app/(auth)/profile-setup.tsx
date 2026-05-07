@@ -1,6 +1,5 @@
 import React, { useState } from 'react';
 import {
-  Alert,
   KeyboardAvoidingView,
   Platform,
   Pressable,
@@ -16,7 +15,6 @@ import Colors from '@/constants/Colors';
 import { useAuthStore } from '@/stores/authStore';
 import { useProfileStore } from '@/stores/profileStore';
 
-const SEX_OPTIONS = ['Male', 'Female', 'Other', 'Prefer not to say'] as const;
 const GOAL_OPTIONS = ['Performance', 'Recovery', 'Longevity'] as const;
 
 type GoalOption = (typeof GOAL_OPTIONS)[number];
@@ -29,18 +27,10 @@ export default function ProfileSetupScreen() {
   const [firstName, setFirstName] = useState('');
   const [lastName, setLastName] = useState('');
   const [dateOfBirth, setDateOfBirth] = useState('');
-  const [biologicalSex, setBiologicalSex] = useState('Prefer not to say');
   const [height, setHeight] = useState('');
   const [weight, setWeight] = useState('');
   const [goal, setGoal] = useState<GoalOption>('Performance');
   const [saving, setSaving] = useState(false);
-
-  const pickBiologicalSex = () => {
-    Alert.alert('Biological Sex', 'Select an option', [
-      ...SEX_OPTIONS.map((option) => ({ text: option, onPress: () => setBiologicalSex(option) })),
-      { text: 'Cancel', style: 'cancel' },
-    ]);
-  };
 
   const onSave = async () => {
     if (!user?.id || !firstName.trim() || saving) {
@@ -93,12 +83,6 @@ export default function ProfileSetupScreen() {
                 placeholderTextColor={Colors.textSecondary}
                 style={inputStyle}
               />
-            </Row>
-            <Row label="Biological Sex" border>
-              <Pressable onPress={pickBiologicalSex} style={{ flexDirection: 'row', alignItems: 'center', marginLeft: 12 }}>
-                <Text style={{ color: Colors.text }}>{biologicalSex}</Text>
-                <Text style={{ color: Colors.textSecondary, marginLeft: 8 }}>›</Text>
-              </Pressable>
             </Row>
             <Row label="Height" border>
               <TextInput

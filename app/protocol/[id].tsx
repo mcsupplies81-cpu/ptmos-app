@@ -41,7 +41,7 @@ export default function ProtocolDetailScreen() {
     );
   }
 
-  const adherence = calcAdherence(protocol, doseLogs);
+  const adherence = Math.min(100, Math.round(calcAdherence(protocol, doseLogs)));
   const statusLabel = protocol.status.charAt(0).toUpperCase() + protocol.status.slice(1);
   const statusTextStyle =
     protocol.status === 'active'
