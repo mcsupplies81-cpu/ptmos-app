@@ -226,28 +226,28 @@ export default function DashboardScreen() {
         </View>
 
         <Text style={styles.sectionTitle}>KEY METRICS</Text>
-        <View style={styles.metricsGrid}>
-          <Pressable style={styles.metricCard} onPress={() => router.push('/log/lifestyle')}>
-            <Text style={styles.metricTop}>⚖️ Weight</Text>
-            <Text style={styles.metricValue}>{todayLifestyle?.weight_lbs != null ? `${todayLifestyle.weight_lbs}` : '—'}</Text>
-            <Text style={styles.metricMeta}>lbs</Text>
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.metricsRow}>
+          <Pressable style={styles.metricChip} onPress={() => router.push('/log/lifestyle')}>
+            <Text style={styles.metricEmoji}>⚖️</Text>
+            <Text style={styles.metricValue}>{todayLifestyle?.weight_lbs != null ? `${todayLifestyle.weight_lbs} lbs` : '—'}</Text>
+            <Text style={styles.metricLabel}>Weight</Text>
           </Pressable>
-          <Pressable style={styles.metricCard} onPress={() => router.push('/log/lifestyle')}>
-            <Text style={styles.metricTop}>💧 Water</Text>
+          <Pressable style={styles.metricChip} onPress={() => router.push('/log/lifestyle')}>
+            <Text style={styles.metricEmoji}>💧</Text>
             <Text style={styles.metricValue}>{todayLifestyle?.water_oz != null ? `${todayLifestyle.water_oz} oz` : '—'}</Text>
-            <Text style={styles.metricMeta}>today</Text>
+            <Text style={styles.metricLabel}>Water</Text>
           </Pressable>
-          <Pressable style={styles.metricCard} onPress={() => router.push('/log/lifestyle')}>
-            <Text style={styles.metricTop}>😴 Sleep</Text>
+          <Pressable style={styles.metricChip} onPress={() => router.push('/log/lifestyle')}>
+            <Text style={styles.metricEmoji}>😴</Text>
             <Text style={styles.metricValue}>{todayLifestyle?.sleep_hours != null ? `${todayLifestyle.sleep_hours}h` : '—'}</Text>
-            <Text style={styles.metricMeta}>last night</Text>
+            <Text style={styles.metricLabel}>Sleep</Text>
           </Pressable>
-          <View style={styles.metricCard}>
-            <Text style={styles.metricTop}>📊 Adherence</Text>
+          <Pressable style={styles.metricChip} onPress={() => router.push('/(tabs)/insights')}>
+            <Text style={styles.metricEmoji}>📊</Text>
             <Text style={styles.metricValue}>{adherencePct}%</Text>
-            <Text style={styles.metricMeta}>7-day</Text>
-          </View>
-        </View>
+            <Text style={styles.metricLabel}>Adherence</Text>
+          </Pressable>
+        </ScrollView>
 
         <View style={styles.sectionHeaderRow}>
           <Text style={styles.sectionTitle}>RECENT ACTIVITY</Text>
@@ -314,11 +314,11 @@ const styles = StyleSheet.create({
   countdown: { color: Colors.accent, fontWeight: '700', fontSize: 15 },
   logButton: { backgroundColor: Colors.accent, borderRadius: 10, paddingHorizontal: 12, paddingVertical: 8 },
   logButtonText: { color: Colors.white, fontSize: 13, fontWeight: '700' },
-  metricsGrid: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between', gap: 10 },
-  metricCard: { width: '48%', backgroundColor: Colors.card, borderRadius: 16, borderWidth: 1, borderColor: Colors.border, padding: 12, minHeight: 118, justifyContent: 'space-between' },
-  metricTop: { color: Colors.text, fontSize: 15, fontWeight: '600' },
-  metricValue: { color: Colors.text, fontSize: 24, fontWeight: '800' },
-  metricMeta: { color: Colors.textSecondary, fontSize: 13 },
+  metricsRow: { gap: 10, paddingRight: 8 },
+  metricChip: { width: 140, height: 90, backgroundColor: Colors.card, borderRadius: 14, borderWidth: 1, borderColor: Colors.border, padding: 14, justifyContent: 'space-between' },
+  metricEmoji: { fontSize: 20 },
+  metricValue: { color: Colors.text, fontSize: 22, fontWeight: '800' },
+  metricLabel: { color: Colors.textSecondary, fontSize: 13, fontWeight: '600' },
   activityRow: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: Colors.border },
   activityDot: { width: 8, height: 8, borderRadius: 4, backgroundColor: Colors.accent },
   lastRow: { borderBottomWidth: 0 },

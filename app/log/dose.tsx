@@ -1,10 +1,11 @@
+import DateTimePicker from '@react-native-community/datetimepicker';
 import { useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'expo-router';
 import { ActivityIndicator, Alert, FlatList, KeyboardAvoidingView, Modal, Platform, Pressable, SafeAreaView, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 
 import ScreenHeader from '@/components/ScreenHeader';
 import Colors from '@/constants/Colors';
-import { COMPOUNDS, searchCompounds, type Compound } from '@/constants/compounds';
+import { searchCompounds, type Compound } from '@/constants/compounds';
 import { useAuthStore } from '@/stores/authStore';
 import { useDoseLogStore } from '@/stores/doseLogStore';
 import { useInjectionSiteStore } from '@/stores/injectionSiteStore';
@@ -35,9 +36,9 @@ export default function DoseLogScreen() {
   const [peptideName, setPeptideName] = useState('');
   const [amount, setAmount] = useState('');
   const [unit, setUnit] = useState<'mcg' | 'mg' | 'IU' | 'mL'>('mcg');
-  const now = new Date();
-  const [logDate, setLogDate] = useState(now.toISOString().slice(0, 10));
-  const [logTime, setLogTime] = useState(now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false }));
+  const [loggedAt, setLoggedAt] = useState(() => new Date());
+  const [showDatePicker, setShowDatePicker] = useState(false);
+  const [showTimePicker, setShowTimePicker] = useState(false);
   const [selectedSite, setSelectedSite] = useState<string | null>(null);
   const [mood, setMood] = useState<string | null>(null);
   const [notes, setNotes] = useState('');
@@ -47,6 +48,23 @@ export default function DoseLogScreen() {
   const [showCompoundModal, setShowCompoundModal] = useState(false);
   const [compoundQuery, setCompoundQuery] = useState('');
   const compoundResults = useMemo(() => searchCompounds(compoundQuery).slice(0, 20), [compoundQuery]);
+  const formattedDate = useMemo(
+    () =>
+      loggedAt.toLocaleDateString('en-US', {
+        month: 'long',
+        day: 'numeric',
+        year: 'numeric',
+      }),
+    [loggedAt],
+  );
+  const formattedTime = useMemo(
+    () =>
+      loggedAt.toLocaleTimeString('en-US', {
+        hour: 'numeric',
+        minute: '2-digit',
+      }),
+    [loggedAt],
+  );
 
   useEffect(() => {
     if (user?.id) fetchProtocols(user.id);
@@ -55,7 +73,7 @@ export default function DoseLogScreen() {
   const handleSave = async () => {
     if (!user?.id) return;
     setSaving(true);
-    const logged_at = new Date(`${logDate}T${logTime}:00`).toISOString();
+    const logged_at = loggedAt.toISOString();
     await addDoseLog({ protocol_id: protocolId, peptide_name: peptideName.trim() || null, amount: Number(amount) || 0, unit, logged_at, injection_site: selectedSite, mood, notes: notes || null }, user.id);
     await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     setSaving(false);
@@ -74,6 +92,24 @@ export default function DoseLogScreen() {
       ...INJECTION_SITES.map((site) => ({ text: site, onPress: () => setSelectedSite(site === 'Skip' ? null : site) })),
       { text: 'Cancel', style: 'cancel' },
     ]);
+  };
+
+  const handleDateChange = (_event: unknown, selectedDate?: Date) => {
+    if (!selectedDate) return;
+    setLoggedAt((current) => {
+      const next = new Date(current);
+      next.setFullYear(selectedDate.getFullYear(), selectedDate.getMonth(), selectedDate.getDate());
+      return next;
+    });
+  };
+
+  const handleTimeChange = (_event: unknown, selectedTime?: Date) => {
+    if (!selectedTime) return;
+    setLoggedAt((current) => {
+      const next = new Date(current);
+      next.setHours(selectedTime.getHours(), selectedTime.getMinutes(), 0, 0);
+      return next;
+    });
   };
 
   return (
@@ -133,17 +169,17 @@ export default function DoseLogScreen() {
           </View>
 
           <View style={styles.card}>
-            <Pressable style={styles.row}>
+            <Pressable style={styles.row} onPress={() => setShowDatePicker(true)}>
               <Text style={styles.rowLabel}>Date</Text>
               <View style={styles.rowEnd}>
-                <Text style={styles.rowValue}>{logDate}</Text>
+                <Text style={styles.rowValue}>{formattedDate}</Text>
                 <Text style={styles.chevron}>›</Text>
               </View>
             </Pressable>
-            <Pressable style={[styles.row, styles.lastRow]}>
+            <Pressable style={[styles.row, styles.lastRow]} onPress={() => setShowTimePicker(true)}>
               <Text style={styles.rowLabel}>Time</Text>
               <View style={styles.rowEnd}>
-                <Text style={styles.rowValue}>{logTime}</Text>
+                <Text style={styles.rowValue}>{formattedTime}</Text>
                 <Text style={styles.chevron}>›</Text>
               </View>
             </Pressable>
@@ -177,6 +213,48 @@ export default function DoseLogScreen() {
             {saving ? <ActivityIndicator color={Colors.white} /> : <Text style={styles.primaryText}>Log Dose</Text>}
           </Pressable>
         </ScrollView>
+
+        <Modal visible={showDatePicker} animationType="slide" transparent onRequestClose={() => setShowDatePicker(false)}>
+          <View style={styles.pickerOverlay}>
+            <View style={styles.pickerSheet}>
+              <View style={styles.pickerHeader}>
+                <Text style={styles.pickerTitle}>Select Date</Text>
+                <Pressable onPress={() => setShowDatePicker(false)}>
+                  <Text style={styles.pickerDone}>Done</Text>
+                </Pressable>
+              </View>
+              <DateTimePicker
+                value={loggedAt}
+                mode="date"
+                display="spinner"
+                onChange={handleDateChange}
+                textColor={Colors.text}
+                themeVariant="dark"
+              />
+            </View>
+          </View>
+        </Modal>
+
+        <Modal visible={showTimePicker} animationType="slide" transparent onRequestClose={() => setShowTimePicker(false)}>
+          <View style={styles.pickerOverlay}>
+            <View style={styles.pickerSheet}>
+              <View style={styles.pickerHeader}>
+                <Text style={styles.pickerTitle}>Select Time</Text>
+                <Pressable onPress={() => setShowTimePicker(false)}>
+                  <Text style={styles.pickerDone}>Done</Text>
+                </Pressable>
+              </View>
+              <DateTimePicker
+                value={loggedAt}
+                mode="time"
+                display="spinner"
+                onChange={handleTimeChange}
+                textColor={Colors.text}
+                themeVariant="dark"
+              />
+            </View>
+          </View>
+        </Modal>
 
         <Modal visible={showCompoundModal} animationType="slide" presentationStyle="pageSheet">
           <SafeAreaView style={{ flex: 1, backgroundColor: Colors.background }}>
@@ -278,4 +356,9 @@ const styles = StyleSheet.create({
     padding: 12,
     fontSize: 15,
   },
+  pickerOverlay: { flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(0,0,0,0.4)' },
+  pickerSheet: { backgroundColor: Colors.card, borderTopLeftRadius: 20, borderTopRightRadius: 20, borderWidth: 1, borderColor: Colors.border, paddingBottom: 24, overflow: 'hidden' },
+  pickerHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 16, paddingVertical: 14, borderBottomWidth: 1, borderBottomColor: Colors.border },
+  pickerTitle: { color: Colors.text, fontSize: 16, fontWeight: '700' },
+  pickerDone: { color: Colors.accent, fontSize: 16, fontWeight: '700' },
 });
