@@ -6,8 +6,8 @@ import ScreenHeader from '@/components/ScreenHeader';
 import Colors from '@/constants/Colors';
 import { supabase } from '@/lib/supabase';
 import * as Notifications from 'expo-notifications';
-
-import { requestPermission } from '@/lib/notifications';
+import type { WeightUnit } from '@/lib/units';
+import { cancelAllReminders, scheduleProtocolReminders, requestPermission } from '@/lib/notifications';
 import { useAuthStore } from '@/stores/authStore';
 import { useLifestyleStore } from '@/stores/lifestyleStore';
 import { Profile, useProfileStore } from '@/stores/profileStore';
@@ -18,11 +18,14 @@ export default function SettingsScreen() {
   const user = useAuthStore((state) => state.user);
   const profile = useProfileStore((state) => state.profile);
   const setProfile = useProfileStore((state) => state.setProfile);
+  const fetchProfile = useProfileStore((state) => state.fetchProfile);
+  const protocols = useProtocolStore((state) => state.protocols);
   const logs = useLifestyleStore((state) => state.logs);
   const fetchLogs = useLifestyleStore((state) => state.fetchLogs);
 
   const [notificationStatus, setNotificationStatus] = useState<string>('checking');
   const [saving, setSaving] = useState(false);
+  const [savingWeightUnit, setSavingWeightUnit] = useState(false);
   const [firstName, setFirstName] = useState('');
   const [lastName, setLastName] = useState('');
   const [dob, setDob] = useState('');
@@ -82,6 +85,27 @@ export default function SettingsScreen() {
   }, [logs, weightLbs]);
 
   const initials = useMemo(() => `${firstName[0] ?? ''}${lastName[0] ?? ''}`.toUpperCase() || '?', [firstName, lastName]);
+  const selectedWeightUnit = profile?.weight_unit ?? 'lbs';
+
+  const handleWeightUnitChange = async (value: WeightUnit) => {
+    if (!user?.id || value === selectedWeightUnit || savingWeightUnit) return;
+
+    try {
+      setSavingWeightUnit(true);
+      const { error } = await supabase
+        .from('profiles')
+        .update({ weight_unit: value })
+        .eq('id', user.id);
+
+      if (error) throw error;
+
+      await fetchProfile(user.id);
+    } catch (e: unknown) {
+      Alert.alert('Save failed', e instanceof Error ? e.message : 'Please try again.');
+    } finally {
+      setSavingWeightUnit(false);
+    }
+  };
 
   const handleSave = async () => {
     if (!user?.id) return;
@@ -108,8 +132,8 @@ export default function SettingsScreen() {
 
       setProfile(data as Profile);
       Alert.alert('Saved', 'Profile updated.');
-    } catch (e: any) {
-      Alert.alert('Save failed', e?.message ?? 'Please try again.');
+    } catch (e: unknown) {
+      Alert.alert('Save failed', e instanceof Error ? e.message : 'Please try again.');
     } finally {
       setSaving(false);
     }
@@ -154,10 +178,28 @@ export default function SettingsScreen() {
             <TextInput value={heightInches} onChangeText={setHeightInches} placeholder="inches" keyboardType="decimal-pad" placeholderTextColor={Colors.textSecondary} style={styles.infoInput} />
             <Text style={styles.chevron}>›</Text>
           </View>
-          <View style={[styles.infoRow, styles.infoRowLast]}>
+          <View style={styles.infoRow}>
             <Text style={styles.infoLabel}>Weight</Text>
             <TextInput value={weightLbs} onChangeText={setWeightLbs} placeholder="lbs" keyboardType="decimal-pad" placeholderTextColor={Colors.textSecondary} style={styles.infoInput} />
             <Text style={styles.chevron}>›</Text>
+          </View>
+          <View style={[styles.infoRow, styles.infoRowLast]}>
+            <Text style={styles.infoLabel}>Display Unit</Text>
+            <View style={styles.segmentedControl}>
+              {(['lbs', 'kg'] as const).map((unit) => {
+                const selected = selectedWeightUnit === unit;
+                return (
+                  <Pressable
+                    key={unit}
+                    onPress={() => handleWeightUnitChange(unit)}
+                    disabled={savingWeightUnit}
+                    style={[styles.segmentPill, selected && styles.segmentPillActive]}
+                  >
+                    <Text style={[styles.segmentText, selected && styles.segmentTextActive]}>{unit}</Text>
+                  </Pressable>
+                );
+              })}
+            </View>
           </View>
           <Pressable style={styles.saveBtn} onPress={handleSave} disabled={saving}><Text style={styles.saveText}>{saving ? 'Saving...' : 'Save Profile'}</Text></Pressable>
         </View>
@@ -218,6 +260,11 @@ const styles = StyleSheet.create({
   infoLabel: { fontSize: 15, color: Colors.textSecondary, width: 110 },
   infoInput: { flex: 1, textAlign: 'right', fontSize: 15, color: Colors.text, padding: 0 },
   chevron: { color: Colors.textSecondary, marginLeft: 8, fontSize: 18, lineHeight: 18 },
+  segmentedControl: { flexDirection: 'row', backgroundColor: Colors.background, borderRadius: 999, borderWidth: 1, borderColor: Colors.border, padding: 3, gap: 4 },
+  segmentPill: { minWidth: 52, paddingVertical: 7, paddingHorizontal: 12, borderRadius: 999, alignItems: 'center' },
+  segmentPillActive: { backgroundColor: Colors.accent },
+  segmentText: { color: Colors.textSecondary, fontSize: 13, fontWeight: '800', textTransform: 'uppercase' },
+  segmentTextActive: { color: Colors.white },
   pillsRow: { flexDirection: 'row', gap: 8, flexWrap: 'wrap' },
   pill: { paddingHorizontal: 12, paddingVertical: 8, borderRadius: 999, borderWidth: 1, borderColor: Colors.border, backgroundColor: Colors.background },
   pillActive: { backgroundColor: Colors.accentLight, borderColor: Colors.accent },

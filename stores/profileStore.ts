@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import { supabase } from '@/lib/supabase';
+import type { WeightUnit } from '@/lib/units';
 
 export type Profile = {
   id: string;
@@ -10,6 +11,7 @@ export type Profile = {
   date_of_birth: string | null;
   height_inches: number | null;
   weight_lbs: number | null;
+  weight_unit: WeightUnit;
   goal: string | null;
   onboarding_complete: boolean | null;
 };
@@ -32,7 +34,7 @@ export const useProfileStore = create<ProfileState>((set, get) => ({
     set({ loading: true });
     const { data } = await supabase
       .from('profiles')
-      .select('id, full_name, avatar_url, disclaimer_accepted, disclaimer_accepted_at, date_of_birth, height_inches, weight_lbs, goal, onboarding_complete')
+      .select('id, full_name, avatar_url, disclaimer_accepted, disclaimer_accepted_at, date_of_birth, height_inches, weight_lbs, weight_unit, goal, onboarding_complete')
       .eq('id', userId)
       .maybeSingle();
     set({ profile: (data as Profile | null) ?? null, loading: false });
