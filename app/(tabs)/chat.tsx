@@ -4,6 +4,7 @@ import Svg, { Circle, Path } from 'react-native-svg';
 
 import {
   Alert,
+  Animated,
   FlatList,
   KeyboardAvoidingView,
   Platform,
@@ -15,7 +16,6 @@ import {
   View,
 } from 'react-native';
 
-import Skeleton from '@/components/Skeleton';
 import Colors from '@/constants/Colors';
 import { supabase } from '@/lib/supabase';
 import { useAuthStore } from '@/stores/authStore';
@@ -326,6 +326,9 @@ export default function ChatScreen() {
   const flatListRef = useRef<FlatList<ChatMessage>>(null);
   const textInputRef = useRef<TextInput>(null);
   const { messages, addMessage, updateMessageStatus, clearMessages } = useChatStore();
+  const latestMessage = messages[messages.length - 1];
+  const shouldShowTypingIndicator = isAiResponding
+    && !(latestMessage?.role === 'assistant' && latestMessage.text.trim().length > 0);
   const doseLogs = useDoseLogStore((s) => s.doseLogs);
   const protocols = useProtocolStore((s) => s.protocols);
   const lifestyleLogs = useLifestyleStore((s) => s.logs);
@@ -704,7 +707,7 @@ Recent symptoms: ${recentSymptomsSummary}`;
           ListEmptyComponent={
             <ChatEmptyState onSelectPrompt={setInputText} />
           }
-          ListFooterComponent={isAiResponding ? <AssistantMessageSkeleton /> : null}
+          ListFooterComponent={shouldShowTypingIndicator ? <TypingIndicator /> : null}
           renderItem={({ item: message, index }) => {
             if (message.role === 'user') {
               return <View style={styles.userBubble}><Text style={styles.userText}>{message.text}</Text></View>;
@@ -882,14 +885,45 @@ function SendIcon({ disabled }: { disabled: boolean }) {
   );
 }
 
-function AssistantMessageSkeleton() {
+function TypingIndicator() {
+  const dotAnimations = useRef([
+    new Animated.Value(0),
+    new Animated.Value(0),
+    new Animated.Value(0),
+  ]).current;
+
+  useEffect(() => {
+    const animations = dotAnimations.map((dotAnimation, index) =>
+      Animated.loop(
+        Animated.sequence([
+          Animated.delay(index * 150),
+          Animated.timing(dotAnimation, {
+            toValue: -5,
+            duration: 250,
+            useNativeDriver: true,
+          }),
+          Animated.timing(dotAnimation, {
+            toValue: 0,
+            duration: 250,
+            useNativeDriver: true,
+          }),
+          Animated.delay((dotAnimations.length - index - 1) * 150),
+        ])
+      )
+    );
+
+    animations.forEach((animation) => animation.start());
+    return () => animations.forEach((animation) => animation.stop());
+  }, [dotAnimations]);
+
   return (
-    <View style={styles.assistantMessageGroup}>
-      <View style={styles.assistantBubble}>
-        <Skeleton width="88%" height={15} borderRadius={8} />
-        <Skeleton width="74%" height={15} borderRadius={8} style={{ marginTop: 8 }} />
-        <Skeleton width="42%" height={15} borderRadius={8} style={{ marginTop: 8 }} />
-      </View>
+    <View style={[styles.assistantBubble, styles.typingBubble]}>
+      {dotAnimations.map((dotAnimation, index) => (
+        <Animated.View
+          key={index}
+          style={[styles.typingDot, { transform: [{ translateY: dotAnimation }] }]}
+        />
+      ))}
     </View>
   );
 }
@@ -964,6 +998,8 @@ const styles = StyleSheet.create({
     marginVertical: 2,
   },
   assistantText: { color: Colors.text, fontSize: 15, lineHeight: 21 },
+  typingBubble: { flexDirection: 'row', alignItems: 'center', gap: 5, paddingHorizontal: 14, paddingVertical: 13 },
+  typingDot: { width: 8, height: 8, borderRadius: 4, backgroundColor: Colors.textSecondary },
   markdownBold: { fontWeight: '800' },
   markdownBulletLine: { paddingLeft: 12 },
   receiptCard: {
