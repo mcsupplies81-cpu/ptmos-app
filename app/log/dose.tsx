@@ -1,6 +1,6 @@
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { useEffect, useMemo, useState } from 'react';
-import { useRouter } from 'expo-router';
+import { useLocalSearchParams, useRouter } from 'expo-router';
 import { ActivityIndicator, Alert, FlatList, KeyboardAvoidingView, Modal, Platform, Pressable, SafeAreaView, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 
 import ScreenHeader from '@/components/ScreenHeader';
@@ -32,10 +32,21 @@ export default function DoseLogScreen() {
   const activeProtocols = protocols.filter((p) => p.status === 'active');
   useInjectionSiteStore((s) => s.sites);
 
-  const [protocolId, setProtocolId] = useState<string | null>(null);
-  const [peptideName, setPeptideName] = useState('');
-  const [amount, setAmount] = useState('');
-  const [unit, setUnit] = useState<'mcg' | 'mg' | 'IU' | 'mL'>('mcg');
+  // Pre-fill params from "Log Now" / "Log Dose" buttons on dashboard
+  const { protocolId: paramProtocolId, prefillName, prefillAmount, prefillUnit } = useLocalSearchParams<{
+    protocolId?: string;
+    prefillName?: string;
+    prefillAmount?: string;
+    prefillUnit?: string;
+  }>();
+
+  const validUnits = ['mcg', 'mg', 'IU', 'mL'] as const;
+  const [protocolId, setProtocolId] = useState<string | null>(paramProtocolId ?? null);
+  const [peptideName, setPeptideName] = useState(prefillName ?? '');
+  const [amount, setAmount] = useState(prefillAmount ?? '');
+  const [unit, setUnit] = useState<'mcg' | 'mg' | 'IU' | 'mL'>(
+    validUnits.includes(prefillUnit as 'mcg' | 'mg' | 'IU' | 'mL') ? (prefillUnit as 'mcg' | 'mg' | 'IU' | 'mL') : 'mcg'
+  );
   const [loggedAt, setLoggedAt] = useState(() => new Date());
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [showTimePicker, setShowTimePicker] = useState(false);

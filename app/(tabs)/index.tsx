@@ -1,5 +1,6 @@
+import * as Haptics from 'expo-haptics';
 import { router } from 'expo-router';
-import { useEffect, useMemo } from 'react';
+import { useCallback, useEffect, useMemo } from 'react';
 import { Pressable, SafeAreaView, ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import Colors from '@/constants/Colors';
@@ -7,7 +8,7 @@ import { useAuthStore } from '@/stores/authStore';
 import { useDoseLogStore } from '@/stores/doseLogStore';
 import { useLifestyleStore } from '@/stores/lifestyleStore';
 import { useProfileStore } from '@/stores/profileStore';
-import { useProtocolStore } from '@/stores/protocolStore';
+import { useProtocolStore, type Protocol } from '@/stores/protocolStore';
 
 const parseTime = (timeOfDay: string) => {
   const [h, m] = timeOfDay.split(':').map(Number);
@@ -25,6 +26,7 @@ export default function DashboardScreen() {
 
   const doseLogs = useDoseLogStore((s) => s.doseLogs);
   const fetchDoseLogs = useDoseLogStore((s) => s.fetchDoseLogs);
+  const addDoseLog = useDoseLogStore((s) => s.addDoseLog);
 
   const { logs: lifestyleLogs, fetchLogs } = useLifestyleStore();
 
@@ -127,6 +129,25 @@ export default function DashboardScreen() {
 
   const recentActivity = useMemo(() => doseLogs.slice(0, 5), [doseLogs]);
 
+  // One-tap quick log: logs with protocol defaults, no form needed
+  const handleQuickLog = useCallback(async (protocol: Protocol) => {
+    if (!user?.id) return;
+    await addDoseLog(
+      {
+        protocol_id: protocol.id,
+        peptide_name: protocol.name,
+        amount: protocol.dose_amount,
+        unit: protocol.dose_unit as 'mcg' | 'mg' | 'IU' | 'mL',
+        logged_at: new Date().toISOString(),
+        injection_site: null,
+        mood: null,
+        notes: null,
+      },
+      user.id,
+    );
+    void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+  }, [addDoseLog, user?.id]);
+
   const relativeTime = (iso: string) => {
     const delta = Date.now() - new Date(iso).getTime();
     const hours = Math.floor(delta / 3600000);
@@ -187,9 +208,14 @@ export default function DashboardScreen() {
             const logged = loggedTodayByProtocol.has(p.id) || loggedTodayByName.has(p.name.toLowerCase());
             return (
               <View key={p.id} style={[styles.protocolRow, idx === activeProtocols.length - 1 && styles.lastRow]}>
-                <View style={[styles.statusCircle, logged ? styles.statusCircleDone : styles.statusCircleOpen]}>
+                {/* Tap circle = instant quick-log with protocol defaults */}
+                <Pressable
+                  style={[styles.statusCircle, logged ? styles.statusCircleDone : styles.statusCircleOpen]}
+                  onPress={!logged ? () => handleQuickLog(p) : undefined}
+                  hitSlop={8}
+                >
                   {logged ? <Text style={styles.statusCheck}>✓</Text> : null}
-                </View>
+                </Pressable>
                 <View style={styles.rowMain}>
                   <Text style={styles.name}>{p.name}</Text>
                   <Text style={styles.sub}>{p.dose_amount} {p.dose_unit}</Text>
@@ -197,7 +223,18 @@ export default function DashboardScreen() {
                 <View style={styles.rowRight}>
                   <Text style={styles.sub}>{p.time_of_day}</Text>
                   {!logged && (
-                    <Pressable style={styles.logPill} onPress={() => router.push('/log/dose')}>
+                    <Pressable
+                      style={styles.logPill}
+                      onPress={() => router.push({
+                        pathname: '/log/dose',
+                        params: {
+                          protocolId: p.id,
+                          prefillName: p.name,
+                          prefillAmount: String(p.dose_amount),
+                          prefillUnit: p.dose_unit,
+                        },
+                      })}
+                    >
                       <Text style={styles.logPillText}>Log Now</Text>
                     </Pressable>
                   )}
@@ -215,7 +252,15 @@ export default function DashboardScreen() {
               <Text style={styles.sub}>{nextDose.protocol.dose_amount} {nextDose.protocol.dose_unit}</Text>
               <View style={styles.nextDoseFooter}>
                 <Text style={[styles.countdown, nextDose?.overdue && { color: Colors.error }]}>{countdown}</Text>
-                <Pressable style={styles.logButton} onPress={() => router.push('/log/dose')}>
+                <Pressable style={styles.logButton} onPress={() => nextDose && router.push({
+                  pathname: '/log/dose',
+                  params: {
+                    protocolId: nextDose.protocol.id,
+                    prefillName: nextDose.protocol.name,
+                    prefillAmount: String(nextDose.protocol.dose_amount),
+                    prefillUnit: nextDose.protocol.dose_unit,
+                  },
+                })}>
                   <Text style={styles.logButtonText}>Log Dose</Text>
                 </Pressable>
               </View>

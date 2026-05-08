@@ -127,6 +127,7 @@ export default function ProtocolsScreen() {
       <FlatList
         data={filteredProtocols}
         keyExtractor={(item) => item.id}
+        style={{ flex: 1 }}
         contentContainerStyle={styles.listContent}
         ListEmptyComponent={
           <EmptyState
@@ -158,8 +159,8 @@ export default function ProtocolsScreen() {
               <View style={styles.cardContent}>
                 <View style={styles.cardMain}>
                   <Text style={styles.name}>{item.name}</Text>
-                  <Text style={styles.meta}>{item.name} · {item.dose_amount} {item.dose_unit}</Text>
-                  <Text style={styles.time}>{item.frequency} · Next dose {item.time_of_day}</Text>
+                  <Text style={styles.meta}>{item.dose_amount} {item.dose_unit} · {item.frequency}</Text>
+                  <Text style={styles.time}>Next dose {item.time_of_day}</Text>
                 </View>
 
                 <View style={styles.cardRight}>

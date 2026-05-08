@@ -226,10 +226,14 @@ export default function ChatScreen() {
     }
   }, []);
 
+  // Scroll to bottom whenever a new message arrives, with a tick delay
+  // so layout has settled before we scroll
   useEffect(() => {
-    if (messages.length > 0) {
+    if (messages.length === 0) return;
+    const timer = setTimeout(() => {
       flatListRef.current?.scrollToEnd({ animated: true });
-    }
+    }, 80);
+    return () => clearTimeout(timer);
   }, [messages.length]);
 
   const handleConfirm = useCallback(async (message: ChatMessage) => {
@@ -445,8 +449,8 @@ export default function ChatScreen() {
     <SafeAreaView style={{ flex: 1, backgroundColor: Colors.background }}>
       <KeyboardAvoidingView
         style={{ flex: 1 }}
-        behavior="padding"
-        keyboardVerticalOffset={88}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        keyboardVerticalOffset={Platform.OS === 'ios' ? 88 : 0}
       >
         <View style={styles.header}>
           <View>
@@ -483,8 +487,6 @@ export default function ChatScreen() {
           keyExtractor={(item) => item.id}
           style={styles.messages}
           contentContainerStyle={styles.messagesContent}
-          automaticallyAdjustKeyboardInsets={true}
-          maintainVisibleContentPosition={{ minIndexForVisible: 0 }}
           onLayout={() => flatListRef.current?.scrollToEnd({ animated: false })}
           ListEmptyComponent={
             <View style={styles.emptyState}>
