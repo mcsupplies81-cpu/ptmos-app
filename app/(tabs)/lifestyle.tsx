@@ -245,7 +245,7 @@ export default function LifestyleScreen() {
       if (activeMetric === 'weight') payload.weight_lbs = toNumber(weightLbs);
 
       await upsertLog(payload, user.id);
-      await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+      await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       setActiveMetric(null);
     } catch (error) {
       Alert.alert('Error', error instanceof Error ? error.message : 'Something went wrong. Please try again.');

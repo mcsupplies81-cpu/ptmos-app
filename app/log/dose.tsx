@@ -86,7 +86,7 @@ export default function DoseLogScreen() {
     setSaving(true);
     const logged_at = loggedAt.toISOString();
     await addDoseLog({ protocol_id: protocolId, peptide_name: peptideName.trim() || null, amount: Number(amount) || 0, unit, logged_at, injection_site: selectedSite, mood, notes: notes || null }, user.id);
-    await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     setSaving(false);
     router.back();
   };
