@@ -1,4 +1,4 @@
-import { router } from 'expo-router';
+import { router, type Href } from 'expo-router';
 import React from 'react';
 import { Modal, Pressable, StyleSheet, Text, View } from 'react-native';
 
@@ -12,7 +12,7 @@ interface Props {
 type Action = {
   label: string;
   emoji: string;
-  route?: string;
+  route?: Href;
   chatMsg?: string;
 };
 
@@ -31,12 +31,13 @@ export default function PlusMenu({ visible, onClose }: Props) {
   const handleAction = (action: Action) => {
     onClose();
     if (action.route) {
-      router.push(action.route as any);
+      router.push(action.route);
       return;
     }
 
     if (action.chatMsg) {
-      router.push({ pathname: '/(tabs)/chat', params: { prefill: action.chatMsg } } as any);
+      const chatHref: Href = { pathname: '/(tabs)/chat', params: { prefill: action.chatMsg } };
+      router.push(chatHref);
     }
   };
 

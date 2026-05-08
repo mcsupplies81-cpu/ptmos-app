@@ -22,6 +22,10 @@ type ReconstitutionInfo = {
   concentrationMcgPerMl: number;
 };
 
+const getErrorMessage = (error: unknown, fallback: string): string => (
+  error instanceof Error ? error.message : fallback
+);
+
 type InventoryDoseFields = InventoryItem & {
   vial_mg?: number | null;
   total_amount?: number | null;
@@ -158,8 +162,8 @@ export default function InventoryScreen() {
       );
       setOpen(false);
       setName(''); setConcentration(''); setVolume(''); setManualDoseMcg(''); setExpiryDate(''); setStorageNotes('');
-    } catch (e: any) {
-      Alert.alert('Save failed', e?.message ?? 'Could not save vial. Please try again.');
+    } catch (e: unknown) {
+      Alert.alert('Save failed', getErrorMessage(e, 'Could not save vial. Please try again.'));
     }
   };
 
