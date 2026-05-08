@@ -45,9 +45,10 @@ export default function RootLayout() {
     if (loading) return;
 
     const inAuth = segments[0] === '(auth)';
+    const inOnboarding = segments[0] === 'onboarding';
 
     if (!session) {
-      if (!inAuth) router.replace('/(auth)/welcome');
+      if (!inAuth && !inOnboarding) router.replace('/(auth)/welcome');
       return;
     }
 
@@ -77,6 +78,7 @@ export default function RootLayout() {
       <OfflineBanner />
       <ErrorBoundary>
         <Stack screenOptions={{ headerShown: false }}>
+          <Stack.Screen name="onboarding" options={{ headerShown: false }} />
           <Stack.Screen name="log/sleep" options={{ presentation: 'modal', animation: 'slide_from_bottom' }} />
           <Stack.Screen name="log/water" options={{ presentation: 'modal', animation: 'slide_from_bottom' }} />
           <Stack.Screen name="log/workout" options={{ presentation: 'modal', animation: 'slide_from_bottom' }} />
