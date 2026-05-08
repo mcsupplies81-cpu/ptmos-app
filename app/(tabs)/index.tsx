@@ -254,7 +254,8 @@ export default function DashboardScreen() {
       user.id,
     );
     void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-  }, [addDoseLog, user?.id]);
+    void fetchDoseLogs(user.id);
+  }, [addDoseLog, fetchDoseLogs, user?.id]);
 
   const relativeTime = (iso: string) => {
     const delta = Date.now() - new Date(iso).getTime();
