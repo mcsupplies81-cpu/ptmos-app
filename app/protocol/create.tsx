@@ -7,7 +7,6 @@ import Colors from '@/constants/Colors';
 import ScreenHeader from '@/components/ScreenHeader';
 import { COMPOUNDS, searchCompounds, type Compound } from '@/constants/compounds';
 import * as Haptics from 'expo-haptics';
-import { scheduleProtocolReminder } from '@/utils/notifications';
 
 const DOSE_UNITS = ['mcg', 'mg', 'IU', 'mL'] as const;
 const FREQUENCY_OPTIONS = ['Daily', 'Weekly', 'Specific Days'] as const;
@@ -44,8 +43,6 @@ export default function CreateProtocolScreen() {
       notes: notes.trim() || null,
       status: 'active',
     }, user.id);
-    const saved = useProtocolStore.getState().protocols.find((p) => p.name === name.trim() && p.status === 'active');
-    if (saved) await scheduleProtocolReminder({ id: saved.id, name: saved.name, time_of_day: saved.time_of_day ?? '09:00', frequency: saved.frequency });
     await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     setSaving(false);
     router.back();

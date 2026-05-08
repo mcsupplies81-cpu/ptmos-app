@@ -35,7 +35,12 @@
     },
     "plugins": [
       "expo-router",
-      "expo-notifications",
+      [
+        "expo-notifications",
+        {
+          "sounds": []
+        }
+      ],
       "react-native-purchases"
     ],
     "experiments": {

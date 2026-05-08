@@ -1,15 +1,16 @@
 import { router } from 'expo-router';
 import { useEffect, useMemo, useState } from 'react';
-import { Alert, Linking, Pressable, SafeAreaView, ScrollView, StyleSheet, Switch, Text, TextInput, View } from 'react-native';
+import { Alert, AppState, Linking, Pressable, SafeAreaView, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 
 import ScreenHeader from '@/components/ScreenHeader';
 import Colors from '@/constants/Colors';
 import { supabase } from '@/lib/supabase';
-import { cancelAllReminders, scheduleProtocolReminders } from '@/lib/notifications';
+import * as Notifications from 'expo-notifications';
+
+import { requestPermission } from '@/lib/notifications';
 import { useAuthStore } from '@/stores/authStore';
 import { useLifestyleStore } from '@/stores/lifestyleStore';
 import { Profile, useProfileStore } from '@/stores/profileStore';
-import { useProtocolStore } from '@/stores/protocolStore';
 
 const goals = ['Peptide Research', 'Sleep & Recovery', 'Energy & Focus', 'Body Composition', 'Health Optimization', 'Cognitive Enhancement', 'Recovery & Healing'];
 
@@ -17,11 +18,10 @@ export default function SettingsScreen() {
   const user = useAuthStore((state) => state.user);
   const profile = useProfileStore((state) => state.profile);
   const setProfile = useProfileStore((state) => state.setProfile);
-  const protocols = useProtocolStore((state) => state.protocols);
   const logs = useLifestyleStore((state) => state.logs);
   const fetchLogs = useLifestyleStore((state) => state.fetchLogs);
 
-  const [notificationsEnabled, setNotificationsEnabled] = useState(true);
+  const [notificationStatus, setNotificationStatus] = useState<string>('checking');
   const [saving, setSaving] = useState(false);
   const [firstName, setFirstName] = useState('');
   const [lastName, setLastName] = useState('');
@@ -30,9 +30,39 @@ export default function SettingsScreen() {
   const [weightLbs, setWeightLbs] = useState('');
   const [selectedGoal, setSelectedGoal] = useState('');
 
+
+  const refreshNotificationStatus = async () => {
+    const permissions = await Notifications.getPermissionsAsync();
+    setNotificationStatus(permissions.status);
+  };
+
+  const handleRequestNotifications = async () => {
+    const granted = await requestPermission();
+    if (!granted) {
+      Alert.alert('Notifications disabled', 'Enable notifications in system settings to receive dose reminders.');
+    }
+    await refreshNotificationStatus();
+  };
+
+  const handleOpenNotificationSettings = async () => {
+    await Linking.openSettings();
+    await refreshNotificationStatus();
+  };
+
   useEffect(() => {
     if (user?.id) fetchLogs(user.id);
   }, [fetchLogs, user?.id]);
+
+
+  useEffect(() => {
+    void refreshNotificationStatus();
+
+    const subscription = AppState.addEventListener('change', (state) => {
+      if (state === 'active') void refreshNotificationStatus();
+    });
+
+    return () => subscription.remove();
+  }, []);
 
   useEffect(() => {
     if (!profile) return;
@@ -140,7 +170,21 @@ export default function SettingsScreen() {
         </View>
 
         <View style={styles.sectionCard}>
-          <View style={styles.switchRow}><Text style={styles.rowLabel}>Notifications</Text><Switch value={notificationsEnabled} onValueChange={(v) => { setNotificationsEnabled(v); v ? scheduleProtocolReminders(protocols) : cancelAllReminders(); }} trackColor={{ true: Colors.accent }} /></View>
+          <View style={styles.settingsRow}>
+            <View style={styles.settingsRowText}>
+              <Text style={styles.rowLabel}>Notifications</Text>
+              <Text style={styles.statusText}>{notificationStatus === 'checking' ? 'Checking permission...' : `Permission: ${notificationStatus}`}</Text>
+            </View>
+            {notificationStatus === 'denied' ? (
+              <Pressable style={styles.settingsButton} onPress={handleOpenNotificationSettings}>
+                <Text style={styles.settingsButtonText}>Open Settings</Text>
+              </Pressable>
+            ) : notificationStatus === 'undetermined' ? (
+              <Pressable style={styles.settingsButton} onPress={handleRequestNotifications}>
+                <Text style={styles.settingsButtonText}>Allow</Text>
+              </Pressable>
+            ) : null}
+          </View>
           <View style={styles.switchRow}><Text style={styles.rowLabel}>Light/Dark Mode</Text><Text style={styles.comingSoon}>Coming soon</Text></View>
           <View style={styles.switchRow}><Text style={styles.rowLabel}>Apple Health</Text><Text style={styles.comingSoon}>Coming soon</Text></View>
         </View>
@@ -187,7 +231,12 @@ const styles = StyleSheet.create({
   goalText: { color: Colors.textSecondary, fontSize: 13, fontWeight: '600' },
   goalTextActive: { color: Colors.accent },
   switchRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: 4 },
+  settingsRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', gap: 12, paddingVertical: 4 },
+  settingsRowText: { flex: 1, gap: 2 },
   rowLabel: { fontSize: 15, color: Colors.text, fontWeight: '500' },
+  statusText: { color: Colors.textSecondary, fontSize: 13, textTransform: 'capitalize' },
+  settingsButton: { backgroundColor: Colors.accentLight, borderRadius: 999, paddingHorizontal: 12, paddingVertical: 8 },
+  settingsButtonText: { color: Colors.accent, fontSize: 13, fontWeight: '700' },
   comingSoon: { color: Colors.textSecondary },
   signOutBtn: { backgroundColor: '#FEE2E2', borderRadius: 12, padding: 14, alignItems: 'center' },
   signOutText: { color: '#DC2626', fontWeight: '700' },
