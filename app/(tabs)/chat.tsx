@@ -665,7 +665,7 @@ Recent symptoms: ${recentSymptomsSummary}`;
         }
         if (parsed.intent === 'reconstitute') {
           const { vialMg, waterMl, peptide } = parsed.payload as IntentPayload<'reconstitute'>;
-          if (vialMg && waterMl) { updateMessageContent(assistantMessageId, ‘Here\’s the reconstitution math:’); addMessage({ role: ‘reconstitution’, text: ‘’, reconstitutionResult: calcReconstitution(vialMg, waterMl, peptide ?? null) }); return; }
+          if (vialMg && waterMl) { updateMessageContent(assistantMessageId, "Here's the reconstitution math:"); addMessage({ role: 'reconstitution', text: '', reconstitutionResult: calcReconstitution(vialMg, waterMl, peptide ?? null) }); return; }
         }
         updateMessageContent(assistantMessageId, 'I can log that for you. Please confirm:');
         addMessage({ role: 'confirmation', text: parsed.displaySummary, parsedIntent: parsed, status: 'pending' });
@@ -697,7 +697,7 @@ Recent symptoms: ${recentSymptomsSummary}`;
       if (resolvedIntent === 'reconstitute') {
         const p = (aiResult.payload ?? {}) as IntentPayload<'reconstitute'>;
         if (p.vialMg && p.waterMl) {
-          updateMessageContent(assistantMessageId, 'Here’s the reconstitution math:');
+          updateMessageContent(assistantMessageId, "Here's the reconstitution math:");
           addMessage({ role: 'reconstitution', text: '', reconstitutionResult: calcReconstitution(p.vialMg, p.waterMl, p.peptide ?? null) });
           return;
         }
