@@ -1,5 +1,6 @@
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Stack, useRouter, useSegments } from 'expo-router';
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { supabase } from '@/lib/supabase';
 import { useAuthStore } from '@/stores/authStore';
 import { useProfileStore } from '@/stores/profileStore';
@@ -18,7 +19,29 @@ export default function RootLayout() {
   const refreshSubscription = useSubscriptionStore((s) => s.refresh);
   const protocols = useProtocolStore((s) => s.protocols);
   const protocolsLoading = useProtocolStore((s) => s.loading);
+  const [onboardingComplete, setOnboardingComplete] = useState<string | null>();
   const didSkipInitialProtocolSync = useRef(false);
+  const isMountedRef = useRef(false);
+
+  useEffect(() => {
+    isMountedRef.current = true;
+
+    void AsyncStorage.getItem('onboarding_complete')
+      .then((value) => {
+        if (isMountedRef.current) {
+          setOnboardingComplete(value);
+        }
+      })
+      .catch(() => {
+        if (isMountedRef.current) {
+          setOnboardingComplete(null);
+        }
+      });
+
+    return () => {
+      isMountedRef.current = false;
+    };
+  }, []);
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
@@ -41,21 +64,52 @@ export default function RootLayout() {
   }, [session?.user?.id]);
 
   useEffect(() => {
-    // Don't redirect until we know auth state
-    if (loading) return;
+    let cancelled = false;
+
+    // Don't redirect until we know auth state and the root navigator has mounted.
+    if (loading || !isMountedRef.current) return undefined;
 
     const inAuth = segments[0] === '(auth)';
+    const inOnboarding = segments[0] === 'onboarding';
 
     if (!session) {
+      if (onboardingComplete === undefined) return undefined;
+
+      if (!onboardingComplete) {
+        if (!inOnboarding) {
+          void AsyncStorage.getItem('onboarding_complete')
+            .then((value) => {
+              if (cancelled || !isMountedRef.current) return;
+
+              if (value) {
+                setOnboardingComplete(value);
+                return;
+              }
+
+              router.replace('/onboarding');
+            })
+            .catch(() => {
+              if (!cancelled && isMountedRef.current) {
+                router.replace('/onboarding');
+              }
+            });
+        }
+        return () => {
+          cancelled = true;
+        };
+      }
+
       if (!inAuth) router.replace('/(auth)/welcome');
-      return;
+      return undefined;
     }
 
     // Onboarding gates removed for beta — route all authed users straight to tabs
     if (inAuth) {
       router.replace('/(tabs)');
     }
-  }, [loading, session, profile, segments]);
+
+    return undefined;
+  }, [loading, session, profile, segments, onboardingComplete]);
 
   useEffect(() => {
     didSkipInitialProtocolSync.current = false;
