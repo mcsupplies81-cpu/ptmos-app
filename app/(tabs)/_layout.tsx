@@ -25,18 +25,13 @@ function ProtocolsIcon({ color }: { color: string }) {
   );
 }
 
-function ChatIcon({ color }: { color: string }) {
+function LifestyleIcon({ color }: { color: string }) {
   return (
     <Svg width={24} height={24} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round">
-      <Path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z" />
-    </Svg>
-  );
-}
-
-function InsightsIcon({ color }: { color: string }) {
-  return (
-    <Svg width={24} height={24} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round">
-      <Path d="M4 20V14M8 20V10M12 20V4M16 20V8M20 20V12" />
+      <Path d="M12 3v18" />
+      <Path d="M5 8c4 0 7 3 7 7" />
+      <Path d="M19 8c-4 0-7 3-7 7" />
+      <Path d="M7 16h10" />
     </Svg>
   );
 }
@@ -66,8 +61,8 @@ export default function TabsLayout() {
         }}
       >
         <Tabs.Screen name="index" options={{ title: 'Dashboard', tabBarIcon: ({ color }) => <HomeIcon color={color} /> }} />
-        <Tabs.Screen name="protocols" options={{ href: null }} />
-        <Tabs.Screen name="chat" options={{ title: 'Chat', tabBarIcon: ({ color }) => <ChatIcon color={color} /> }} />
+        <Tabs.Screen name="protocols" options={{ title: 'Protocols', tabBarIcon: ({ color }) => <ProtocolsIcon color={color} /> }} />
+        <Tabs.Screen name="chat" options={{ href: null }} />
         <Tabs.Screen
           name="plus"
           options={{
@@ -95,8 +90,9 @@ export default function TabsLayout() {
             tabBarButton: (props) => <Pressable {...(props as any)} onPress={() => setPlusOpen(true)} />,
           }}
         />
-        <Tabs.Screen name="insights" options={{ title: 'Insights', tabBarIcon: ({ color }) => <InsightsIcon color={color} /> }} />
+        <Tabs.Screen name="lifestyle" options={{ title: 'Lifestyle', tabBarIcon: ({ color }) => <LifestyleIcon color={color} /> }} />
         <Tabs.Screen name="more" options={{ title: 'More', tabBarIcon: ({ color }) => <MoreIcon color={color} /> }} />
+        <Tabs.Screen name="insights" options={{ href: null }} />
         <Tabs.Screen name="log" options={{ href: null }} />
         <Tabs.Screen name="log/sleep" options={{ href: null }} />
         <Tabs.Screen name="log/water" options={{ href: null }} />
