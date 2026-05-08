@@ -1,4 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
+import * as Haptics from 'expo-haptics';
+import Svg, { Circle, Path } from 'react-native-svg';
+
 import {
   Alert,
   FlatList,
@@ -12,7 +15,6 @@ import {
   View,
 } from 'react-native';
 
-import EmptyState from '@/components/EmptyState';
 import Skeleton from '@/components/Skeleton';
 import Colors from '@/constants/Colors';
 import { supabase } from '@/lib/supabase';
@@ -28,6 +30,14 @@ import { useProfileStore } from '@/stores/profileStore';
 
 const localDateKey = (d: Date) =>
   `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+
+const INPUT_MIN_HEIGHT = 40;
+const INPUT_MAX_HEIGHT = 120;
+const SUGGESTED_PROMPTS = [
+  'What should I stack with BPC-157?',
+  'Analyze my current protocol',
+  'How am I doing this week?',
+];
 
 const AI_SYSTEM_PROMPT = `You are an AI research companion built into PT-OS, a peptide protocol tracking app. You help users understand peptide research, optimize their protocols, log health metrics, and get the most from their self-optimization journey.
 You have deep knowledge of peptide research including but not limited to: BPC-157, TB-500, CJC-1295, Ipamorelin, Sermorelin, Hexarelin, GHRP-2, GHRP-6, Tesamorelin, Epithalon, Selank, Semax, PT-141, Melanotan II, AOD-9604, GHK-Cu, Thymosin Alpha-1, NAD+, 5-Amino-1MQ, and others. You understand typical protocols, dosing ranges from published research, common stacks, injection timing, reconstitution, storage, and reported outcomes.
@@ -311,6 +321,7 @@ function buildSummary(intent: ParsedIntent['intent'], payload: ParsedIntent['pay
 
 export default function ChatScreen() {
   const [inputText, setInputText] = useState('');
+  const [inputHeight, setInputHeight] = useState(INPUT_MIN_HEIGHT);
   const [isAiResponding, setIsAiResponding] = useState(false);
   const flatListRef = useRef<FlatList<ChatMessage>>(null);
   const textInputRef = useRef<TextInput>(null);
@@ -337,15 +348,25 @@ export default function ChatScreen() {
     }
   }, []);
 
-  // Scroll to bottom whenever a new message arrives, with a tick delay
-  // so layout has settled before we scroll
-  useEffect(() => {
-    if (messages.length === 0) return;
+  const scrollToBottom = useCallback((animated = true) => {
     const timer = setTimeout(() => {
-      flatListRef.current?.scrollToEnd({ animated: true });
+      flatListRef.current?.scrollToEnd({ animated });
     }, 80);
     return () => clearTimeout(timer);
-  }, [messages.length]);
+  }, []);
+
+  // Scroll to bottom whenever a new message arrives or an existing message changes
+  // (for example, streamed assistant content or status updates).
+  useEffect(() => {
+    if (messages.length === 0) return;
+    return scrollToBottom(true);
+  }, [messages, scrollToBottom]);
+
+  useEffect(() => {
+    if (inputText.length === 0) {
+      setInputHeight(INPUT_MIN_HEIGHT);
+    }
+  }, [inputText]);
 
   const handleConfirm = useCallback(async (message: ChatMessage) => {
     if (!user?.id || !message.parsedIntent) return;
@@ -547,10 +568,15 @@ Recent symptoms: ${recentSymptomsSummary}`;
     }
   }, [doseLogs, lifestyleLogs, profile?.goal, protocols, symptomLogs]);
 
+  const canSend = inputText.trim().length > 0 && !isAiResponding;
+
   const handleSend = useCallback(async (overrideText?: string, imageBase64?: string) => {
     const text = (overrideText ?? inputText).trim();
-    if (!text && !imageBase64) return;
-    if (!overrideText) setInputText('');
+    if ((!text && !imageBase64) || isAiResponding) return;
+    if (!overrideText) {
+      setInputText('');
+      setInputHeight(INPUT_MIN_HEIGHT);
+    }
 
     if (text) addMessage({ role: 'user', text });
     if (imageBase64) addMessage({ role: 'user', text: text || '📷 Image sent' });
@@ -576,7 +602,7 @@ Recent symptoms: ${recentSymptomsSummary}`;
         }
         if (parsed.intent === 'reconstitute') {
           const { vialMg, waterMl, peptide } = parsed.payload as IntentPayload<'reconstitute'>;
-          if (vialMg && waterMl) { addMessage({ role: 'reconstitution', text: '', reconstitutionResult: calcReconstitution(vialMg, waterMl, peptide) }); return; }
+          if (vialMg && waterMl) { addMessage({ role: 'reconstitution', text: '', reconstitutionResult: calcReconstitution(vialMg, waterMl, peptide ?? null) }); return; }
         }
         addMessage({ role: 'confirmation', text: parsed.displaySummary, parsedIntent: parsed, status: 'pending' });
         return;
@@ -619,14 +645,20 @@ Recent symptoms: ${recentSymptomsSummary}`;
       };
       addMessage({ role: 'confirmation', text: parsed.displaySummary, parsedIntent: parsed, status: 'pending' });
     }
-  }, [inputText, addMessage, callAI, doseLogs, protocols]);
+  }, [inputText, isAiResponding, addMessage, callAI, doseLogs, protocols]);
+
+  const handleSendPress = useCallback(() => {
+    if (!canSend) return;
+    void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    void handleSend();
+  }, [canSend, handleSend]);
 
   return (
     <ProGate feature="AI Chat">
     <SafeAreaView style={{ flex: 1, backgroundColor: Colors.background }}>
       <KeyboardAvoidingView
         style={{ flex: 1 }}
-        behavior="height"
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
         keyboardVerticalOffset={0}
       >
         <View style={styles.header}>
@@ -663,35 +695,44 @@ Recent symptoms: ${recentSymptomsSummary}`;
           data={messages}
           keyExtractor={(item) => item.id}
           style={styles.messages}
-          contentContainerStyle={styles.messagesContent}
+          contentContainerStyle={[
+            styles.messagesContent,
+            messages.length === 0 && styles.messagesEmptyContent,
+          ]}
+          automaticallyAdjustKeyboardInsets={true}
           onLayout={() => flatListRef.current?.scrollToEnd({ animated: false })}
           ListEmptyComponent={
-            <EmptyState
-              emoji="💬"
-              title="Start a conversation"
-              subtitle="Ask about protocols, dosing, symptoms, or log an update in plain language."
-            />
+            <ChatEmptyState onSelectPrompt={setInputText} />
           }
           ListFooterComponent={isAiResponding ? <AssistantMessageSkeleton /> : null}
-          renderItem={({ item: message }) => {
+          renderItem={({ item: message, index }) => {
             if (message.role === 'user') {
               return <View style={styles.userBubble}><Text style={styles.userText}>{message.text}</Text></View>;
             }
             if (message.role === 'assistant') {
+              const isFirstAssistantMessage = messages.findIndex((m) => m.role === 'assistant') === index;
               if (message.text.startsWith('✅')) {
                 return (
-                  <View style={styles.receiptCard}>
-                    <View style={styles.receiptHeader}>
-                      <View style={styles.receiptCheckCircle}>
-                        <Text style={styles.receiptCheckText}>✓</Text>
+                  <View style={styles.assistantMessageGroup}>
+                    {isFirstAssistantMessage && <Text style={styles.assistantLabel}>PT-OS</Text>}
+                    <View style={styles.receiptCard}>
+                      <View style={styles.receiptHeader}>
+                        <View style={styles.receiptCheckCircle}>
+                          <Text style={styles.receiptCheckText}>✓</Text>
+                        </View>
+                        <Text style={styles.receiptTitle}>Logged</Text>
                       </View>
-                      <Text style={styles.receiptTitle}>Logged</Text>
+                      <Text style={styles.receiptBody}>{message.text}</Text>
                     </View>
-                    <Text style={styles.receiptBody}>{message.text}</Text>
                   </View>
                 );
               }
-              return <View style={styles.assistantBubble}>{renderMarkdown(message.text)}</View>;
+              return (
+                <View style={styles.assistantMessageGroup}>
+                  {isFirstAssistantMessage && <Text style={styles.assistantLabel}>PT-OS</Text>}
+                  <View style={styles.assistantBubble}>{renderMarkdown(message.text)}</View>
+                </View>
+              );
             }
             if (message.role === 'success') {
               return <View style={styles.successPill}><Text style={styles.successText}>✓ {message.text}</Text></View>;
@@ -769,22 +810,34 @@ Recent symptoms: ${recentSymptomsSummary}`;
         <View style={styles.inputBar}>
           <TextInput
             ref={textInputRef}
-            style={styles.input}
+            style={[styles.input, { height: inputHeight }]}
             value={inputText}
             onChangeText={setInputText}
+            onContentSizeChange={(event) => {
+              const nextHeight = Math.min(
+                Math.max(event.nativeEvent.contentSize.height, INPUT_MIN_HEIGHT),
+                INPUT_MAX_HEIGHT,
+              );
+              setInputHeight(nextHeight);
+            }}
             placeholder="Message PT-OS AI..."
             placeholderTextColor={Colors.textSecondary}
             returnKeyType="send"
-            multiline
+            multiline={true}
             textAlignVertical="top"
             onSubmitEditing={() => { void handleSend(); }}
           />
           <Pressable
-            style={[styles.sendButton, { opacity: inputText.trim() ? 1 : 0.4 }]}
-            onPress={() => { void handleSend(); }}
-            disabled={!inputText.trim()}
+            style={[
+              styles.sendButton,
+              { backgroundColor: canSend ? Colors.accent : Colors.border },
+            ]}
+            onPress={handleSendPress}
+            disabled={!canSend}
+            accessibilityRole="button"
+            accessibilityLabel="Send message"
           >
-            <Text style={styles.sendText}>↑</Text>
+            <SendIcon disabled={!canSend} />
           </Pressable>
         </View>
       </KeyboardAvoidingView>
@@ -793,12 +846,50 @@ Recent symptoms: ${recentSymptomsSummary}`;
   );
 }
 
+function ChatEmptyState({ onSelectPrompt }: { onSelectPrompt: (prompt: string) => void }) {
+  return (
+    <View style={styles.emptyState}>
+      <Text style={styles.emptyLogo}>PT-OS</Text>
+      <Text style={styles.emptyTagline}>Your peptide research companion</Text>
+      <View style={styles.promptChips}>
+        {SUGGESTED_PROMPTS.map((prompt) => (
+          <Pressable
+            key={prompt}
+            style={styles.promptChip}
+            onPress={() => onSelectPrompt(prompt)}
+          >
+            <Text style={styles.promptChipText}>{prompt}</Text>
+          </Pressable>
+        ))}
+      </View>
+    </View>
+  );
+}
+
+function SendIcon({ disabled }: { disabled: boolean }) {
+  const iconColor = disabled ? Colors.textSecondary : Colors.white;
+  return (
+    <Svg width={30} height={30} viewBox="0 0 30 30" fill="none">
+      <Circle cx={15} cy={15} r={14} stroke={iconColor} strokeOpacity={disabled ? 0.55 : 0.85} />
+      <Path
+        d="M15 21V9M15 9L10.5 13.5M15 9L19.5 13.5"
+        stroke={iconColor}
+        strokeWidth={2.2}
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </Svg>
+  );
+}
+
 function AssistantMessageSkeleton() {
   return (
-    <View style={styles.assistantBubble}>
-      <Skeleton width="88%" height={15} borderRadius={8} />
-      <Skeleton width="74%" height={15} borderRadius={8} style={{ marginTop: 8 }} />
-      <Skeleton width="42%" height={15} borderRadius={8} style={{ marginTop: 8 }} />
+    <View style={styles.assistantMessageGroup}>
+      <View style={styles.assistantBubble}>
+        <Skeleton width="88%" height={15} borderRadius={8} />
+        <Skeleton width="74%" height={15} borderRadius={8} style={{ marginTop: 8 }} />
+        <Skeleton width="42%" height={15} borderRadius={8} style={{ marginTop: 8 }} />
+      </View>
     </View>
   );
 }
@@ -820,17 +911,55 @@ const styles = StyleSheet.create({
   newChatText: { fontSize: 13, color: Colors.accent, fontWeight: '600' },
   clearText: { fontSize: 13, color: Colors.textSecondary },
   messages: { flex: 1 },
-  messagesContent: { paddingHorizontal: 16, paddingVertical: 12, gap: 10 },
-  userBubble: { backgroundColor: Colors.accent, borderRadius: 18, borderBottomRightRadius: 4, padding: 12, maxWidth: '80%', alignSelf: 'flex-end', marginVertical: 2 },
+  messagesContent: { paddingHorizontal: 16, paddingVertical: 12, gap: 10, flexGrow: 1 },
+  messagesEmptyContent: { justifyContent: 'center' },
+  emptyState: { alignItems: 'center', justifyContent: 'center', paddingHorizontal: 18, gap: 14 },
+  emptyLogo: { fontSize: 34, fontWeight: '900', color: Colors.text, letterSpacing: 1.2 },
+  emptyTagline: { fontSize: 15, color: Colors.textSecondary, textAlign: 'center', marginBottom: 10 },
+  promptChips: { width: '100%', gap: 10 },
+  promptChip: {
+    alignSelf: 'center',
+    borderWidth: 1,
+    borderColor: Colors.border,
+    borderRadius: 999,
+    backgroundColor: Colors.card,
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+  },
+  promptChipText: { color: Colors.text, fontSize: 14, fontWeight: '600', textAlign: 'center' },
+  userBubble: {
+    backgroundColor: Colors.accent,
+    borderRadius: 18,
+    borderBottomRightRadius: 4,
+    padding: 12,
+    maxWidth: '80%',
+    alignSelf: 'flex-end',
+    marginVertical: 2,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.12,
+    shadowRadius: 5,
+    elevation: 2,
+  },
   userText: { color: Colors.white, fontSize: 15 },
+  assistantMessageGroup: { alignSelf: 'flex-start', maxWidth: '80%', marginVertical: 2 },
+  assistantLabel: {
+    color: Colors.accent,
+    fontSize: 11,
+    fontWeight: '800',
+    letterSpacing: 1,
+    marginBottom: 4,
+    marginLeft: 8,
+  },
   assistantBubble: {
     backgroundColor: Colors.card,
     borderRadius: 18,
     borderBottomLeftRadius: 4,
     padding: 12,
-    maxWidth: '80%',
     borderWidth: 1,
+    borderLeftWidth: 3,
     borderColor: Colors.border,
+    borderLeftColor: Colors.accent,
     alignSelf: 'flex-start',
     marginVertical: 2,
   },
@@ -845,7 +974,6 @@ const styles = StyleSheet.create({
     padding: 12,
     marginVertical: 2,
     alignSelf: 'flex-start',
-    maxWidth: '80%',
   },
   receiptHeader: { flexDirection: 'row', alignItems: 'center' },
   receiptCheckCircle: {
@@ -894,8 +1022,30 @@ const styles = StyleSheet.create({
   successText: { color: Colors.accent, fontSize: 13, fontWeight: '600' },
   errorPill: { backgroundColor: Colors.backgroundSecondary, borderRadius: 999, paddingHorizontal: 12, paddingVertical: 6, alignSelf: 'flex-start' },
   errorText: { color: Colors.error, fontSize: 13, fontWeight: '600' },
-  inputBar: { flexDirection: 'row', paddingHorizontal: 12, paddingVertical: 10, gap: 8, borderTopWidth: 1, borderTopColor: Colors.border, backgroundColor: Colors.background },
-  input: { flex: 1, borderWidth: 1, borderColor: Colors.border, borderRadius: 20, paddingHorizontal: 14, paddingVertical: 10, fontSize: 15, color: Colors.text, backgroundColor: Colors.card, maxHeight: 80 },
-  sendButton: { width: 44, height: 44, borderRadius: 22, backgroundColor: Colors.accent, justifyContent: 'center', alignItems: 'center' },
-  sendText: { color: Colors.white, fontSize: 20, fontWeight: '700' },
+  inputBar: {
+    flexDirection: 'row',
+    alignItems: 'flex-end',
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    gap: 8,
+    borderTopWidth: 1,
+    borderTopColor: Colors.border,
+    backgroundColor: Colors.background,
+  },
+  input: {
+    flex: 1,
+    minHeight: INPUT_MIN_HEIGHT,
+    maxHeight: INPUT_MAX_HEIGHT,
+    borderWidth: 1,
+    borderColor: Colors.border,
+    borderRadius: 20,
+    paddingHorizontal: 14,
+    paddingTop: 9,
+    paddingBottom: 9,
+    fontSize: 15,
+    lineHeight: 20,
+    color: Colors.text,
+    backgroundColor: Colors.card,
+  },
+  sendButton: { width: 40, height: 40, borderRadius: 20, justifyContent: 'center', alignItems: 'center' },
 });
