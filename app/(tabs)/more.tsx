@@ -12,6 +12,7 @@ import { uploadAvatar } from '@/utils/avatar';
 type MenuItem = {
   emoji: string;
   label: string;
+  subtitle?: string;
   onPress: () => void;
 };
 
@@ -85,7 +86,12 @@ export default function MoreTabScreen() {
 
   const insightsItems: MenuItem[] = [
     { emoji: '📊', label: 'Weekly Summary', onPress: () => router.push('/insights/weekly-summary') },
-    { emoji: '🏥', label: 'Providers', onPress: () => router.push('/providers') },
+    {
+      emoji: '🏥',
+      label: 'Provider Directory',
+      subtitle: 'Find verified clinics & med spas',
+      onPress: () => router.push('/providers'),
+    },
     { emoji: '🧪', label: 'Inventory', onPress: () => router.push('/more/inventory') },
   ];
 
@@ -118,7 +124,10 @@ export default function MoreTabScreen() {
                 <View style={styles.emojiCircle}>
                   <Text style={styles.emoji}>{item.emoji}</Text>
                 </View>
-                <Text style={styles.itemLabel}>{item.label}</Text>
+                <View style={styles.itemCopy}>
+                  <Text style={styles.itemLabel}>{item.label}</Text>
+                  {item.subtitle ? <Text style={styles.itemSubtitle}>{item.subtitle}</Text> : null}
+                </View>
               </View>
               <Text style={styles.chevron}>›</Text>
             </Pressable>
@@ -241,8 +250,10 @@ const styles = StyleSheet.create({
     borderBottomWidth: 0,
   },
   itemLeft: {
+    flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
+    marginRight: 12,
   },
   emojiCircle: {
     width: 36,
@@ -255,11 +266,19 @@ const styles = StyleSheet.create({
   emoji: {
     fontSize: 16,
   },
+  itemCopy: {
+    flex: 1,
+    marginLeft: 12,
+  },
   itemLabel: {
     fontSize: 15,
     fontWeight: '600',
     color: Colors.text,
-    marginLeft: 12,
+  },
+  itemSubtitle: {
+    color: Colors.textSecondary,
+    fontSize: 12,
+    marginTop: 3,
   },
   chevron: {
     fontSize: 20,
