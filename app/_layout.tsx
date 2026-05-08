@@ -6,6 +6,7 @@ import { useProfileStore } from '@/stores/profileStore';
 import { useSubscriptionStore } from '@/stores/subscriptionStore';
 import { initPurchases } from '@/lib/purchases';
 import { requestNotificationPermission } from '@/utils/notifications';
+import OfflineBanner from '@/components/OfflineBanner';
 
 export default function RootLayout() {
   const router = useRouter();
@@ -56,11 +57,14 @@ export default function RootLayout() {
   }, []);
 
   return (
-    <Stack screenOptions={{ headerShown: false }}>
-      <Stack.Screen name="log/sleep" options={{ presentation: 'modal', animation: 'slide_from_bottom' }} />
-      <Stack.Screen name="log/water" options={{ presentation: 'modal', animation: 'slide_from_bottom' }} />
-      <Stack.Screen name="log/workout" options={{ presentation: 'modal', animation: 'slide_from_bottom' }} />
-      <Stack.Screen name="paywall" options={{ presentation: 'modal', animation: 'slide_from_bottom' }} />
-    </Stack>
+    <>
+      <OfflineBanner />
+      <Stack screenOptions={{ headerShown: false }}>
+        <Stack.Screen name="log/sleep" options={{ presentation: 'modal', animation: 'slide_from_bottom' }} />
+        <Stack.Screen name="log/water" options={{ presentation: 'modal', animation: 'slide_from_bottom' }} />
+        <Stack.Screen name="log/workout" options={{ presentation: 'modal', animation: 'slide_from_bottom' }} />
+        <Stack.Screen name="paywall" options={{ presentation: 'modal', animation: 'slide_from_bottom' }} />
+      </Stack>
+    </>
   );
 }
