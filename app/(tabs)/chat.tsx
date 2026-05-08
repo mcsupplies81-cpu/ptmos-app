@@ -39,6 +39,51 @@ function calcReconstitution(vialMg: number, waterMl: number, peptide: string | n
   return { vialMg, waterMl, concentrationMgPerMl, concentrationMcgPerMl, doseTable, peptide };
 }
 
+
+type PayloadMap =
+  | {
+      intent: 'log_dose';
+      payload: {
+        amount?: number | null;
+        unit?: 'mcg' | 'mg' | 'iu' | 'ml' | string;
+        peptide?: string | null;
+        site?: string | null;
+      };
+    }
+  | { intent: 'log_symptom'; payload: { symptom?: string; severity?: number | null } }
+  | { intent: 'log_weight'; payload: { value?: number | null; unit?: 'lbs' | 'kg' | string } }
+  | { intent: 'log_water'; payload: { amount_oz?: number } }
+  | { intent: 'log_sleep'; payload: { hours?: number | null } }
+  | { intent: 'log_steps'; payload: { steps?: number } }
+  | { intent: 'log_lifestyle'; payload: ParsedIntent['payload'] }
+  | {
+      intent: 'update_inventory';
+      payload: {
+        peptide_name?: string;
+        vial_mg?: number;
+        quantity?: number;
+        bac_water_ml?: number;
+      };
+    }
+  | { intent: 'ask_adherence'; payload: Record<string, never> }
+  | { intent: 'ask_last_dose'; payload: Record<string, never> }
+  | { intent: 'ask_next_dose'; payload: Record<string, never> }
+  | { intent: 'ask_inventory'; payload: Record<string, never> }
+  | {
+      intent: 'reconstitute';
+      payload: { vialMg?: number | null; waterMl?: number | null; peptide?: string | null };
+    }
+  | { intent: 'unknown'; payload: Record<string, never> };
+
+type IntentPayload<Intent extends PayloadMap['intent']> = Extract<PayloadMap, { intent: Intent }>['payload'];
+type ChatAiResult = {
+  type: string;
+  intent?: string;
+  payload?: ParsedIntent['payload'];
+  text?: string;
+  reason?: string;
+};
+
 function mockParse(text: string): ParsedIntent {
   const lower = text.toLowerCase();
   const amountMatch = text.match(/\d+(?:\.\d+)?/);
@@ -190,7 +235,7 @@ function mockParse(text: string): ParsedIntent {
   };
 }
 
-function buildSummary(intent: string, payload: Record<string, string | number | null>): string {
+function buildSummary(intent: ParsedIntent['intent'], payload: ParsedIntent['payload']): string {
   if (intent === 'log_dose') return `Log ${payload.amount ?? '?'}${payload.unit ?? 'mcg'} ${payload.peptide ?? 'dose'}${payload.site ? ', ' + payload.site : ''}`;
   if (intent === 'log_weight') return `Log weight: ${payload.value ?? '?'} lbs`;
   if (intent === 'log_sleep') return `Log sleep: ${payload.hours ?? '?'} hours`;
@@ -249,24 +294,26 @@ export default function ChatScreen() {
 
     try {
       if (intent === 'log_dose') {
+        const p = payload as IntentPayload<'log_dose'>;
         await supabase.from('dose_logs').insert({
           user_id: user.id,
-          peptide_name: String(payload.peptide ?? 'Unknown'),
-          amount: Number(payload.amount) || 0,
-          unit: payload.unit ?? 'mcg',
-          injection_site: payload.site ?? null,
+          peptide_name: String(p.peptide ?? 'Unknown'),
+          amount: Number(p.amount) || 0,
+          unit: p.unit ?? 'mcg',
+          injection_site: p.site ?? null,
           logged_at: new Date().toISOString(),
           protocol_id: null,
           notes: null,
         });
         await fetchDoseLogs(user.id);
-        addMessage({ role: 'success', text: `${payload.peptide ?? 'Dose'} logged ✓` });
+        addMessage({ role: 'success', text: `${p.peptide ?? 'Dose'} logged ✓` });
       }
 
       else if (intent === 'log_weight') {
+        const p = payload as IntentPayload<'log_weight'>;
         const today = localDateKey(new Date());
-        const rawWeight = Number(payload.value) || null;
-        const weightLbs = rawWeight && payload.unit === 'kg'
+        const rawWeight = Number(p.value) || null;
+        const weightLbs = rawWeight && p.unit === 'kg'
           ? Math.round(rawWeight * 2.20462 * 10) / 10
           : rawWeight;
         await upsertLifestyle({ date: today, weight_lbs: weightLbs }, user.id);
@@ -282,17 +329,19 @@ export default function ChatScreen() {
       }
 
       else if (intent === 'log_sleep') {
+        const p = payload as IntentPayload<'log_sleep'>;
         const today = localDateKey(new Date());
-        await upsertLifestyle({ date: today, sleep_hours: Number(payload.hours) || null }, user.id);
+        await upsertLifestyle({ date: today, sleep_hours: Number(p.hours) || null }, user.id);
         await fetchLifestyleLogs(user.id);
-        addMessage({ role: 'success', text: `Sleep logged: ${payload.hours} hours ✓` });
+        addMessage({ role: 'success', text: `Sleep logged: ${p.hours} hours ✓` });
       }
 
       else if (intent === 'log_symptom') {
+        const p = payload as IntentPayload<'log_symptom'>;
         await addSymptom(
           {
-            symptom: String(payload.symptom ?? 'symptom'),
-            severity: Number(payload.severity) || 5,
+            symptom: String(p.symptom ?? 'symptom'),
+            severity: Number(p.severity) || 5,
             notes: null,
             logged_at: new Date().toISOString(),
           },
@@ -302,15 +351,17 @@ export default function ChatScreen() {
       }
 
       else if (intent === 'log_steps') {
+        const p = payload as IntentPayload<'log_steps'>;
         const today = localDateKey(new Date());
-        await upsertLifestyle({ date: today, steps: Number(payload.steps) || null }, user.id);
+        await upsertLifestyle({ date: today, steps: Number(p.steps) || null }, user.id);
         await fetchLifestyleLogs(user.id);
-        addMessage({ role: 'success', text: `Steps logged: ${Number(payload.steps).toLocaleString()} ✓` });
+        addMessage({ role: 'success', text: `Steps logged: ${Number(p.steps).toLocaleString()} ✓` });
       }
 
       else if (intent === 'log_water') {
+        const p = payload as IntentPayload<'log_water'>;
         const today = localDateKey(new Date());
-        const oz = Number((payload as { amount_oz?: number }).amount_oz) || 0;
+        const oz = Number(p.amount_oz) || 0;
         await upsertLifestyle({ date: today, water_oz: oz }, user.id);
         await fetchLifestyleLogs(user.id);
         addMessage({ role: 'success', text: `Water logged: ${oz} oz ✓` });
@@ -318,7 +369,7 @@ export default function ChatScreen() {
 
       else if (intent === 'update_inventory') {
         if (!user?.id) return;
-        const p = payload as { peptide_name?: string; vial_mg?: number; quantity?: number; bac_water_ml?: number };
+        const p = payload as IntentPayload<'update_inventory'>;
         const qty = p.quantity ?? 1;
         const concentration = p.bac_water_ml && p.vial_mg
           ? p.vial_mg / p.bac_water_ml
@@ -340,19 +391,14 @@ export default function ChatScreen() {
         addMessage({ role: 'success', text: 'Logged ✓' });
       }
 
-    } catch (e: any) {
-      console.error('[handleConfirm] error:', e?.message ?? e);
-      addMessage({ role: 'error', text: `Failed: ${e?.message ?? 'something went wrong'}` });
+    } catch (e: unknown) {
+      const errorMessage = e instanceof Error ? e.message : undefined;
+      console.error('[handleConfirm] error:', errorMessage ?? e);
+      addMessage({ role: 'error', text: `Failed: ${errorMessage ?? 'something went wrong'}` });
     }
   }, [user?.id, updateMessageStatus, addMessage, fetchDoseLogs, upsertLifestyle, fetchLifestyleLogs, addSymptom, addVial, fetchInventory]);
 
-  const callAI = useCallback(async (text: string, imageBase64?: string): Promise<{
-    type: string;
-    intent?: string;
-    payload?: Record<string, unknown>;
-    text?: string;
-    reason?: string;
-  } | null> => {
+  const callAI = useCallback(async (text: string, imageBase64?: string): Promise<ChatAiResult | null> => {
     try {
       const last7 = Array.from({ length: 7 }).map((_, i) => {
         const d = new Date(); d.setDate(d.getDate() - i);
@@ -380,8 +426,8 @@ export default function ChatScreen() {
         console.error('[chat-ai] invoke error:', JSON.stringify(error));
         return { type: 'error', reason: error.message };
       }
-      return data as { type: string; intent?: string; payload?: Record<string, unknown>; text?: string; reason?: string };
-    } catch (e) {
+      return data as ChatAiResult;
+    } catch (e: unknown) {
       console.error('[chat-ai] caught:', e);
       return { type: 'error', reason: String(e) };
     }
@@ -408,7 +454,7 @@ export default function ChatScreen() {
           return;
         }
         if (parsed.intent === 'reconstitute') {
-          const { vialMg, waterMl, peptide } = parsed.payload as { vialMg: number | null; waterMl: number | null; peptide: string | null };
+          const { vialMg, waterMl, peptide } = parsed.payload as IntentPayload<'reconstitute'>;
           if (vialMg && waterMl) { addMessage({ role: 'reconstitution', text: '', reconstitutionResult: calcReconstitution(vialMg, waterMl, peptide) }); return; }
         }
         addMessage({ role: 'confirmation', text: parsed.displaySummary, parsedIntent: parsed, status: 'pending' });
@@ -438,7 +484,7 @@ export default function ChatScreen() {
         ? (aiResult.intent as ParsedIntent['intent'])
         : 'log_dose';
       if (resolvedIntent === 'reconstitute') {
-        const p = (aiResult.payload ?? {}) as { vialMg?: number; waterMl?: number; peptide?: string };
+        const p = (aiResult.payload ?? {}) as IntentPayload<'reconstitute'>;
         if (p.vialMg && p.waterMl) {
           addMessage({ role: 'reconstitution', text: '', reconstitutionResult: calcReconstitution(p.vialMg, p.waterMl, p.peptide ?? null) });
           return;
@@ -446,9 +492,9 @@ export default function ChatScreen() {
       }
       const parsed: ParsedIntent = {
         intent: resolvedIntent,
-        payload: (aiResult.payload ?? {}) as Record<string, string | number | null>,
+        payload: (aiResult.payload ?? {}) as ParsedIntent['payload'],
         confidence: 'high',
-        displaySummary: buildSummary(resolvedIntent, (aiResult.payload ?? {}) as Record<string, string | number | null>),
+        displaySummary: buildSummary(resolvedIntent, (aiResult.payload ?? {}) as ParsedIntent['payload']),
       };
       addMessage({ role: 'confirmation', text: parsed.displaySummary, parsedIntent: parsed, status: 'pending' });
     }
