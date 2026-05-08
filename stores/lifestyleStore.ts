@@ -12,12 +12,22 @@ export interface LifestyleLog {
   sleep_hours: number | null;
   steps: number | null;
   workout_notes: string | null;
+  workout_type: string | null;
+  workout_duration_min: number | null;
+  workout_intensity: number | null;
   mood: number | null;
   energy: number | null;
+  energy_level: number | null;
   meal_notes: string | null;
 }
 
-type UpsertLifestyleLog = Omit<LifestyleLog, 'id' | 'user_id'>;
+export type UpsertLifestyleLog = Partial<Omit<LifestyleLog, 'id' | 'user_id' | 'date'>> & {
+  date: string;
+  workout_type?: string | null;
+  workout_duration_min?: number | null;
+  workout_intensity?: number | null;
+  energy_level?: number | null;
+};
 
 interface LifestyleStore {
   logs: LifestyleLog[];

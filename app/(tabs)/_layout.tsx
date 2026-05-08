@@ -98,6 +98,9 @@ export default function TabsLayout() {
         <Tabs.Screen name="insights" options={{ title: 'Insights', tabBarIcon: ({ color }) => <InsightsIcon color={color} /> }} />
         <Tabs.Screen name="more" options={{ title: 'More', tabBarIcon: ({ color }) => <MoreIcon color={color} /> }} />
         <Tabs.Screen name="log" options={{ href: null }} />
+        <Tabs.Screen name="log/sleep" options={{ href: null }} />
+        <Tabs.Screen name="log/water" options={{ href: null }} />
+        <Tabs.Screen name="log/workout" options={{ href: null }} />
         <Tabs.Screen name="research" options={{ href: null }} />
         <Tabs.Screen name="settings" options={{ href: null }} />
       </Tabs>
