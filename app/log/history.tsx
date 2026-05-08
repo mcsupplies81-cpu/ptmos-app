@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import { router } from 'expo-router';
 import { Alert, FlatList, Pressable, RefreshControl, SafeAreaView, StyleSheet, Text, TextInput, View } from 'react-native';
 
 import EmptyState from '@/components/EmptyState';
@@ -7,13 +8,14 @@ import ScreenHeader from '@/components/ScreenHeader';
 import Colors from '@/constants/Colors';
 import { useAuthStore } from '@/stores/authStore';
 import { useDoseLogStore } from '@/stores/doseLogStore';
+import { useSubscriptionStore } from '@/stores/subscriptionStore';
 import { supabase } from '@/lib/supabase';
-import { ProGate } from '@/components/ProGate';
 
 export default function DoseHistoryScreen() {
   const user = useAuthStore((s) => s.user);
   const doseLogs = useDoseLogStore((s) => s.doseLogs);
   const loading = useDoseLogStore((s) => s.loading);
+  const isPro = useSubscriptionStore((s) => s.isPro);
   const fetchDoseLogs = useDoseLogStore((s) => s.fetchDoseLogs);
   const [searchQuery, setSearchQuery] = useState('');
   const [refreshing, setRefreshing] = useState(false);
@@ -72,10 +74,13 @@ export default function DoseHistoryScreen() {
       .sort((a, b) => new Date(b.logged_at).getTime() - new Date(a.logged_at).getTime());
   }, [doseLogs, searchQuery, selectedFilter]);
 
+  const visibleLogs = isPro ? filteredLogs : filteredLogs.slice(0, 30);
+  const hitLimit = !isPro && filteredLogs.length > 30;
+
   return (
-    <ProGate feature="Dose History">
     <SafeAreaView style={styles.safeArea}>
       <ScreenHeader title="Dose History" />
+      {!isPro && filteredLogs.length > 0 ? <Text style={styles.headerSubtitle}>Last 30 doses</Text> : null}
 
       <TextInput
         style={styles.searchInput}
@@ -111,7 +116,7 @@ export default function DoseHistoryScreen() {
         </View>
       ) : (
       <FlatList
-        data={filteredLogs}
+        data={visibleLogs}
         keyExtractor={(item) => item.id}
         style={{ flex: 1 }}
         contentContainerStyle={styles.listContent}
@@ -150,10 +155,21 @@ export default function DoseHistoryScreen() {
             subtitle="Start logging doses to see your history here."
           />
         }
+        ListFooterComponent={
+          hitLimit ? (
+            <View style={styles.limitCard}>
+              <Text style={styles.limitText}>
+                Showing your 30 most recent doses. Upgrade to Pro to see full history.
+              </Text>
+              <Pressable style={styles.limitButton} onPress={() => router.push('/paywall')}>
+                <Text style={styles.limitButtonText}>Upgrade to Pro</Text>
+              </Pressable>
+            </View>
+          ) : null
+        }
       />
       )}
     </SafeAreaView>
-    </ProGate>
   );
 }
 
@@ -174,6 +190,13 @@ function DoseLogRowSkeleton() {
 
 const styles = StyleSheet.create({
   safeArea: { flex: 1, backgroundColor: Colors.background },
+  headerSubtitle: {
+    color: Colors.textSecondary,
+    fontSize: 12,
+    textAlign: 'center',
+    marginTop: -6,
+    marginBottom: 10,
+  },
   searchInput: {
     borderWidth: 1,
     borderColor: Colors.border,
@@ -214,4 +237,20 @@ const styles = StyleSheet.create({
   moodText: { fontSize: 12, color: Colors.accent, fontWeight: '600' },
   rowBottom: { marginTop: 8, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   metaText: { fontSize: 12, color: Colors.textSecondary },
+  limitCard: {
+    backgroundColor: Colors.card,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: Colors.border,
+    padding: 14,
+    gap: 12,
+  },
+  limitText: { fontSize: 13, color: Colors.textSecondary, lineHeight: 19 },
+  limitButton: {
+    backgroundColor: Colors.accent,
+    borderRadius: 10,
+    paddingVertical: 12,
+    alignItems: 'center',
+  },
+  limitButtonText: { color: Colors.white, fontSize: 14, fontWeight: '700' },
 });
