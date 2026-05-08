@@ -1,8 +1,9 @@
 import { Tabs } from 'expo-router';
-import { useState } from 'react';
+import { type ReactNode, useState } from 'react';
 import { Pressable, Text, View } from 'react-native';
 import Svg, { Path } from 'react-native-svg';
 
+import ErrorBoundary from '@/components/ErrorBoundary';
 import PlusMenu from '@/components/PlusMenu';
 import Colors from '@/constants/Colors';
 
@@ -36,6 +37,14 @@ function LifestyleIcon({ color }: { color: string }) {
   );
 }
 
+type ScreenLayoutProps = {
+  children: ReactNode;
+};
+
+function withErrorBoundary({ children }: ScreenLayoutProps) {
+  return <ErrorBoundary>{children}</ErrorBoundary>;
+}
+
 function MoreIcon({ color }: { color: string }) {
   return (
     <Svg width={24} height={24} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round">
@@ -60,11 +69,12 @@ export default function TabsLayout() {
           tabBarInactiveTintColor: Colors.tabInactive,
         }}
       >
-        <Tabs.Screen name="index" options={{ title: 'Dashboard', tabBarIcon: ({ color }) => <HomeIcon color={color} /> }} />
-        <Tabs.Screen name="protocols" options={{ title: 'Protocols', tabBarIcon: ({ color }) => <ProtocolsIcon color={color} /> }} />
-        <Tabs.Screen name="chat" options={{ href: null }} />
+        <Tabs.Screen name="index" layout={withErrorBoundary} options={{ title: 'Dashboard', tabBarIcon: ({ color }) => <HomeIcon color={color} /> }} />
+        <Tabs.Screen name="protocols" layout={withErrorBoundary} options={{ title: 'Protocols', tabBarIcon: ({ color }) => <ProtocolsIcon color={color} /> }} />
+        <Tabs.Screen name="chat" layout={withErrorBoundary} options={{ href: null }} />
         <Tabs.Screen
           name="plus"
+          layout={withErrorBoundary}
           options={{
             title: '',
             tabBarIcon: () => (
@@ -90,15 +100,15 @@ export default function TabsLayout() {
             tabBarButton: (props) => <Pressable {...(props as any)} onPress={() => setPlusOpen(true)} />,
           }}
         />
-        <Tabs.Screen name="lifestyle" options={{ title: 'Lifestyle', tabBarIcon: ({ color }) => <LifestyleIcon color={color} /> }} />
-        <Tabs.Screen name="more" options={{ title: 'More', tabBarIcon: ({ color }) => <MoreIcon color={color} /> }} />
-        <Tabs.Screen name="insights" options={{ href: null }} />
-        <Tabs.Screen name="log" options={{ href: null }} />
-        <Tabs.Screen name="log/sleep" options={{ href: null }} />
-        <Tabs.Screen name="log/water" options={{ href: null }} />
-        <Tabs.Screen name="log/workout" options={{ href: null }} />
-        <Tabs.Screen name="research" options={{ href: null }} />
-        <Tabs.Screen name="settings" options={{ href: null }} />
+        <Tabs.Screen name="lifestyle" layout={withErrorBoundary} options={{ title: 'Lifestyle', tabBarIcon: ({ color }) => <LifestyleIcon color={color} /> }} />
+        <Tabs.Screen name="more" layout={withErrorBoundary} options={{ title: 'More', tabBarIcon: ({ color }) => <MoreIcon color={color} /> }} />
+        <Tabs.Screen name="insights" layout={withErrorBoundary} options={{ href: null }} />
+        <Tabs.Screen name="log" layout={withErrorBoundary} options={{ href: null }} />
+        <Tabs.Screen name="log/sleep" layout={withErrorBoundary} options={{ href: null }} />
+        <Tabs.Screen name="log/water" layout={withErrorBoundary} options={{ href: null }} />
+        <Tabs.Screen name="log/workout" layout={withErrorBoundary} options={{ href: null }} />
+        <Tabs.Screen name="research" layout={withErrorBoundary} options={{ href: null }} />
+        <Tabs.Screen name="settings" layout={withErrorBoundary} options={{ href: null }} />
       </Tabs>
       <PlusMenu visible={plusOpen} onClose={() => setPlusOpen(false)} />
     </>
