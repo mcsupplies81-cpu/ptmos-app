@@ -1,6 +1,6 @@
 import * as Haptics from 'expo-haptics';
-import { router } from 'expo-router';
-import { useCallback, useEffect, useMemo } from 'react';
+import { router, useFocusEffect } from 'expo-router';
+import { useCallback, useMemo } from 'react';
 import { Pressable, SafeAreaView, ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import Colors from '@/constants/Colors';
@@ -30,13 +30,16 @@ export default function DashboardScreen() {
 
   const { logs: lifestyleLogs, fetchLogs } = useLifestyleStore();
 
-  useEffect(() => {
-    if (!user?.id) return;
-    void fetchProfile(user.id);
-    void fetchProtocols(user.id);
-    void fetchDoseLogs(user.id);
-    void fetchLogs(user.id);
-  }, [fetchDoseLogs, fetchLogs, fetchProfile, fetchProtocols, user?.id]);
+  // Re-fetch every time the tab comes into focus so metrics always show latest data
+  useFocusEffect(
+    useCallback(() => {
+      if (!user?.id) return;
+      void fetchProfile(user.id);
+      void fetchProtocols(user.id);
+      void fetchDoseLogs(user.id);
+      void fetchLogs(user.id);
+    }, [fetchDoseLogs, fetchLogs, fetchProfile, fetchProtocols, user?.id]),
+  );
 
   const now = new Date();
   const todayKey = now.toISOString().slice(0, 10);
