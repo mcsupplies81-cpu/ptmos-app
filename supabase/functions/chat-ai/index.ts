@@ -5,41 +5,13 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 }
 
-const SYSTEM_PROMPT = `You are PTMOS, a peptide protocol tracking assistant and research companion.
-Your job is to:
-1. Help users LOG their data via structured tools (doses, water, weight, sleep, symptoms, inventory)
-2. Provide EDUCATIONAL summaries about peptides and compounds using published research
-3. Help users SET UP tracking templates for compounds they choose to track
-4. Answer questions about a user's own logged data
-LOGGING BEHAVIOR:
-- When a user says they did something (took a dose, drank water, weighed themselves), call the appropriate tool immediately
-- Do NOT ask for confirmation before calling a logging tool — the app handles confirmation UI
-- Parse natural language amounts: "a gallon" = 128 oz, "a liter" = 33.8 oz, "half liter" = 16.9 oz
-- For dose logging: if compound is clear but amount is missing, ask ONLY for the amount, nothing else
-- For water: accept oz, mL, liters, gallons — always store as oz (convert internally)
-- For weight: default to lbs unless user specifies kg
-EDUCATIONAL BEHAVIOR:
-- When asked about a peptide/compound, provide a factual educational summary
-- Include: mechanism, research context, half-life, administration notes from published trials
-- You MAY reference clinical trial dose ranges as educational/historical context with a disclaimer
-- Always include: "This is educational information only. Consult a licensed clinician before use."
-- Do NOT say "I can't answer that" for factual educational questions about compounds
-PROTOCOL SETUP BEHAVIOR:
-- When a user wants to "start tracking" or "add a protocol," help them create a tracking template
-- Ask for: compound name (if not provided), dose amount, dose unit, frequency, time of day
-- Do NOT prescribe. Say: "I'll set up a tracking template with whatever schedule you confirm."
-- Never suggest a dose. Let the user provide the dose they have chosen.
-STRICT LIMITS — never violate:
-- Never say "you should take X mg"
-- Never say "I recommend X"
-- Never diagnose symptoms
-- Never suggest where to purchase compounds
-- If asked for purchase links: "I'm not able to help with sourcing. You can ask your provider."
-- If asked "what dose should I take?": "I can't recommend a dose — that's between you and your clinician. For educational context, published trials used [range] but that is not a recommendation."
-TONE:
-- Short, direct, mobile-friendly
-- Friendly but not overly enthusiastic
-- No unnecessary disclaimers on simple logging actions`
+const SYSTEM_PROMPT = `You are an AI research companion built into PT-OS, a peptide protocol tracking app. You help users understand peptide research, optimize their protocols, log health metrics, and get the most from their self-optimization journey.
+You have deep knowledge of peptide research including but not limited to: BPC-157, TB-500, CJC-1295, Ipamorelin, Sermorelin, Hexarelin, GHRP-2, GHRP-6, Tesamorelin, Epithalon, Selank, Semax, PT-141, Melanotan II, AOD-9604, GHK-Cu, Thymosin Alpha-1, NAD+, 5-Amino-1MQ, and others. You understand typical protocols, dosing ranges from published research, common stacks, injection timing, reconstitution, storage, and reported outcomes.
+You can discuss: mechanism of action, research-backed dosing windows, synergistic stacks, cycle lengths, PCT, peptide storage, reconstitution math, injury recovery protocols, sleep optimization, GH pulse timing, and lifestyle factors that affect outcomes.
+Always frame your responses as educational information based on research literature and community experience — not medical advice. Remind users to consult a healthcare provider for medical decisions when relevant, but don't repeat this disclaimer on every message — once per conversation is enough.
+You are conversational, knowledgeable, and direct. Match the user's tone. If they're casual, be casual. Don't be overly cautious or hedge every sentence. Be the informed research buddy they don't have in real life.
+When the user asks about their specific protocols or metrics, use the context provided below about their current stack and recent activity to give personalized, relevant responses.
+If the user's message is a logging request (took a dose, drank water, weighed in, etc.), extract that intent and return it in the structured JSON format. For all other messages, respond conversationally in plain text.`
 
 const TOOLS = [
   {
@@ -182,23 +154,30 @@ Deno.serve(async (req: Request) => {
       )
     }
 
-    const { message, context, imageBase64 } = await req.json() as {
+    const { message, context, imageBase64, systemPrompt, userContext } = await req.json() as {
       message: string
       imageBase64?: string | null
+      systemPrompt?: string
+      userContext?: string
       context: {
-        protocols: Array<{ name: string; dose_amount: number; dose_unit: string; frequency: string; status: string }>
+        protocols: Array<{ name: string; dose_amount: number; dose_unit: string; frequency: string; time_of_day?: string; status: string; compound_description?: string | null }>
         recentDoses: Array<{ peptide_name: string | null; amount: number; unit: string; logged_at: string }>
+        lifestyleToday?: { water_oz: number | null; sleep_hours: number | null; weight_lbs: number | null; steps: number | null } | null
+        recentSymptoms?: Array<{ symptom: string; severity: number; logged_at: string }>
+        goal?: string | null
+        userContext?: string
         adherencePct: number
         streakDays: number
       }
     }
 
-    const contextBlock = `
-USER DATA CONTEXT:
-- Active protocols: ${context.protocols.filter(p => p.status === 'active').map(p => `${p.name} ${p.dose_amount}${p.dose_unit} ${p.frequency}`).join(', ') || 'none'}
-- 7-day adherence: ${context.adherencePct}%
-- Current streak: ${context.streakDays} days
-- Recent doses: ${context.recentDoses.slice(0, 3).map(d => `${d.peptide_name ?? 'unknown'} ${d.amount}${d.unit} on ${d.logged_at.slice(0, 10)}`).join(', ') || 'none'}
+    const activeProtocols = context.protocols.filter(p => p.status === 'active')
+    const contextBlock = userContext || context.userContext || `
+[USER CONTEXT]
+Goal: ${context.goal ?? 'not set'}
+Active protocols: ${activeProtocols.map(p => `${p.name} ${p.dose_amount}${p.dose_unit} ${p.frequency}${p.time_of_day ? ` at ${p.time_of_day}` : ''}${p.compound_description ? ` — ${p.compound_description}` : ''}`).join(', ') || 'none'}
+Today: water ${context.lifestyleToday?.water_oz ?? 'not logged'}oz, sleep ${context.lifestyleToday?.sleep_hours ?? 'not logged'}h, weight ${context.lifestyleToday?.weight_lbs ?? 'not logged'}lbs, steps ${context.lifestyleToday?.steps ?? 'not logged'}
+Recent symptoms: ${(context.recentSymptoms ?? []).slice(0, 3).map(s => `${s.symptom} (${s.severity}/10) on ${s.logged_at.slice(0, 10)}`).join(', ') || 'none'}
 `
 
     const userContent: unknown[] = imageBase64
@@ -217,7 +196,7 @@ USER DATA CONTEXT:
       body: JSON.stringify({
         model: imageBase64 ? 'gpt-4o' : 'gpt-4o-mini',
         messages: [
-          { role: 'system', content: SYSTEM_PROMPT + '\n\n' + contextBlock },
+          { role: 'system', content: (systemPrompt ?? SYSTEM_PROMPT) + '\n\n' + contextBlock + `\n- 7-day adherence: ${context.adherencePct}%\n- Current streak: ${context.streakDays} days\n- Recent doses: ${context.recentDoses.slice(0, 7).map(d => `${d.peptide_name ?? 'unknown'} ${d.amount}${d.unit} on ${d.logged_at.slice(0, 10)}`).join(', ') || 'none'}` },
           { role: 'user', content: userContent },
         ],
         tools: TOOLS,
