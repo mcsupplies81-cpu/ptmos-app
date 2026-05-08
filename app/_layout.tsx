@@ -44,7 +44,7 @@ export default function RootLayout() {
     // Don't redirect until we know auth state
     if (loading) return;
 
-    const inAuth = segments[0] === '(auth)';
+    const inAuth = segments[0] === '(auth)' || segments[0] === 'auth' || segments[0] === 'onboarding';
 
     if (!session) {
       if (!inAuth) router.replace('/(auth)/welcome');
