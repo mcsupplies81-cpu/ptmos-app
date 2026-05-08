@@ -4,6 +4,7 @@ import { useCallback, useMemo, useState } from 'react';
 import { Pressable, RefreshControl, SafeAreaView, ScrollView, StyleSheet, Text, View } from 'react-native';
 import Svg, { Circle } from 'react-native-svg';
 
+import EmptyState from '@/components/EmptyState';
 import Skeleton from '@/components/Skeleton';
 import Colors from '@/constants/Colors';
 import { displayWeight } from '@/lib/units';
@@ -371,7 +372,15 @@ export default function DashboardScreen() {
         <View style={styles.card}>
           {loading ? (
             <TodayStackSkeleton />
-          ) : activeProtocols.length === 0 ? <Text style={styles.empty}>No active protocols — tap + to add one</Text> : activeProtocols.map((p, idx) => {
+          ) : activeProtocols.length === 0 ? (
+            <EmptyState
+              emoji="💊"
+              title="No active protocols"
+              subtitle="Create a protocol to build today's stack and start tracking doses."
+              actionLabel="Create Protocol"
+              onAction={() => router.push('/protocol/create')}
+            />
+          ) : activeProtocols.map((p, idx) => {
             const logged = loggedTodayByProtocol.has(p.id) || loggedTodayByName.has(p.name.toLowerCase());
             return (
               <View key={p.id} style={[styles.protocolRow, idx === activeProtocols.length - 1 && styles.lastRow]}>
@@ -526,7 +535,15 @@ export default function DashboardScreen() {
         <View style={styles.card}>
           {loading ? (
             <RecentActivitySkeleton />
-          ) : recentActivity.length === 0 ? <Text style={styles.empty}>No doses logged yet</Text> : recentActivity.map((d, idx) => (
+          ) : recentActivity.length === 0 ? (
+            <EmptyState
+              emoji="💉"
+              title="No recent activity"
+              subtitle="Log your first dose to see recent activity here."
+              actionLabel="Log Dose"
+              onAction={() => router.push('/log/dose')}
+            />
+          ) : recentActivity.map((d, idx) => (
             <View key={d.id} style={[styles.activityRow, idx === recentActivity.length - 1 && styles.lastRow]}>
               <View style={styles.activityDot} />
               <View style={styles.rowMain}>
@@ -681,5 +698,4 @@ const styles = StyleSheet.create({
   activityRow: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: Colors.border },
   activityDot: { width: 8, height: 8, borderRadius: 4, backgroundColor: Colors.accent },
   lastRow: { borderBottomWidth: 0 },
-  empty: { color: Colors.textSecondary, textAlign: 'center', paddingVertical: 12, fontSize: 15 },
 });

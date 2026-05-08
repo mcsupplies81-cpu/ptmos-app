@@ -12,6 +12,7 @@ import {
 } from 'react-native'
 import { router } from 'expo-router'
 
+import EmptyState from '@/components/EmptyState'
 import { Copy } from '@/constants/Copy'
 import Colors from '@/constants/Colors'
 import { useAuthStore } from '@/stores/authStore'
@@ -66,7 +67,13 @@ export default function ResearchScreen() {
         <FlatList
           data={filteredItems}
           keyExtractor={(item) => item.id}
-          ListEmptyComponent={<Text style={styles.empty}>No items found</Text>}
+          ListEmptyComponent={
+            <EmptyState
+              emoji="🔬"
+              title="No research found"
+              subtitle="Try a different search term or category to find matching research."
+            />
+          }
           ListFooterComponent={<Text style={styles.disclaimer}>{Copy.researchDisclaimer}</Text>}
           renderItem={({ item }) => {
             const categoryColor = CATEGORY_COLORS[item.category] ?? CATEGORY_COLORS.Other
@@ -135,6 +142,5 @@ const styles = StyleSheet.create({
   categoryBadgeText: { fontSize: 11, fontWeight: '600' },
   summary: { fontSize: 13, color: Colors.textSecondary, marginTop: 4 },
   chevron: { fontSize: 20, color: Colors.textSecondary },
-  empty: { color: Colors.textSecondary, textAlign: 'center', marginTop: 24 },
   disclaimer: { fontSize: 11, color: Colors.textSecondary, textAlign: 'center', paddingHorizontal: 16, paddingBottom: 24 },
 })

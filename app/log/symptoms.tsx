@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Pressable, SafeAreaView, ScrollView, StyleSheet, Text, View } from 'react-native';
 import Colors from '@/constants/Colors';
+import EmptyState from '@/components/EmptyState';
 import ScreenHeader from '@/components/ScreenHeader';
 import { useSymptomStore } from '@/stores/symptomStore';
 import { useAuthStore } from '@/stores/authStore';
@@ -91,7 +92,11 @@ export default function SymptomsScreen() {
 
         <Text style={styles.sectionLabel}>Today</Text>
         {todaysLogs.length === 0 ? (
-          <Text style={styles.emptyText}>No symptoms logged today</Text>
+          <EmptyState
+            emoji="🙂"
+            title="No symptoms logged today"
+            subtitle="Log a symptom if something comes up, or use Quick Add below to track patterns."
+          />
         ) : (
           todaysLogs.map((log) => {
             const color = severityColor(log.severity);
@@ -170,7 +175,6 @@ const styles = StyleSheet.create({
   addButtonText: { color: Colors.white, fontWeight: '700' },
   sectionLabel: { fontSize: 13, fontWeight: '600', color: Colors.textSecondary, letterSpacing: 1, paddingHorizontal: 20, paddingBottom: 8 },
   sectionLabelQuick: { fontSize: 13, fontWeight: '600', color: Colors.textSecondary, letterSpacing: 1, paddingHorizontal: 20, paddingTop: 16, paddingBottom: 8 },
-  emptyText: { color: Colors.textSecondary, textAlign: 'center', marginTop: 20 },
   logCard: { backgroundColor: Colors.card, borderRadius: 12, padding: 12, marginHorizontal: 16, marginBottom: 8, borderWidth: 1, borderColor: Colors.border },
   logRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   logNameRow: { flexDirection: 'row', alignItems: 'center', gap: 10, flex: 1 },

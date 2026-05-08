@@ -3,6 +3,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { ActivityIndicator, Alert, FlatList, KeyboardAvoidingView, Modal, Platform, Pressable, SafeAreaView, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 
+import EmptyState from '@/components/EmptyState';
 import ScreenHeader from '@/components/ScreenHeader';
 import Colors from '@/constants/Colors';
 import { searchCompounds, type Compound } from '@/constants/compounds';
@@ -284,6 +285,13 @@ export default function DoseLogScreen() {
               keyboardShouldPersistTaps="handled"
               data={[...compoundResults, { id: 'custom-compound', name: 'Custom compound', aliases: [], category: 'other', summary: '' } as Compound]}
               keyExtractor={(item) => item.id}
+              ListEmptyComponent={
+                <EmptyState
+                  emoji="🔎"
+                  title="No compounds found"
+                  subtitle="Try a different search term, or enter a custom compound name."
+                />
+              }
               renderItem={({ item }) => (
                 <Pressable
                   onPress={() => {
