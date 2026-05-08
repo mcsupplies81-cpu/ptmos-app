@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { ActivityIndicator, Alert, SafeAreaView, FlatList, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Alert, SafeAreaView, FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
 import { router } from 'expo-router';
 import Colors from '@/constants/Colors';
 import { calcAdherence, useProtocolStore, type ProtocolStatus } from '@/stores/protocolStore';
@@ -104,14 +104,9 @@ export default function ProtocolsScreen() {
         </Pressable>
       </View>
 
-      <ScrollView
-        horizontal
-        showsHorizontalScrollIndicator={false}
-        contentContainerStyle={styles.chipsContainer}
-      >
+      <View style={styles.chipsContainer}>
         {(['All', 'Active', 'Paused', 'Completed'] as const).map((label) => {
           const selected = filter === label;
-
           return (
             <Pressable
               key={label}
@@ -122,7 +117,7 @@ export default function ProtocolsScreen() {
             </Pressable>
           );
         })}
-      </ScrollView>
+      </View>
 
       <FlatList
         data={filteredProtocols}
@@ -213,7 +208,7 @@ const styles = StyleSheet.create({
     elevation: 3,
   },
   addButtonText: { color: Colors.white, fontSize: 13, fontWeight: '800' },
-  chipsContainer: { flexDirection: 'row', gap: 8, paddingHorizontal: 16, marginBottom: 12, alignItems: 'flex-start' },
+  chipsContainer: { flexDirection: 'row', gap: 8, paddingHorizontal: 16, marginBottom: 12, alignItems: 'center', flexShrink: 0 },
   chip: { borderRadius: 999, paddingHorizontal: 12, paddingVertical: 6 },
   chipSelected: { backgroundColor: Colors.accent, borderWidth: 1, borderColor: Colors.accent },
   chipUnselected: { backgroundColor: Colors.card, borderWidth: 1, borderColor: Colors.border },
