@@ -6,10 +6,12 @@ import Svg, { Circle } from 'react-native-svg';
 import ScreenHeader from '@/components/ScreenHeader';
 import EmptyState from '@/components/EmptyState';
 import Colors from '@/constants/Colors';
+import { displayWeight } from '@/lib/units';
 import { useAuthStore } from '@/stores/authStore';
 import { useDoseLogStore } from '@/stores/doseLogStore';
 import { useLifestyleStore } from '@/stores/lifestyleStore';
 import { calcAdherence, useProtocolStore } from '@/stores/protocolStore';
+import { useProfileStore } from '@/stores/profileStore';
 import { useSymptomStore } from '@/stores/symptomStore';
 
 const CIRC = 2 * Math.PI * 26;
@@ -23,6 +25,7 @@ export default function InsightsScreen() {
   const fetchProtocols = useProtocolStore((s) => s.fetchProtocols);
   const symptomLogs = useSymptomStore((s) => s.logs);
   const fetchSymptoms = useSymptomStore((s) => s.fetchLogs);
+  const profile = useProfileStore((s) => s.profile);
   const lifestyleLogs = useLifestyleStore((s) => s.logs);
   const fetchLifestyle = useLifestyleStore((s) => s.fetchLogs);
 
@@ -94,8 +97,8 @@ export default function InsightsScreen() {
     if (!latestWithWeight?.weight_lbs) {
       return '—';
     }
-    return `${latestWithWeight.weight_lbs} lbs`;
-  }, [lifestyleLogs]);
+    return displayWeight(latestWithWeight.weight_lbs, profile?.weight_unit ?? 'lbs');
+  }, [lifestyleLogs, profile?.weight_unit]);
 
   const summaryText = `You've taken doses on ${adherencePct}% of days this week${streakDays > 0 ? ` and are on a ${streakDays}-day streak` : ''}. ${recentSymptoms.length > 0 ? `You logged ${recentSymptoms.length} symptom${recentSymptoms.length > 1 ? 's' : ''} this week.` : 'No symptoms logged this week.'} ${avgSleep !== '—' ? `Average sleep was ${avgSleep}.` : ''}`;
 

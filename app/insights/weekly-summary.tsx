@@ -4,10 +4,12 @@ import { Pressable, SafeAreaView, ScrollView, Share, StyleSheet, Text, View } fr
 
 import ScreenHeader from '@/components/ScreenHeader';
 import Colors from '@/constants/Colors';
+import { displayWeight } from '@/lib/units';
 import { useAuthStore } from '@/stores/authStore';
 import { useDoseLogStore } from '@/stores/doseLogStore';
 import { useLifestyleStore } from '@/stores/lifestyleStore';
 import { useProtocolStore } from '@/stores/protocolStore';
+import { useProfileStore } from '@/stores/profileStore';
 import { useSymptomStore } from '@/stores/symptomStore';
 
 export default function WeeklySummaryScreen() {
@@ -17,6 +19,7 @@ export default function WeeklySummaryScreen() {
   const fetchProtocols = useProtocolStore((s) => s.fetchProtocols);
   const symptomLogs = useSymptomStore((s) => s.logs);
   const fetchSymptoms = useSymptomStore((s) => s.fetchLogs);
+  const profile = useProfileStore((s) => s.profile);
   const lifestyleLogs = useLifestyleStore((s) => s.logs);
   const fetchLifestyle = useLifestyleStore((s) => s.fetchLogs);
 
@@ -82,8 +85,8 @@ export default function WeeklySummaryScreen() {
   const avgWeight = useMemo(() => {
     const latestWithWeight = lifestyleLogs.find((l) => l.weight_lbs != null);
     if (!latestWithWeight?.weight_lbs) return null;
-    return `${latestWithWeight.weight_lbs} lbs`;
-  }, [lifestyleLogs]);
+    return displayWeight(latestWithWeight.weight_lbs, profile?.weight_unit ?? 'lbs');
+  }, [lifestyleLogs, profile?.weight_unit]);
 
   const symptomsThisWeek = useMemo(
     () => symptomLogs.filter((l) => weekDateSet.has(l.logged_at.slice(0, 10))),
