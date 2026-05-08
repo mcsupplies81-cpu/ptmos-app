@@ -215,6 +215,7 @@ export default function ChatScreen() {
   const user = useAuthStore((s) => s.user);
   const fetchDoseLogs = useDoseLogStore((s) => s.fetchDoseLogs);
   const upsertLifestyle = useLifestyleStore((s) => s.upsertLog);
+  const fetchLifestyleLogs = useLifestyleStore((s) => s.fetchLogs);
   const addSymptom = useSymptomStore((s) => s.addLog);
   const addVial = useInventoryStore((s) => s.addVial);
   const fetchInventory = useInventoryStore((s) => s.fetchInventory);
@@ -261,19 +262,26 @@ export default function ChatScreen() {
 
       else if (intent === 'log_weight') {
         const today = new Date().toISOString().slice(0, 10);
-        await upsertLifestyle(
-          { date: today, weight_lbs: Number(payload.value) || null, water_oz: null, calories: null, protein_g: null, sleep_hours: null, steps: null, workout_notes: null, workout_type: null, workout_duration_min: null, workout_intensity: null, mood: null, energy: null, energy_level: null, meal_notes: null },
-          user.id
-        );
-        addMessage({ role: 'success', text: `Weight logged: ${payload.value} lbs ✓` });
+        const rawWeight = Number(payload.value) || null;
+        const weightLbs = rawWeight && payload.unit === 'kg'
+          ? Math.round(rawWeight * 2.20462 * 10) / 10
+          : rawWeight;
+        await upsertLifestyle({ date: today, weight_lbs: weightLbs }, user.id);
+        if (weightLbs !== null) {
+          const { error: profileError } = await supabase
+            .from('profiles')
+            .update({ weight_lbs: weightLbs })
+            .eq('id', user.id);
+          if (profileError) throw profileError;
+        }
+        await fetchLifestyleLogs(user.id);
+        addMessage({ role: 'success', text: `Weight logged: ${weightLbs ?? '?'} lbs ✓` });
       }
 
       else if (intent === 'log_sleep') {
         const today = new Date().toISOString().slice(0, 10);
-        await upsertLifestyle(
-          { date: today, sleep_hours: Number(payload.hours) || null, weight_lbs: null, water_oz: null, calories: null, protein_g: null, steps: null, workout_notes: null, workout_type: null, workout_duration_min: null, workout_intensity: null, mood: null, energy: null, energy_level: null, meal_notes: null },
-          user.id
-        );
+        await upsertLifestyle({ date: today, sleep_hours: Number(payload.hours) || null }, user.id);
+        await fetchLifestyleLogs(user.id);
         addMessage({ role: 'success', text: `Sleep logged: ${payload.hours} hours ✓` });
       }
 
@@ -292,20 +300,16 @@ export default function ChatScreen() {
 
       else if (intent === 'log_steps') {
         const today = new Date().toISOString().slice(0, 10);
-        await upsertLifestyle(
-          { date: today, steps: Number(payload.steps) || null, weight_lbs: null, water_oz: null, calories: null, protein_g: null, sleep_hours: null, workout_notes: null, workout_type: null, workout_duration_min: null, workout_intensity: null, mood: null, energy: null, energy_level: null, meal_notes: null },
-          user.id
-        );
+        await upsertLifestyle({ date: today, steps: Number(payload.steps) || null }, user.id);
+        await fetchLifestyleLogs(user.id);
         addMessage({ role: 'success', text: `Steps logged: ${Number(payload.steps).toLocaleString()} ✓` });
       }
 
       else if (intent === 'log_water') {
         const today = new Date().toISOString().slice(0, 10);
         const oz = Number((payload as { amount_oz?: number }).amount_oz) || 0;
-        await upsertLifestyle(
-          { date: today, water_oz: oz, weight_lbs: null, calories: null, protein_g: null, sleep_hours: null, steps: null, workout_notes: null, workout_type: null, workout_duration_min: null, workout_intensity: null, mood: null, energy: null, energy_level: null, meal_notes: null },
-          user.id
-        );
+        await upsertLifestyle({ date: today, water_oz: oz }, user.id);
+        await fetchLifestyleLogs(user.id);
         addMessage({ role: 'success', text: `Water logged: ${oz} oz ✓` });
       }
 
@@ -337,7 +341,7 @@ export default function ChatScreen() {
       console.error('[handleConfirm] error:', e?.message ?? e);
       addMessage({ role: 'error', text: `Failed: ${e?.message ?? 'something went wrong'}` });
     }
-  }, [user?.id, updateMessageStatus, addMessage, fetchDoseLogs, upsertLifestyle, addSymptom, addVial, fetchInventory]);
+  }, [user?.id, updateMessageStatus, addMessage, fetchDoseLogs, upsertLifestyle, fetchLifestyleLogs, addSymptom, addVial, fetchInventory]);
 
   const callAI = useCallback(async (text: string, imageBase64?: string): Promise<{
     type: string;
