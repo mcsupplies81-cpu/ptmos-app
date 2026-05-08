@@ -128,9 +128,17 @@ export default function LifestyleScreen() {
 
   const summaryRows = [
     { key: 'weight', emoji: '⚖️', label: 'Weight', value: selectedLog?.weight_lbs ? `${selectedLog.weight_lbs} lbs` : '—' },
-    { key: 'water', emoji: '💧', label: 'Water', value: selectedLog?.water_oz ? `${selectedLog.water_oz} oz` : '—' },
-    { key: 'sleep', emoji: '😴', label: 'Sleep', value: selectedLog?.sleep_hours ? `${selectedLog.sleep_hours} hr` : '—' },
-    { key: 'workout', emoji: '🏃', label: 'Workout', value: selectedLog?.workout_notes || '—' },
+    { key: 'water', emoji: '💧', label: 'Water', value: selectedLog?.water_oz ? `${selectedLog.water_oz} oz` : '—', route: '/log/water' },
+    { key: 'sleep', emoji: '😴', label: 'Sleep', value: selectedLog?.sleep_hours ? `${selectedLog.sleep_hours} hr` : '—', route: '/log/sleep' },
+    {
+      key: 'workout',
+      emoji: '🏃',
+      label: 'Workout',
+      value: selectedLog?.workout_type
+        ? `${selectedLog.workout_type}${selectedLog.workout_duration_min ? ` • ${selectedLog.workout_duration_min} min` : ''}`
+        : selectedLog?.workout_notes || '—',
+      route: '/log/workout',
+    },
     {
       key: 'mood',
       emoji: '😊',
@@ -178,6 +186,10 @@ export default function LifestyleScreen() {
                 style={styles.metricRow}
                 onPress={() => {
                   if (!isViewingToday) return;
+                  if ('route' in row && row.route) {
+                    router.push(row.route as '/log/sleep' | '/log/water' | '/log/workout');
+                    return;
+                  }
                   if (!isEditing) setIsEditing(true);
                   setFocusedMetric(row.key);
                 }}
@@ -194,9 +206,26 @@ export default function LifestyleScreen() {
           </View>
 
           {isViewingToday && (
-            <Pressable style={styles.addButton} onPress={() => setIsEditing(true)}>
-              <Text style={styles.addButtonText}>+ Add New Log</Text>
-            </Pressable>
+            <View style={styles.quickAddWrap}>
+              <Text style={styles.sectionHeader}>QUICK ADD</Text>
+              <View style={styles.quickAddRow}>
+                <Pressable style={styles.quickAddButton} onPress={() => router.push('/log/sleep')}>
+                  <Text style={styles.quickAddEmoji}>😴</Text>
+                  <Text style={styles.quickAddText}>Sleep</Text>
+                </Pressable>
+                <Pressable style={styles.quickAddButton} onPress={() => router.push('/log/water')}>
+                  <Text style={styles.quickAddEmoji}>💧</Text>
+                  <Text style={styles.quickAddText}>Water</Text>
+                </Pressable>
+                <Pressable style={styles.quickAddButton} onPress={() => router.push('/log/workout')}>
+                  <Text style={styles.quickAddEmoji}>🏃</Text>
+                  <Text style={styles.quickAddText}>Workout</Text>
+                </Pressable>
+              </View>
+              <Pressable style={styles.addButton} onPress={() => setIsEditing(true)}>
+                <Text style={styles.addButtonText}>+ Add Full Log</Text>
+              </Pressable>
+            </View>
           )}
 
           {isEditing && isViewingToday && (
@@ -312,7 +341,12 @@ const styles = StyleSheet.create({
   metricValue: { fontSize: 13, color: Colors.textSecondary, marginTop: 1, maxWidth: 180 },
   timeText: { fontSize: 12, color: Colors.textSecondary, marginLeft: 'auto' },
   chevron: { color: Colors.textSecondary, marginLeft: 8, fontSize: 18 },
-  addButton: { marginTop: 12, borderWidth: 1, borderColor: Colors.accent, borderRadius: 12, height: 46, alignItems: 'center', justifyContent: 'center' },
+  quickAddWrap: { marginTop: 14 },
+  quickAddRow: { flexDirection: 'row', gap: 10, marginBottom: 12 },
+  quickAddButton: { flex: 1, backgroundColor: Colors.card, borderWidth: 1, borderColor: Colors.border, borderRadius: 14, paddingVertical: 14, alignItems: 'center', gap: 4 },
+  quickAddEmoji: { fontSize: 22 },
+  quickAddText: { color: Colors.text, fontSize: 13, fontWeight: '800' },
+  addButton: { borderWidth: 1, borderColor: Colors.accent, borderRadius: 12, height: 46, alignItems: 'center', justifyContent: 'center' },
   addButtonText: { color: Colors.accent, fontWeight: '700' },
   formWrap: { marginTop: 16, gap: 10 },
   metricCard: { backgroundColor: Colors.card, borderRadius: 10, borderWidth: 1, borderColor: Colors.border, padding: 12, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
