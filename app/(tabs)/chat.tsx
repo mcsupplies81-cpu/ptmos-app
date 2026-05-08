@@ -776,6 +776,7 @@ Recent symptoms: ${recentSymptomsSummary}`;
               return <View style={styles.userBubble}><Text style={styles.userText}>{message.text}</Text></View>;
             }
             if (message.role === 'assistant') {
+              if (message.status === 'streaming' && message.text.trim() === '') return null;
               const isFirstAssistantMessage = messages.findIndex((m) => m.role === 'assistant') === index;
               if (message.text.startsWith('✅')) {
                 return (
