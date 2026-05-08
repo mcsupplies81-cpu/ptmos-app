@@ -125,7 +125,10 @@ export default function DashboardScreen() {
   }, [fetchDoseLogs, fetchLogs, fetchProfile, fetchProtocols, user?.id]);
 
   const now = new Date();
+  // Local date for lifestyle_logs (stored with local date key)
   const todayKey = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+  // UTC date for dose_logs (logged_at is stored as UTC ISO string)
+  const todayKeyUTC = now.toISOString().slice(0, 10);
 
   const greeting = useMemo(() => {
     const hour = new Date().getHours();
@@ -147,7 +150,7 @@ export default function DashboardScreen() {
   );
 
   const activeProtocols = useMemo(() => protocols.filter((p) => p.status === 'active'), [protocols]);
-  const todayLogs = useMemo(() => doseLogs.filter((d) => d.logged_at.slice(0, 10) === todayKey), [doseLogs, todayKey]);
+  const todayLogs = useMemo(() => doseLogs.filter((d) => d.logged_at.slice(0, 10) === todayKeyUTC), [doseLogs, todayKeyUTC]);
 
   const loggedTodayByProtocol = useMemo(
     () =>
