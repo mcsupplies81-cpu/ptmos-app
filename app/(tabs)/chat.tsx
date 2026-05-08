@@ -12,6 +12,7 @@ import {
   View,
 } from 'react-native';
 
+import EmptyState from '@/components/EmptyState';
 import Skeleton from '@/components/Skeleton';
 import Colors from '@/constants/Colors';
 import { supabase } from '@/lib/supabase';
@@ -665,10 +666,11 @@ Recent symptoms: ${recentSymptomsSummary}`;
           contentContainerStyle={styles.messagesContent}
           onLayout={() => flatListRef.current?.scrollToEnd({ animated: false })}
           ListEmptyComponent={
-            <View style={styles.emptyState}>
-              <Text style={styles.emptyEmoji}>💬</Text>
-              <Text style={styles.emptyText}>Ask anything or log a dose</Text>
-            </View>
+            <EmptyState
+              emoji="💬"
+              title="Start a conversation"
+              subtitle="Ask about protocols, dosing, symptoms, or log an update in plain language."
+            />
           }
           ListFooterComponent={isAiResponding ? <AssistantMessageSkeleton /> : null}
           renderItem={({ item: message }) => {
@@ -819,9 +821,6 @@ const styles = StyleSheet.create({
   clearText: { fontSize: 13, color: Colors.textSecondary },
   messages: { flex: 1 },
   messagesContent: { paddingHorizontal: 16, paddingVertical: 12, gap: 10 },
-  emptyState: { alignItems: 'center', justifyContent: 'center', paddingTop: 80 },
-  emptyEmoji: { fontSize: 32 },
-  emptyText: { color: Colors.textSecondary, fontSize: 14, textAlign: 'center' },
   userBubble: { backgroundColor: Colors.accent, borderRadius: 18, borderBottomRightRadius: 4, padding: 12, maxWidth: '80%', alignSelf: 'flex-end', marginVertical: 2 },
   userText: { color: Colors.white, fontSize: 15 },
   assistantBubble: {

@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react';
 import { Pressable, SafeAreaView, ScrollView, StyleSheet, Text, View } from 'react-native';
 import Svg, { Circle } from 'react-native-svg';
 import { router, useLocalSearchParams } from 'expo-router';
+import EmptyState from '@/components/EmptyState';
 import ScreenHeader from '@/components/ScreenHeader';
 import Skeleton from '@/components/Skeleton';
 import Colors from '@/constants/Colors';
@@ -116,7 +117,13 @@ export default function ProtocolDetailScreen() {
 
         <Text style={styles.sectionLabel}>RECENT LOGS</Text>
         {recentLogs.length === 0 ? (
-          <Text style={styles.emptyLogs}>No doses logged yet</Text>
+          <EmptyState
+            emoji="💉"
+            title="No doses logged"
+            subtitle="Log a dose for this protocol to see recent activity here."
+            actionLabel="Log Dose"
+            onAction={() => router.push('/log/dose')}
+          />
         ) : (
           recentLogs.map((log) => (
             <View key={log.id} style={styles.logRow}>
@@ -251,7 +258,6 @@ const styles = StyleSheet.create({
   },
   logDate: { color: Colors.text, fontSize: 14 },
   logAmount: { color: Colors.text, fontSize: 14, fontWeight: '600' },
-  emptyLogs: { textAlign: 'center', color: Colors.textSecondary, paddingVertical: 16 },
   bottomBar: {
     position: 'absolute',
     bottom: 0,

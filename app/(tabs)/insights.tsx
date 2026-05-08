@@ -189,7 +189,13 @@ export default function InsightsScreen() {
         <View style={styles.sectionBlock}>
           <Text style={styles.sectionLabel}>ACTIVE PROTOCOLS</Text>
           {activeProtocols.length === 0 ? (
-            <Text style={styles.emptyText}>No active protocols</Text>
+            <EmptyState
+              emoji="💊"
+              title="No active protocols"
+              subtitle="Create or reactivate a protocol to include adherence insights here."
+              actionLabel="Create Protocol"
+              onAction={() => router.push('/protocol/create')}
+            />
           ) : (
             activeProtocols.map((protocol) => (
               <View key={protocol.id} style={styles.protocolCard}>
@@ -210,7 +216,13 @@ export default function InsightsScreen() {
         <View style={styles.sectionBlock}>
           <Text style={styles.sectionLabel}>SYMPTOMS THIS WEEK</Text>
           {recentSymptoms.length === 0 ? (
-            <Text style={styles.emptyText}>No symptoms logged this week 👍</Text>
+            <EmptyState
+              emoji="👍"
+              title="No symptoms this week"
+              subtitle="Symptoms you log will appear here so you can spot patterns over time."
+              actionLabel="Log Symptoms"
+              onAction={() => router.push('/log/symptoms')}
+            />
           ) : (
             recentSymptoms.map((symptom) => {
               const severityColor = symptom.severity < 4 ? Colors.success : symptom.severity <= 6 ? Colors.warning : Colors.error;
@@ -288,7 +300,6 @@ const styles = StyleSheet.create({
   barItem: { alignItems: 'center' },
   barDay: { fontSize: 10, color: Colors.textSecondary, marginTop: 4 },
   sectionBlock: { paddingHorizontal: 16, marginBottom: 4 },
-  emptyText: { color: Colors.textSecondary, textAlign: 'center', paddingVertical: 12 },
   protocolCard: {
     backgroundColor: Colors.card,
     borderRadius: 12,
