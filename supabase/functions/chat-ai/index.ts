@@ -145,9 +145,9 @@ Deno.serve(async (req: Request) => {
   }
 
   try {
-    const openaiKey = Deno.env.get('OPENAI_API_KEY')
+    const groqKey = Deno.env.get('GROQ_API_KEY')
 
-    if (!openaiKey || openaiKey === 'placeholder') {
+    if (!groqKey) {
       return new Response(
         JSON.stringify({ type: 'fallback', reason: 'AI not configured yet' }),
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 }
@@ -180,38 +180,31 @@ Today: water ${context.lifestyleToday?.water_oz ?? 'not logged'}oz, sleep ${cont
 Recent symptoms: ${(context.recentSymptoms ?? []).slice(0, 3).map(s => `${s.symptom} (${s.severity}/10) on ${s.logged_at.slice(0, 10)}`).join(', ') || 'none'}
 `
 
-    const userContent: unknown[] = imageBase64
-      ? [
-          { type: 'text', text: message || 'Describe this image and help me log or understand it.' },
-          { type: 'image_url', image_url: { url: `data:image/jpeg;base64,${imageBase64}`, detail: 'low' } },
-        ]
-      : [{ type: 'text', text: message }]
+    const userContent = message || 'Describe this image and help me log or understand it.'
 
-    const response = await fetch('https://api.openai.com/v1/chat/completions', {
+    const response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
       method: 'POST',
       headers: {
-        'Authorization': `Bearer ${openaiKey}`,
+        'Authorization': `Bearer ${groqKey}`,
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        model: 'gpt-4o',
+        model: 'llama-3.3-70b-versatile',
         messages: [
           { role: 'system', content: (systemPrompt ?? SYSTEM_PROMPT) + '\n\n' + contextBlock + `\n- 7-day adherence: ${context.adherencePct}%\n- Current streak: ${context.streakDays} days\n- Recent doses: ${context.recentDoses.slice(0, 7).map(d => `${d.peptide_name ?? 'unknown'} ${d.amount}${d.unit} on ${d.logged_at.slice(0, 10)}`).join(', ') || 'none'}` },
           { role: 'user', content: userContent },
         ],
-        tools: TOOLS,
-        tool_choice: 'auto',
-        max_tokens: 300,
+        max_tokens: 600,
         stream: true,
       }),
     })
 
     if (!response.ok || !response.body) {
-      let errMsg = `OpenAI error ${response.status}`
+      let errMsg = `Groq error ${response.status}`
       try {
         const data = await response.json()
         errMsg = data.error?.message ?? errMsg
-        console.error('[chat-ai] OpenAI error:', JSON.stringify(data.error))
+        console.error('[chat-ai] Groq error:', JSON.stringify(data.error))
       } catch {
         errMsg = await response.text().catch(() => errMsg)
       }
