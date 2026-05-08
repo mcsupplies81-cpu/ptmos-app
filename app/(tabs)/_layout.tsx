@@ -1,3 +1,4 @@
+import type { BottomTabBarButtonProps } from '@react-navigation/bottom-tabs';
 import { Tabs } from 'expo-router';
 import { type ReactNode, useState } from 'react';
 import { Pressable, Text, View } from 'react-native';
@@ -97,7 +98,7 @@ export default function TabsLayout() {
                 <Text style={{ color: '#fff', fontSize: 28, lineHeight: 32, fontWeight: '300' }}>+</Text>
               </View>
             ),
-            tabBarButton: (props) => <Pressable {...(props as any)} onPress={() => setPlusOpen(true)} />,
+            tabBarButton: (props: BottomTabBarButtonProps) => <Pressable {...props} onPress={() => setPlusOpen(true)} />,
           }}
         />
         <Tabs.Screen name="lifestyle" layout={withErrorBoundary} options={{ title: 'Lifestyle', tabBarIcon: ({ color }) => <LifestyleIcon color={color} /> }} />
