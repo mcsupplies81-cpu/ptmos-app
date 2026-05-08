@@ -7,6 +7,7 @@ import { useSubscriptionStore } from '@/stores/subscriptionStore';
 import { initPurchases } from '@/lib/purchases';
 import { scheduleDoseReminders } from '@/lib/notifications';
 import { useProtocolStore } from '@/stores/protocolStore';
+import ErrorBoundary from '@/components/ErrorBoundary';
 import OfflineBanner from '@/components/OfflineBanner';
 
 export default function RootLayout() {
@@ -74,12 +75,14 @@ export default function RootLayout() {
   return (
     <>
       <OfflineBanner />
-      <Stack screenOptions={{ headerShown: false }}>
-        <Stack.Screen name="log/sleep" options={{ presentation: 'modal', animation: 'slide_from_bottom' }} />
-        <Stack.Screen name="log/water" options={{ presentation: 'modal', animation: 'slide_from_bottom' }} />
-        <Stack.Screen name="log/workout" options={{ presentation: 'modal', animation: 'slide_from_bottom' }} />
-        <Stack.Screen name="paywall" options={{ presentation: 'modal', animation: 'slide_from_bottom' }} />
-      </Stack>
+      <ErrorBoundary>
+        <Stack screenOptions={{ headerShown: false }}>
+          <Stack.Screen name="log/sleep" options={{ presentation: 'modal', animation: 'slide_from_bottom' }} />
+          <Stack.Screen name="log/water" options={{ presentation: 'modal', animation: 'slide_from_bottom' }} />
+          <Stack.Screen name="log/workout" options={{ presentation: 'modal', animation: 'slide_from_bottom' }} />
+          <Stack.Screen name="paywall" options={{ presentation: 'modal', animation: 'slide_from_bottom' }} />
+        </Stack>
+      </ErrorBoundary>
     </>
   );
 }
