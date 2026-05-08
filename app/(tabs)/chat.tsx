@@ -325,7 +325,7 @@ export default function ChatScreen() {
   const [isAiResponding, setIsAiResponding] = useState(false);
   const flatListRef = useRef<FlatList<ChatMessage>>(null);
   const textInputRef = useRef<TextInput>(null);
-  const { messages, addMessage, updateMessageStatus, clearMessages } = useChatStore();
+  const { messages, addMessage, updateMessageStatus, updateMessageContent, clearMessages } = useChatStore();
   const latestMessage = messages[messages.length - 1];
   const shouldShowTypingIndicator = isAiResponding
     && !(latestMessage?.role === 'assistant' && latestMessage.text.trim().length > 0);
@@ -358,8 +358,6 @@ export default function ChatScreen() {
     return () => clearTimeout(timer);
   }, []);
 
-  // Scroll to bottom whenever a new message arrives or an existing message changes
-  // (for example, streamed assistant content or status updates).
   useEffect(() => {
     if (messages.length === 0) return;
     return scrollToBottom(true);
@@ -482,7 +480,7 @@ export default function ChatScreen() {
     }
   }, [user?.id, updateMessageStatus, addMessage, fetchDoseLogs, upsertLifestyle, fetchLifestyleLogs, addSymptom, addVial, fetchInventory]);
 
-  const callAI = useCallback(async (text: string, imageBase64?: string): Promise<ChatAiResult | null> => {
+  const callAI = useCallback(async (text: string, messageId: string, imageBase64?: string): Promise<ChatAiResult | null> => {
     try {
       const last7 = Array.from({ length: 7 }).map((_, i) => {
         const d = new Date(); d.setDate(d.getDate() - i);
@@ -524,8 +522,16 @@ Active protocols: ${currentStackSummary}
 Today: ${todaySummary}
 Recent symptoms: ${recentSymptomsSummary}`;
 
-      const { data, error } = await supabase.functions.invoke('chat-ai', {
-        body: {
+      const sessionResult = await supabase.auth.getSession();
+      const accessToken = sessionResult.data.session?.access_token;
+      const supabaseUrl = (supabase as unknown as { supabaseUrl: string }).supabaseUrl;
+      const response = await fetch(`${supabaseUrl}/functions/v1/chat-ai`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${accessToken}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
           message: text,
           imageBase64: imageBase64 ?? null,
           systemPrompt: AI_SYSTEM_PROMPT,
@@ -558,18 +564,70 @@ Recent symptoms: ${recentSymptomsSummary}`;
             adherencePct,
             streakDays,
           },
-        },
+        }),
       });
-      if (error) {
-        console.error('[chat-ai] invoke error:', JSON.stringify(error));
-        return { type: 'error', reason: error.message };
+
+      if (!response.ok) {
+        const reason = await response.text();
+        return { type: 'error', reason: reason || `HTTP ${response.status}` };
       }
-      return data as ChatAiResult;
+
+      const contentType = response.headers.get('Content-Type') ?? '';
+      if (!contentType.includes('text/event-stream')) {
+        const data = await response.json();
+        return data as ChatAiResult;
+      }
+
+      const reader = response.body?.getReader();
+      if (!reader) return { type: 'error', reason: 'Streaming response is not supported on this device.' };
+
+      const decoder = new TextDecoder();
+      let buffer = '';
+      let accumulatedText = '';
+      let actionResult: ChatAiResult | null = null;
+      let currentEvent = 'message';
+
+      const processLine = (line: string) => {
+        if (line.startsWith('event: ')) {
+          currentEvent = line.slice(7).trim();
+          return;
+        }
+        if (!line.startsWith('data: ')) return;
+        const token = line.slice(6);
+        if (token === '[DONE]') return;
+
+        if (currentEvent === 'action' || currentEvent === 'error') {
+          try {
+            actionResult = JSON.parse(token) as ChatAiResult;
+          } catch (e) {
+            console.error('[chat-ai] event parse error:', e);
+          }
+          currentEvent = 'message';
+          return;
+        }
+
+        accumulatedText += token;
+        updateMessageContent(messageId, accumulatedText);
+      };
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        buffer += decoder.decode(value, { stream: true });
+        const lines = buffer.split('\n');
+        buffer = lines.pop() ?? '';
+        lines.forEach((line) => processLine(line.replace(/\r$/, '')));
+      }
+
+      const remaining = buffer + decoder.decode();
+      if (remaining) remaining.split('\n').forEach((line) => processLine(line.replace(/\r$/, '')));
+
+      return actionResult ?? { type: 'message', text: accumulatedText };
     } catch (e: unknown) {
       console.error('[chat-ai] caught:', e);
       return { type: 'error', reason: String(e) };
     }
-  }, [doseLogs, lifestyleLogs, profile?.goal, protocols, symptomLogs]);
+  }, [doseLogs, lifestyleLogs, profile?.goal, protocols, symptomLogs, updateMessageContent]);
 
   const canSend = inputText.trim().length > 0 && !isAiResponding;
 
@@ -583,14 +641,16 @@ Recent symptoms: ${recentSymptomsSummary}`;
 
     if (text) addMessage({ role: 'user', text });
     if (imageBase64) addMessage({ role: 'user', text: text || '📷 Image sent' });
+    const assistantMessageId = addMessage({ role: 'assistant', text: '', status: 'streaming' });
 
     setIsAiResponding(true);
-    const aiResult = await callAI(text || 'Describe this image and help me log or understand it.', imageBase64);
+    const aiResult = await callAI(text || 'Describe this image and help me log or understand it.', assistantMessageId, imageBase64);
     setIsAiResponding(false);
+    updateMessageStatus(assistantMessageId, 'sent');
 
     if (!aiResult || aiResult.type === 'error') {
       if (parseConversationIntent(text) === 'recommend') {
-        addMessage({ role: 'assistant', text: "I can help with stack and protocol ideas, but I'm having trouble connecting to the research companion right now. Try again in a moment and I'll give you a proper educational breakdown." });
+        updateMessageContent(assistantMessageId, "I can help with stack and protocol ideas, but I'm having trouble connecting to the research companion right now. Try again in a moment and I'll give you a proper educational breakdown.");
         return;
       }
 
@@ -598,29 +658,30 @@ Recent symptoms: ${recentSymptomsSummary}`;
       if (parsed.intent !== 'unknown') {
         if (parsed.intent === 'ask_last_dose') {
           const last = [...doseLogs].sort((a,b) => new Date(b.logged_at).getTime() - new Date(a.logged_at).getTime())[0];
-          if (!last) { addMessage({ role: 'assistant', text: 'No doses logged yet.' }); return; }
+          if (!last) { updateMessageContent(assistantMessageId, 'No doses logged yet.'); return; }
           const days = Math.floor((Date.now() - new Date(last.logged_at).getTime()) / 86400000);
-          addMessage({ role: 'assistant', text: `Last dose: ${last.peptide_name ?? 'Unknown'} ${last.amount}${last.unit}, ${days === 0 ? 'today' : days === 1 ? 'yesterday' : days + ' days ago'}.` });
+          updateMessageContent(assistantMessageId, `Last dose: ${last.peptide_name ?? 'Unknown'} ${last.amount}${last.unit}, ${days === 0 ? 'today' : days === 1 ? 'yesterday' : days + ' days ago'}.`);
           return;
         }
         if (parsed.intent === 'reconstitute') {
           const { vialMg, waterMl, peptide } = parsed.payload as IntentPayload<'reconstitute'>;
-          if (vialMg && waterMl) { addMessage({ role: 'reconstitution', text: '', reconstitutionResult: calcReconstitution(vialMg, waterMl, peptide ?? null) }); return; }
+          if (vialMg && waterMl) { updateMessageContent(assistantMessageId, ‘Here\’s the reconstitution math:’); addMessage({ role: ‘reconstitution’, text: ‘’, reconstitutionResult: calcReconstitution(vialMg, waterMl, peptide ?? null) }); return; }
         }
+        updateMessageContent(assistantMessageId, 'I can log that for you. Please confirm:');
         addMessage({ role: 'confirmation', text: parsed.displaySummary, parsedIntent: parsed, status: 'pending' });
         return;
       }
-      addMessage({ role: 'assistant', text: "I'm having trouble connecting right now. Try again in a moment." });
+      updateMessageContent(assistantMessageId, "I'm having trouble connecting right now. Try again in a moment.");
       return;
     }
 
     if (aiResult.type === 'fallback') {
-      addMessage({ role: 'assistant', text: "AI is still setting up. Your message has been noted — try again in a moment." });
+      updateMessageContent(assistantMessageId, "AI is still setting up. Your message has been noted — try again in a moment.");
       return;
     }
 
     if (aiResult.type === 'message' && aiResult.text) {
-      addMessage({ role: 'assistant', text: aiResult.text });
+      updateMessageContent(assistantMessageId, aiResult.text);
       return;
     }
 
@@ -636,6 +697,7 @@ Recent symptoms: ${recentSymptomsSummary}`;
       if (resolvedIntent === 'reconstitute') {
         const p = (aiResult.payload ?? {}) as IntentPayload<'reconstitute'>;
         if (p.vialMg && p.waterMl) {
+          updateMessageContent(assistantMessageId, 'Here’s the reconstitution math:');
           addMessage({ role: 'reconstitution', text: '', reconstitutionResult: calcReconstitution(p.vialMg, p.waterMl, p.peptide ?? null) });
           return;
         }
@@ -646,9 +708,10 @@ Recent symptoms: ${recentSymptomsSummary}`;
         confidence: 'high',
         displaySummary: buildSummary(resolvedIntent, (aiResult.payload ?? {}) as ParsedIntent['payload']),
       };
+      updateMessageContent(assistantMessageId, 'I can log that for you. Please confirm:');
       addMessage({ role: 'confirmation', text: parsed.displaySummary, parsedIntent: parsed, status: 'pending' });
     }
-  }, [inputText, isAiResponding, addMessage, callAI, doseLogs, protocols]);
+  }, [inputText, isAiResponding, addMessage, callAI, doseLogs, protocols, updateMessageContent, updateMessageStatus]);
 
   const handleSendPress = useCallback(() => {
     if (!canSend) return;
