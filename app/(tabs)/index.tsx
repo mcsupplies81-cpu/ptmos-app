@@ -195,12 +195,12 @@ export default function DashboardScreen() {
           <View style={styles.askArrowCircle}><Text style={styles.askArrow}>→</Text></View>
         </Pressable>
 
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.quickRow}>
+        <View style={styles.quickRow}>
           <Pressable style={styles.quickChip} onPress={() => router.push('/log/dose')}><View style={styles.quickIcon}><Text>💉</Text></View><Text style={styles.quickLabel}>Log Dose</Text></Pressable>
           <Pressable style={styles.quickChip} onPress={() => router.push('/(tabs)/protocols')}><View style={styles.quickIcon}><Text>🗓</Text></View><Text style={styles.quickLabel}>Protocols</Text></Pressable>
           <Pressable style={styles.quickChip} onPress={() => router.push('/more/inventory')}><View style={styles.quickIcon}><Text>📦</Text></View><Text style={styles.quickLabel}>Inventory</Text></Pressable>
           <Pressable style={styles.quickChip} onPress={() => router.push('/log/lifestyle')}><View style={styles.quickIcon}><Text>🌿</Text></View><Text style={styles.quickLabel}>Lifestyle</Text></Pressable>
-        </ScrollView>
+        </View>
 
         <View style={styles.sectionHeaderRow}>
           <Text style={styles.sectionTitle}>TODAY'S STACK</Text>
@@ -336,8 +336,8 @@ const styles = StyleSheet.create({
   askSub: { color: Colors.textSecondary, fontSize: 13 },
   askArrowCircle: { width: 32, height: 32, borderRadius: 16, backgroundColor: Colors.accent, alignItems: 'center', justifyContent: 'center' },
   askArrow: { color: Colors.white, fontSize: 17, fontWeight: '700' },
-  quickRow: { gap: 10, paddingRight: 8 },
-  quickChip: { width: 78, backgroundColor: Colors.card, borderRadius: 14, borderWidth: 1, borderColor: Colors.border, paddingVertical: 10, paddingHorizontal: 8, alignItems: 'center', gap: 8 },
+  quickRow: { flexDirection: 'row', gap: 10 },
+  quickChip: { flex: 1, backgroundColor: Colors.card, borderRadius: 14, borderWidth: 1, borderColor: Colors.border, paddingVertical: 10, paddingHorizontal: 8, alignItems: 'center', gap: 8 },
   quickIcon: { width: 28, height: 28, borderRadius: 14, backgroundColor: Colors.background, alignItems: 'center', justifyContent: 'center' },
   quickLabel: { fontSize: 13, color: Colors.text, textAlign: 'center' },
   sectionHeaderRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
