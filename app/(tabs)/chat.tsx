@@ -23,6 +23,9 @@ import { useInventoryStore } from '@/stores/inventoryStore';
 import { useProtocolStore } from '@/stores/protocolStore';
 import { useSymptomStore } from '@/stores/symptomStore';
 
+const localDateKey = (d: Date) =>
+  `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+
 function calcReconstitution(vialMg: number, waterMl: number, peptide: string | null) {
   const concentrationMgPerMl = vialMg / waterMl;
   const concentrationMcgPerMl = concentrationMgPerMl * 1000;
@@ -260,20 +263,14 @@ export default function ChatScreen() {
       }
 
       else if (intent === 'log_weight') {
-        const today = new Date().toISOString().slice(0, 10);
-        await upsertLifestyle(
-          { date: today, weight_lbs: Number(payload.value) || null, water_oz: null, calories: null, protein_g: null, sleep_hours: null, steps: null, workout_notes: null, workout_type: null, workout_duration_min: null, workout_intensity: null, mood: null, energy: null, energy_level: null, meal_notes: null },
-          user.id
-        );
+        const today = localDateKey(new Date());
+        await upsertLifestyle({ date: today, weight_lbs: Number(payload.value) || null }, user.id);
         addMessage({ role: 'success', text: `Weight logged: ${payload.value} lbs ✓` });
       }
 
       else if (intent === 'log_sleep') {
-        const today = new Date().toISOString().slice(0, 10);
-        await upsertLifestyle(
-          { date: today, sleep_hours: Number(payload.hours) || null, weight_lbs: null, water_oz: null, calories: null, protein_g: null, steps: null, workout_notes: null, workout_type: null, workout_duration_min: null, workout_intensity: null, mood: null, energy: null, energy_level: null, meal_notes: null },
-          user.id
-        );
+        const today = localDateKey(new Date());
+        await upsertLifestyle({ date: today, sleep_hours: Number(payload.hours) || null }, user.id);
         addMessage({ role: 'success', text: `Sleep logged: ${payload.hours} hours ✓` });
       }
 
@@ -291,21 +288,15 @@ export default function ChatScreen() {
       }
 
       else if (intent === 'log_steps') {
-        const today = new Date().toISOString().slice(0, 10);
-        await upsertLifestyle(
-          { date: today, steps: Number(payload.steps) || null, weight_lbs: null, water_oz: null, calories: null, protein_g: null, sleep_hours: null, workout_notes: null, workout_type: null, workout_duration_min: null, workout_intensity: null, mood: null, energy: null, energy_level: null, meal_notes: null },
-          user.id
-        );
+        const today = localDateKey(new Date());
+        await upsertLifestyle({ date: today, steps: Number(payload.steps) || null }, user.id);
         addMessage({ role: 'success', text: `Steps logged: ${Number(payload.steps).toLocaleString()} ✓` });
       }
 
       else if (intent === 'log_water') {
-        const today = new Date().toISOString().slice(0, 10);
+        const today = localDateKey(new Date());
         const oz = Number((payload as { amount_oz?: number }).amount_oz) || 0;
-        await upsertLifestyle(
-          { date: today, water_oz: oz, weight_lbs: null, calories: null, protein_g: null, sleep_hours: null, steps: null, workout_notes: null, workout_type: null, workout_duration_min: null, workout_intensity: null, mood: null, energy: null, energy_level: null, meal_notes: null },
-          user.id
-        );
+        await upsertLifestyle({ date: today, water_oz: oz }, user.id);
         addMessage({ role: 'success', text: `Water logged: ${oz} oz ✓` });
       }
 
