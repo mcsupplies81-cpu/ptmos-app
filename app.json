@@ -36,7 +36,8 @@
     "plugins": [
       "expo-router",
       "expo-notifications",
-      "react-native-purchases"
+      "react-native-purchases",
+      "@react-native-community/netinfo"
     ],
     "experiments": {
       "typedRoutes": true

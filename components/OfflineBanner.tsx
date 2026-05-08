@@ -3,6 +3,8 @@ import { useEffect, useRef, useState } from 'react';
 import { Animated, StatusBar, StyleSheet, Text } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import Colors from '@/constants/Colors';
+
 const BANNER_CONTENT_HEIGHT = 44;
 const HIDDEN_OFFSET = -120;
 
@@ -56,7 +58,7 @@ const styles = StyleSheet.create({
     elevation: 1000,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#B45309',
+    backgroundColor: Colors.warning,
   },
   text: {
     color: '#FFFFFF',
