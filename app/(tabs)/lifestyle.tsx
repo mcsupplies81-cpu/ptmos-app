@@ -1,10 +1,11 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   Alert,
   KeyboardAvoidingView,
   Modal,
   Platform,
   Pressable,
+  RefreshControl,
   SafeAreaView,
   ScrollView,
   StyleSheet,
@@ -115,6 +116,7 @@ export default function LifestyleScreen() {
   const [selectedDate, setSelectedDate] = useState(today);
   const [activeMetric, setActiveMetric] = useState<MetricKey | null>(null);
   const [saving, setSaving] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
 
   const [sleepHours, setSleepHours] = useState('');
   const [waterOz, setWaterOz] = useState('');
@@ -137,6 +139,17 @@ export default function LifestyleScreen() {
     void fetchLogs(user.id).catch((error: Error) => {
       Alert.alert('Error', error.message);
     });
+  }, [fetchLogs, user?.id]);
+
+  const handleRefresh = useCallback(async () => {
+    if (!user?.id) return;
+
+    setRefreshing(true);
+    try {
+      await fetchLogs(user.id);
+    } finally {
+      setRefreshing(false);
+    }
   }, [fetchLogs, user?.id]);
 
   useEffect(() => {
@@ -244,7 +257,12 @@ export default function LifestyleScreen() {
   return (
     <SafeAreaView style={styles.container}>
       <KeyboardAvoidingView style={styles.keyboard} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
-        <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
+        <ScrollView
+          contentContainerStyle={styles.content}
+          showsVerticalScrollIndicator={false}
+          keyboardShouldPersistTaps="handled"
+          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={handleRefresh} tintColor={Colors.accent} />}
+        >
           <View style={styles.headerRow}>
             <View>
               <Text style={styles.title}>Lifestyle</Text>

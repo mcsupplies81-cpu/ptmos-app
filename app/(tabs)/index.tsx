@@ -1,7 +1,7 @@
 import * as Haptics from 'expo-haptics';
 import { router, useFocusEffect } from 'expo-router';
-import { useCallback, useMemo } from 'react';
-import { Pressable, SafeAreaView, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { useCallback, useMemo, useState } from 'react';
+import { Pressable, RefreshControl, SafeAreaView, ScrollView, StyleSheet, Text, View } from 'react-native';
 import Svg, { Circle } from 'react-native-svg';
 
 import Colors from '@/constants/Colors';
@@ -88,6 +88,7 @@ export default function DashboardScreen() {
   const addDoseLog = useDoseLogStore((s) => s.addDoseLog);
 
   const { logs: lifestyleLogs, fetchLogs } = useLifestyleStore();
+  const [refreshing, setRefreshing] = useState(false);
 
   // Re-fetch every time the tab comes into focus so metrics always show latest data
   useFocusEffect(
@@ -99,6 +100,22 @@ export default function DashboardScreen() {
       void fetchLogs(user.id);
     }, [fetchDoseLogs, fetchLogs, fetchProfile, fetchProtocols, user?.id]),
   );
+
+  const handleRefresh = useCallback(async () => {
+    if (!user?.id) return;
+
+    setRefreshing(true);
+    try {
+      await Promise.all([
+        fetchProfile(user.id),
+        fetchProtocols(user.id),
+        fetchDoseLogs(user.id),
+        fetchLogs(user.id),
+      ]);
+    } finally {
+      setRefreshing(false);
+    }
+  }, [fetchDoseLogs, fetchLogs, fetchProfile, fetchProtocols, user?.id]);
 
   const now = new Date();
   const todayKey = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
@@ -234,7 +251,11 @@ export default function DashboardScreen() {
 
   return (
     <SafeAreaView style={styles.safeArea}>
-      <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+      <ScrollView
+        contentContainerStyle={styles.content}
+        showsVerticalScrollIndicator={false}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={handleRefresh} tintColor={Colors.accent} />}
+      >
         <View style={styles.headerSection}>
           <View style={styles.headerTopRow}>
             <Text style={styles.brandLabel}>PT-OS</Text>

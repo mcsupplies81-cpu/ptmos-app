@@ -1,5 +1,5 @@
-import React, { useEffect, useMemo, useState } from 'react';
-import { ActivityIndicator, Alert, SafeAreaView, FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import { ActivityIndicator, Alert, FlatList, Pressable, RefreshControl, SafeAreaView, StyleSheet, Text, View } from 'react-native';
 import { router } from 'expo-router';
 import Colors from '@/constants/Colors';
 import { calcAdherence, useProtocolStore, type ProtocolStatus } from '@/stores/protocolStore';
@@ -48,6 +48,7 @@ export default function ProtocolsScreen() {
   const { protocols, loading, error, fetchProtocols } = useProtocolStore();
   const doseLogs = useDoseLogStore((state) => state.doseLogs);
   const [filter, setFilter] = useState<Filter>('All');
+  const [refreshing, setRefreshing] = useState(false);
 
   useEffect(() => {
     if (user?.id) fetchProtocols(user.id);
@@ -65,7 +66,18 @@ export default function ProtocolsScreen() {
     }
   };
 
-  if (loading) {
+  const handleRefresh = useCallback(async () => {
+    if (!user?.id) return;
+
+    setRefreshing(true);
+    try {
+      await fetchProtocols(user.id);
+    } finally {
+      setRefreshing(false);
+    }
+  }, [fetchProtocols, user?.id]);
+
+  if (loading && !refreshing) {
     return (
       <SafeAreaView style={styles.container}>
         <View style={styles.centerState}>
@@ -126,6 +138,7 @@ export default function ProtocolsScreen() {
         keyExtractor={(item) => item.id}
         style={{ flex: 1 }}
         contentContainerStyle={styles.listContent}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={handleRefresh} tintColor={Colors.accent} />}
         ListEmptyComponent={
           <EmptyState
             emoji="💊"
