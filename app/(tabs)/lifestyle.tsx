@@ -99,6 +99,27 @@ const toNumber = (value: string) => {
   return Number.isFinite(parsed) && value.trim() ? parsed : null;
 };
 
+
+function LifestyleLogSkeleton() {
+  return (
+    <>
+      {[0, 1, 2, 3, 4, 5].map((item) => (
+        <View key={item} style={[styles.logRow, item === 5 && styles.lastLogRow]}>
+          <Skeleton width={34} height={34} borderRadius={17} />
+          <View style={styles.rowBody}>
+            <View style={styles.rowTitleLine}>
+              <Skeleton width={86} height={15} borderRadius={8} />
+              <Skeleton width={96} height={13} borderRadius={7} />
+            </View>
+            {item < 2 ? <Skeleton width="100%" height={7} borderRadius={4} /> : <Skeleton width="54%" height={13} borderRadius={7} />}
+          </View>
+          <Skeleton width={44} height={13} borderRadius={7} />
+        </View>
+      ))}
+    </>
+  );
+}
+
 function ProgressBar({ progress, color = Colors.accent }: { progress: number; color?: string }) {
   return (
     <View style={styles.progressTrack}>
@@ -348,8 +369,13 @@ export default function LifestyleScreen() {
           )}
 
           <Text style={styles.sectionHeader}>TODAY'S LOG</Text>
-          <View style={styles.card}>
-            <Pressable style={styles.logRow} onPress={() => openMetric('sleep')}>
+          {loading ? (
+            <View style={styles.card}>
+              <LifestyleLogSkeleton />
+            </View>
+          ) : (
+            <View style={styles.card}>
+              <Pressable style={styles.logRow} onPress={() => openMetric('sleep')}>
               <Text style={styles.rowIcon}>🌙</Text>
               <View style={styles.rowBody}>
                 <View style={styles.rowTitleLine}><Text style={styles.rowLabel}>Sleep</Text><Text style={styles.rowValue}>{formatSleep(selectedLog?.sleep_hours)}</Text></View>
@@ -380,12 +406,13 @@ export default function LifestyleScreen() {
               <View style={styles.rowBody}><Text style={styles.rowLabel}>Energy</Text><Text style={styles.rowValue}>{getEnergyRating(selectedLog) ? ENERGY_LABELS[getEnergyRating(selectedLog)!] : 'Not logged'}</Text></View>
               <Text style={styles.rowMeta}>{getEnergyRating(selectedLog) ? `${getEnergyRating(selectedLog)}/5` : '—'}</Text>
             </Pressable>
-            <Pressable style={[styles.logRow, styles.lastLogRow]} onPress={() => openMetric('weight')}>
-              <Text style={styles.rowIcon}>⚖️</Text>
-              <View style={styles.rowBody}><Text style={styles.rowLabel}>Weight</Text><Text style={styles.rowValue}>{selectedLog?.weight_lbs ? displayWeight(selectedLog.weight_lbs, weightUnit) : 'Not logged'}</Text></View>
-              <Text style={[styles.rowMeta, weightDelta && weightDelta > 0 ? styles.deltaUp : styles.deltaDown]}>{formatWeightDelta(weightDelta)}</Text>
-            </Pressable>
-          </View>
+              <Pressable style={[styles.logRow, styles.lastLogRow]} onPress={() => openMetric('weight')}>
+                <Text style={styles.rowIcon}>⚖️</Text>
+                <View style={styles.rowBody}><Text style={styles.rowLabel}>Weight</Text><Text style={styles.rowValue}>{selectedLog?.weight_lbs ? displayWeight(selectedLog.weight_lbs, weightUnit) : 'Not logged'}</Text></View>
+                <Text style={[styles.rowMeta, weightDelta && weightDelta > 0 ? styles.deltaUp : styles.deltaDown]}>{formatWeightDelta(weightDelta)}</Text>
+              </Pressable>
+            </View>
+          )}
 
           <Text style={styles.sectionHeader}>WEEKLY OVERVIEW</Text>
           {loading ? (

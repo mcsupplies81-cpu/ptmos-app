@@ -80,6 +80,7 @@ const parseTime = (timeOfDay: string) => {
 export default function DashboardScreen() {
   const user = useAuthStore((s) => s.user);
   const profile = useProfileStore((s) => s.profile);
+  const profileLoading = useProfileStore((s) => s.loading);
   const fetchProfile = useProfileStore((s) => s.fetchProfile);
 
   const protocols = useProtocolStore((s) => s.protocols);
@@ -230,7 +231,7 @@ export default function DashboardScreen() {
   }, [doseLogs]);
 
   const recentActivity = useMemo(() => doseLogs.slice(0, 5), [doseLogs]);
-  const loading = protocolsLoading || doseLogsLoading || lifestyleLoading;
+  const loading = profileLoading || protocolsLoading || doseLogsLoading || lifestyleLoading;
   const formatWeightDelta = (deltaLbs: number | null) => {
     if (deltaLbs == null) return null;
     const sign = deltaLbs > 0 ? '+' : '';
@@ -277,21 +278,35 @@ export default function DashboardScreen() {
         <View style={styles.headerSection}>
           <View style={styles.headerTopRow}>
             <Text style={styles.brandLabel}>PT-OS</Text>
-            <Pressable style={styles.avatarButton} onPress={() => router.push('/settings')}>
-              <Text style={styles.avatarText}>
-                {(profile?.full_name ?? '')
-                  .split(' ')
-                  .map((part) => part[0])
-                  .filter(Boolean)
-                  .slice(0, 2)
-                  .join('')
-                  .toUpperCase() || 'U'}
-              </Text>
-            </Pressable>
+            {profileLoading ? (
+              <Skeleton width={36} height={36} borderRadius={18} />
+            ) : (
+              <Pressable style={styles.avatarButton} onPress={() => router.push('/settings')}>
+                <Text style={styles.avatarText}>
+                  {(profile?.full_name ?? '')
+                    .split(' ')
+                    .map((part) => part[0])
+                    .filter(Boolean)
+                    .slice(0, 2)
+                    .join('')
+                    .toUpperCase() || 'U'}
+                </Text>
+              </Pressable>
+            )}
           </View>
-          <Text style={styles.greetingLine}>{`${greeting},`}</Text>
-          <Text style={styles.nameLine}>{firstName || 'there'}</Text>
-          <Text style={styles.date}>{todayDate}</Text>
+          {profileLoading ? (
+            <View style={styles.headerSkeletonCopy}>
+              <Skeleton width="54%" height={34} borderRadius={10} />
+              <Skeleton width="42%" height={38} borderRadius={10} />
+              <Skeleton width={150} height={13} borderRadius={7} />
+            </View>
+          ) : (
+            <>
+              <Text style={styles.greetingLine}>{`${greeting},`}</Text>
+              <Text style={styles.nameLine}>{firstName || 'there'}</Text>
+              <Text style={styles.date}>{todayDate}</Text>
+            </>
+          )}
         </View>
 
         <Pressable style={styles.askCard} onPress={() => router.push('/(tabs)/chat')}>
@@ -306,27 +321,40 @@ export default function DashboardScreen() {
         </Pressable>
 
         <View style={styles.progressCard}>
-          <View style={styles.progressCopy}>
-            <Text style={styles.progressValue}>{dosesLoggedToday} / {totalActive}</Text>
-            <Text style={styles.progressLabel}>doses completed</Text>
-            <View style={styles.progressTrack}>
-              <View style={[styles.progressFill, { width: `${progressPct}%` }]} />
-            </View>
-          </View>
-          <View style={styles.progressRingWrap}>
-            <ProgressRing
-              size={RING_SIZE}
-              radius={RING_RADIUS}
-              strokeWidth={RING_STROKE}
-              progress={progressRatio}
-              trackColor="rgba(45, 106, 79, 0.16)"
-              progressColor={Colors.accent}
-            />
-            <View style={styles.progressRingCenter}>
-              <Text style={styles.progressRingPct}>{progressPct}%</Text>
-              <Text style={styles.progressRingLabel}>on track</Text>
-            </View>
-          </View>
+          {loading ? (
+            <>
+              <View style={styles.progressCopy}>
+                <Skeleton width={82} height={34} borderRadius={10} />
+                <Skeleton width={128} height={14} borderRadius={7} />
+                <Skeleton width="100%" height={8} borderRadius={999} style={{ marginTop: 10 }} />
+              </View>
+              <Skeleton width={RING_SIZE} height={RING_SIZE} borderRadius={RING_SIZE / 2} />
+            </>
+          ) : (
+            <>
+              <View style={styles.progressCopy}>
+                <Text style={styles.progressValue}>{dosesLoggedToday} / {totalActive}</Text>
+                <Text style={styles.progressLabel}>doses completed</Text>
+                <View style={styles.progressTrack}>
+                  <View style={[styles.progressFill, { width: `${progressPct}%` }]} />
+                </View>
+              </View>
+              <View style={styles.progressRingWrap}>
+                <ProgressRing
+                  size={RING_SIZE}
+                  radius={RING_RADIUS}
+                  strokeWidth={RING_STROKE}
+                  progress={progressRatio}
+                  trackColor="rgba(45, 106, 79, 0.16)"
+                  progressColor={Colors.accent}
+                />
+                <View style={styles.progressRingCenter}>
+                  <Text style={styles.progressRingPct}>{progressPct}%</Text>
+                  <Text style={styles.progressRingLabel}>on track</Text>
+                </View>
+              </View>
+            </>
+          )}
         </View>
 
         <View style={styles.quickRow}>
@@ -341,7 +369,9 @@ export default function DashboardScreen() {
           <Pressable onPress={() => router.push('/(tabs)/protocols')}><Text style={styles.link}>Edit</Text></Pressable>
         </View>
         <View style={styles.card}>
-          {activeProtocols.length === 0 ? <Text style={styles.empty}>No active protocols — tap + to add one</Text> : activeProtocols.map((p, idx) => {
+          {loading ? (
+            <TodayStackSkeleton />
+          ) : activeProtocols.length === 0 ? <Text style={styles.empty}>No active protocols — tap + to add one</Text> : activeProtocols.map((p, idx) => {
             const logged = loggedTodayByProtocol.has(p.id) || loggedTodayByName.has(p.name.toLowerCase());
             return (
               <View key={p.id} style={[styles.protocolRow, idx === activeProtocols.length - 1 && styles.lastRow]}>
@@ -379,9 +409,11 @@ export default function DashboardScreen() {
               </View>
             );
           })}
-          <Pressable style={styles.scheduleLinkRow} onPress={() => router.push('/(tabs)/protocols')}>
-            <Text style={styles.scheduleLinkText}>View full schedule ›</Text>
-          </Pressable>
+          {!loading ? (
+            <Pressable style={styles.scheduleLinkRow} onPress={() => router.push('/(tabs)/protocols')}>
+              <Text style={styles.scheduleLinkText}>View full schedule ›</Text>
+            </Pressable>
+          ) : null}
         </View>
 
         <View style={styles.nextDoseCard}>
@@ -492,7 +524,9 @@ export default function DashboardScreen() {
           <Pressable onPress={() => router.push('/log/history')}><Text style={styles.link}>View All</Text></Pressable>
         </View>
         <View style={styles.card}>
-          {recentActivity.length === 0 ? <Text style={styles.empty}>No doses logged yet</Text> : recentActivity.map((d, idx) => (
+          {loading ? (
+            <RecentActivitySkeleton />
+          ) : recentActivity.length === 0 ? <Text style={styles.empty}>No doses logged yet</Text> : recentActivity.map((d, idx) => (
             <View key={d.id} style={[styles.activityRow, idx === recentActivity.length - 1 && styles.lastRow]}>
               <View style={styles.activityDot} />
               <View style={styles.rowMain}>
@@ -505,6 +539,46 @@ export default function DashboardScreen() {
         </View>
       </ScrollView>
     </SafeAreaView>
+  );
+}
+
+function TodayStackSkeleton() {
+  return (
+    <>
+      {[0, 1, 2].map((item) => (
+        <View key={item} style={[styles.protocolRow, item === 2 && styles.lastRow]}>
+          <Skeleton width={22} height={22} borderRadius={11} />
+          <View style={styles.rowMain}>
+            <Skeleton width="62%" height={15} borderRadius={8} />
+            <Skeleton width="36%" height={13} borderRadius={7} style={{ marginTop: 6 }} />
+          </View>
+          <View style={styles.rowRight}>
+            <Skeleton width={48} height={13} borderRadius={7} />
+            <Skeleton width={58} height={24} borderRadius={999} />
+          </View>
+        </View>
+      ))}
+      <View style={styles.scheduleLinkRow}>
+        <Skeleton width={150} height={14} borderRadius={7} />
+      </View>
+    </>
+  );
+}
+
+function RecentActivitySkeleton() {
+  return (
+    <>
+      {[0, 1, 2].map((item) => (
+        <View key={item} style={[styles.activityRow, item === 2 && styles.lastRow]}>
+          <Skeleton width={8} height={8} borderRadius={4} />
+          <View style={styles.rowMain}>
+            <Skeleton width="58%" height={15} borderRadius={8} />
+            <Skeleton width="32%" height={13} borderRadius={7} style={{ marginTop: 6 }} />
+          </View>
+          <Skeleton width={56} height={13} borderRadius={7} />
+        </View>
+      ))}
+    </>
   );
 }
 
@@ -525,6 +599,7 @@ const styles = StyleSheet.create({
   safeArea: { flex: 1, backgroundColor: Colors.background },
   content: { padding: 16, paddingBottom: 100, gap: 14, backgroundColor: Colors.background },
   headerSection: { paddingVertical: 4, gap: 4 },
+  headerSkeletonCopy: { gap: 8, marginTop: 4 },
   headerTopRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   brandLabel: { fontSize: 12, letterSpacing: 1.4, fontWeight: '700', color: Colors.textSecondary },
   avatarButton: { width: 36, height: 36, borderRadius: 18, backgroundColor: Colors.card, borderWidth: 1, borderColor: Colors.border, alignItems: 'center', justifyContent: 'center' },

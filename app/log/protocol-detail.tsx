@@ -1,8 +1,9 @@
 import { useMemo, useState } from 'react';
-import { ActivityIndicator, Pressable, SafeAreaView, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Pressable, SafeAreaView, ScrollView, StyleSheet, Text, View } from 'react-native';
 import Svg, { Circle } from 'react-native-svg';
 import { router, useLocalSearchParams } from 'expo-router';
 import ScreenHeader from '@/components/ScreenHeader';
+import Skeleton from '@/components/Skeleton';
 import Colors from '@/constants/Colors';
 import { useDoseLogStore } from '@/stores/doseLogStore';
 import { calcAdherence, useProtocolStore } from '@/stores/protocolStore';
@@ -14,8 +15,10 @@ export default function ProtocolDetailScreen() {
   const { protocolId } = useLocalSearchParams<{ protocolId?: string }>();
   const user = useAuthStore((state) => state.user);
   const protocols = useProtocolStore((state) => state.protocols);
+  const protocolLoading = useProtocolStore((state) => state.loading);
   const upsertProtocol = useProtocolStore((state) => state.upsertProtocol);
   const doseLogs = useDoseLogStore((state) => state.doseLogs);
+  const doseLogsLoading = useDoseLogStore((state) => state.loading);
   const [saving, setSaving] = useState(false);
 
   const protocol = useMemo(() => protocols.find((item) => item.id === protocolId), [protocolId, protocols]);
@@ -28,6 +31,12 @@ export default function ProtocolDetailScreen() {
         .slice(0, 6),
     [doseLogs, protocolId],
   );
+
+  const loading = protocolLoading || doseLogsLoading;
+
+  if (loading) {
+    return <ProtocolDetailSkeleton />;
+  }
 
   if (!protocol) {
     return (
@@ -136,11 +145,56 @@ export default function ProtocolDetailScreen() {
           disabled={saving}
         >
           {saving ? (
-            <ActivityIndicator color={Colors.text} />
+            <Skeleton width="72%" height={16} borderRadius={8} />
           ) : (
             <Text style={styles.ghostButtonText}>{isActive ? 'Mark Complete' : 'Reactivate'}</Text>
           )}
         </Pressable>
+      </View>
+    </SafeAreaView>
+  );
+}
+
+function ProtocolDetailSkeleton() {
+  return (
+    <SafeAreaView style={styles.container}>
+      <ScreenHeader title="Protocol" />
+      <ScrollView contentContainerStyle={styles.content}>
+        <View style={styles.heroCard}>
+          <View style={styles.heroRow}>
+            <View style={styles.heroLeft}>
+              <Skeleton width="70%" height={24} borderRadius={8} />
+              <Skeleton width={76} height={14} borderRadius={7} style={{ marginTop: 8 }} />
+              <Skeleton width={72} height={26} borderRadius={999} style={{ marginTop: 10 }} />
+            </View>
+            <Skeleton width={56} height={56} borderRadius={28} />
+          </View>
+        </View>
+
+        <Text style={styles.sectionLabel}>PROTOCOL INFO</Text>
+        {[0, 1, 2, 3].map((item) => (
+          <View key={item} style={styles.infoRow}>
+            <View style={styles.infoLeft}>
+              <Skeleton width={34} height={34} borderRadius={17} />
+              <Skeleton width={82} height={14} borderRadius={7} style={{ marginLeft: 12 }} />
+            </View>
+            <Skeleton width={item === 1 ? 92 : 64} height={14} borderRadius={7} />
+          </View>
+        ))}
+
+        <Text style={styles.sectionLabel}>RECENT LOGS</Text>
+        {[0, 1, 2].map((item) => (
+          <View key={item} style={styles.logRow}>
+            <Skeleton width={92} height={14} borderRadius={7} />
+            <Skeleton width={58} height={14} borderRadius={7} />
+          </View>
+        ))}
+      </ScrollView>
+
+      <View style={styles.bottomBar}>
+        <Skeleton width="31%" height={48} borderRadius={12} />
+        <Skeleton width="31%" height={48} borderRadius={12} />
+        <Skeleton width="31%" height={48} borderRadius={12} />
       </View>
     </SafeAreaView>
   );
