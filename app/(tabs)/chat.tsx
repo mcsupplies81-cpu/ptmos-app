@@ -875,6 +875,16 @@ Recent symptoms: ${recentSymptomsSummary}`;
         />
 
         <View style={styles.inputBar}>
+          <Pressable
+            style={styles.micButton}
+            onPress={() => {
+              textInputRef.current?.focus();
+              void Haptics.selectionAsync();
+            }}
+            accessibilityLabel="Voice input"
+          >
+            <Text style={styles.micIcon}>🎙️</Text>
+          </Pressable>
           <TextInput
             ref={textInputRef}
             style={[styles.input, { height: inputHeight }]}
@@ -889,9 +899,9 @@ Recent symptoms: ${recentSymptomsSummary}`;
             }}
             placeholder="Message PT-OS AI..."
             placeholderTextColor={Colors.textSecondary}
-            returnKeyType="send"
+            returnKeyType="default"
             multiline={true}
-            textAlignVertical="top"
+            textAlignVertical="center"
             onSubmitEditing={() => { void handleSend(); }}
           />
           <Pressable
@@ -1140,12 +1150,12 @@ const styles = StyleSheet.create({
     borderColor: Colors.border,
     borderRadius: 20,
     paddingHorizontal: 14,
-    paddingTop: 9,
-    paddingBottom: 9,
+    paddingVertical: 10,
     fontSize: 15,
-    lineHeight: 20,
     color: Colors.text,
     backgroundColor: Colors.card,
   },
+  micButton: { width: 36, height: 36, borderRadius: 18, backgroundColor: Colors.card, borderWidth: 1, borderColor: Colors.border, justifyContent: 'center', alignItems: 'center' },
+  micIcon: { fontSize: 16 },
   sendButton: { width: 40, height: 40, borderRadius: 20, justifyContent: 'center', alignItems: 'center' },
 });
