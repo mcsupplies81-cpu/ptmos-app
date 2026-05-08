@@ -41,8 +41,6 @@
           "sounds": []
         }
       ],
-      "react-native-purchases",
-      "@react-native-community/netinfo"
     ],
     "experiments": {
       "typedRoutes": true
