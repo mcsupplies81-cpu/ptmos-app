@@ -28,7 +28,7 @@ export type ChatMessage = {
   role: 'user' | 'assistant' | 'confirmation' | 'success' | 'error' | 'reconstitution';
   text: string;
   parsedIntent?: ParsedIntent;
-  status?: 'pending' | 'confirmed' | 'cancelled';
+  status?: 'pending' | 'confirmed' | 'cancelled' | 'streaming' | 'sent';
   reconstitutionResult?: {
     vialMg: number;
     waterMl: number;
@@ -42,8 +42,9 @@ export type ChatMessage = {
 
 type ChatStore = {
   messages: ChatMessage[];
-  addMessage: (msg: Omit<ChatMessage, 'id' | 'createdAt'>) => void;
-  updateMessageStatus: (id: string, status: 'confirmed' | 'cancelled') => void;
+  addMessage: (msg: Omit<ChatMessage, 'id' | 'createdAt'>) => string;
+  updateMessageStatus: (id: string, status: ChatMessage['status']) => void;
+  updateMessageContent: (id: string, text: string) => void;
   clearMessages: () => void;
 };
 
@@ -61,12 +62,20 @@ const useChatStore = create<ChatStore>()(
         const current = get().messages;
         const trimmed = current.length >= 100 ? current.slice(-99) : current;
         set({ messages: [...trimmed, newMsg] });
+        return newMsg.id;
       },
 
       updateMessageStatus: (id, status) =>
         set((state) => ({
           messages: state.messages.map((m) =>
             m.id === id ? { ...m, status } : m,
+          ),
+        })),
+
+      updateMessageContent: (id, text) =>
+        set((state) => ({
+          messages: state.messages.map((m) =>
+            m.id === id ? { ...m, text } : m,
           ),
         })),
 

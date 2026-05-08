@@ -202,37 +202,117 @@ Recent symptoms: ${(context.recentSymptoms ?? []).slice(0, 3).map(s => `${s.symp
         tools: TOOLS,
         tool_choice: 'auto',
         max_tokens: 300,
+        stream: true,
       }),
     })
 
-    const data = await response.json()
-
-    // Surface OpenAI errors clearly
-    if (!response.ok || data.error) {
-      const errMsg = data.error?.message ?? `OpenAI error ${response.status}`
-      console.error('[chat-ai] OpenAI error:', JSON.stringify(data.error))
+    if (!response.ok || !response.body) {
+      let errMsg = `OpenAI error ${response.status}`
+      try {
+        const data = await response.json()
+        errMsg = data.error?.message ?? errMsg
+        console.error('[chat-ai] OpenAI error:', JSON.stringify(data.error))
+      } catch {
+        errMsg = await response.text().catch(() => errMsg)
+      }
       return new Response(
         JSON.stringify({ type: 'fallback', reason: errMsg }),
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 }
       )
     }
 
-    const choice = data.choices?.[0]
+    const encoder = new TextEncoder()
+    const decoder = new TextDecoder()
+    const { readable, writable } = new TransformStream()
+    const writer = writable.getWriter()
 
-    if (choice?.message?.tool_calls?.[0]) {
-      const tc = choice.message.tool_calls[0]
-      let payload: Record<string, unknown> = {}
-      try { payload = JSON.parse(tc.function.arguments) } catch {}
-      return new Response(
-        JSON.stringify({ type: 'action', intent: tc.function.name, payload }),
-        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      )
+    type ToolCallDelta = {
+      id?: string
+      type?: string
+      function: {
+        name?: string
+        arguments: string
+      }
+    }
+    const toolCalls: ToolCallDelta[] = []
+
+    const sendDone = async () => {
+      const toolCall = toolCalls.find(tc => tc.function.name)
+      if (toolCall?.function.name) {
+        let payload: Record<string, unknown> = {}
+        try { payload = JSON.parse(toolCall.function.arguments || '{}') } catch {}
+        await writer.write(encoder.encode(`event: action\ndata: ${JSON.stringify({ type: 'action', intent: toolCall.function.name, payload })}\n\n`))
+      }
+      await writer.write(encoder.encode('data: [DONE]\n\n'))
     }
 
-    return new Response(
-      JSON.stringify({ type: 'message', text: choice?.message?.content ?? "I couldn't understand that." }),
-      { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-    )
+    ;(async () => {
+      const reader = response.body!.getReader()
+      let buffer = ''
+      let doneSent = false
+
+      const processLine = async (rawLine: string) => {
+        const line = rawLine.trimEnd()
+        if (!line.startsWith('data: ')) return
+        const data = line.slice(6)
+        if (data === '[DONE]') {
+          doneSent = true
+          await sendDone()
+          return
+        }
+
+        try {
+          const parsed = JSON.parse(data)
+          const delta = parsed.choices?.[0]?.delta
+          const content = delta?.content
+          if (typeof content === 'string' && content.length > 0) {
+            await writer.write(encoder.encode(`data: ${content}\n\n`))
+          }
+
+          for (const toolDelta of delta?.tool_calls ?? []) {
+            const index = toolDelta.index ?? 0
+            toolCalls[index] ??= { function: { arguments: '' } }
+            if (toolDelta.id) toolCalls[index].id = toolDelta.id
+            if (toolDelta.type) toolCalls[index].type = toolDelta.type
+            if (toolDelta.function?.name) toolCalls[index].function.name = toolDelta.function.name
+            if (toolDelta.function?.arguments) toolCalls[index].function.arguments += toolDelta.function.arguments
+          }
+        } catch (e) {
+          console.error('[chat-ai] stream parse error:', e)
+        }
+      }
+
+      try {
+        while (true) {
+          const { done, value } = await reader.read()
+          if (done) break
+          buffer += decoder.decode(value, { stream: true })
+          const lines = buffer.split('\n')
+          buffer = lines.pop() ?? ''
+          for (const line of lines) await processLine(line)
+        }
+
+        const remaining = buffer + decoder.decode()
+        if (remaining) {
+          for (const line of remaining.split('\n')) await processLine(line)
+        }
+        if (!doneSent) await sendDone()
+      } catch (e) {
+        console.error('[chat-ai] stream error:', e)
+        await writer.write(encoder.encode(`event: error\ndata: ${JSON.stringify({ type: 'error', reason: String(e) })}\n\n`))
+      } finally {
+        await writer.close()
+      }
+    })()
+
+    return new Response(readable, {
+      headers: {
+        ...corsHeaders,
+        'Content-Type': 'text/event-stream',
+        'Transfer-Encoding': 'chunked',
+        'Cache-Control': 'no-cache',
+      },
+    })
 
   } catch (e) {
     return new Response(
