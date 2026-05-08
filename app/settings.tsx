@@ -70,8 +70,8 @@ export default function SettingsScreen() {
       if (error) throw error;
 
       await fetchProfile(user.id);
-    } catch (e: any) {
-      Alert.alert('Save failed', e?.message ?? 'Please try again.');
+    } catch (e: unknown) {
+      Alert.alert('Save failed', e instanceof Error ? e.message : 'Please try again.');
     } finally {
       setSavingWeightUnit(false);
     }
@@ -102,8 +102,8 @@ export default function SettingsScreen() {
 
       setProfile(data as Profile);
       Alert.alert('Saved', 'Profile updated.');
-    } catch (e: any) {
-      Alert.alert('Save failed', e?.message ?? 'Please try again.');
+    } catch (e: unknown) {
+      Alert.alert('Save failed', e instanceof Error ? e.message : 'Please try again.');
     } finally {
       setSaving(false);
     }
