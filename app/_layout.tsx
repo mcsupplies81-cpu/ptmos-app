@@ -80,6 +80,8 @@ export default function RootLayout() {
           <Stack.Screen name="log/sleep" options={{ presentation: 'modal', animation: 'slide_from_bottom' }} />
           <Stack.Screen name="log/water" options={{ presentation: 'modal', animation: 'slide_from_bottom' }} />
           <Stack.Screen name="log/workout" options={{ presentation: 'modal', animation: 'slide_from_bottom' }} />
+          <Stack.Screen name="providers/index" options={{ headerShown: false }} />
+          <Stack.Screen name="providers/[id]" options={{ headerShown: false }} />
           <Stack.Screen name="paywall" options={{ presentation: 'modal', animation: 'slide_from_bottom' }} />
         </Stack>
       </ErrorBoundary>
