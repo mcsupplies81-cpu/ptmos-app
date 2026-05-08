@@ -53,6 +53,10 @@ export default function PaywallScreen() {
   const monthlyPrice = monthlyPkg?.product.priceString ?? '$2.99';
   const annualPrice = annualPkg?.product.priceString ?? '$24.99';
 
+  const introPrice = selectedPkg?.product.introductoryPrice;
+  const hasTrial = introPrice != null && (introPrice.price === 0 || introPrice.priceString === '$0.00');
+  const trialDays = hasTrial ? (introPrice.periodNumberOfUnits ?? 7) : 0;
+
   const handleSubscribe = async () => {
     if (!selectedPkg) {
       Alert.alert('Not available', 'Subscriptions are not available right now. Please try again later.');
@@ -102,7 +106,9 @@ export default function PaywallScreen() {
             <Text style={styles.crownEmoji}>👑</Text>
           </View>
           <Text style={styles.heroTitle}>PT-OS Pro</Text>
-          <Text style={styles.heroSub}>Unlock your full health stack</Text>
+          <Text style={styles.heroSub}>
+            {hasTrial ? `Try free for ${trialDays} days` : 'Unlock your full health stack'}
+          </Text>
         </View>
 
         {/* Feature list */}
@@ -158,9 +164,17 @@ export default function PaywallScreen() {
           {purchasing ? (
             <ActivityIndicator color={Colors.white} />
           ) : (
-            <Text style={styles.ctaText}>Start Pro</Text>
+            <Text style={styles.ctaText}>
+              {hasTrial ? `Start ${trialDays}-Day Free Trial` : 'Start Pro'}
+            </Text>
           )}
         </Pressable>
+
+        {hasTrial && (
+          <Text style={styles.trialTerms}>
+            Free for {trialDays} days, then {selectedPkg === annualPkg ? annualPrice + '/year' : monthlyPrice + '/month'}. Cancel anytime.
+          </Text>
+        )}
 
         {/* Restore */}
         <Pressable onPress={() => void handleRestore()} disabled={restoring} style={styles.restoreBtn}>
@@ -276,6 +290,7 @@ const styles = StyleSheet.create({
   ctaBtnDisabled: { opacity: 0.6 },
   ctaText: { color: Colors.white, fontSize: 17, fontWeight: '800' },
 
+  trialTerms: { textAlign: 'center', color: Colors.textSecondary, fontSize: 12, marginTop: 10, lineHeight: 18 },
   restoreBtn: { alignItems: 'center', marginTop: 16, padding: 8 },
   restoreText: { color: Colors.textSecondary, fontSize: 13 },
 
