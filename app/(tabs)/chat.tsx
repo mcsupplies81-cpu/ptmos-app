@@ -12,6 +12,7 @@ import {
   View,
 } from 'react-native';
 
+import Skeleton from '@/components/Skeleton';
 import Colors from '@/constants/Colors';
 import { supabase } from '@/lib/supabase';
 import { useAuthStore } from '@/stores/authStore';
@@ -309,6 +310,7 @@ function buildSummary(intent: ParsedIntent['intent'], payload: ParsedIntent['pay
 
 export default function ChatScreen() {
   const [inputText, setInputText] = useState('');
+  const [isAiResponding, setIsAiResponding] = useState(false);
   const flatListRef = useRef<FlatList<ChatMessage>>(null);
   const textInputRef = useRef<TextInput>(null);
   const { messages, addMessage, updateMessageStatus, clearMessages } = useChatStore();
@@ -552,7 +554,9 @@ Recent symptoms: ${recentSymptomsSummary}`;
     if (text) addMessage({ role: 'user', text });
     if (imageBase64) addMessage({ role: 'user', text: text || '📷 Image sent' });
 
+    setIsAiResponding(true);
     const aiResult = await callAI(text || 'Describe this image and help me log or understand it.', imageBase64);
+    setIsAiResponding(false);
 
     if (!aiResult || aiResult.type === 'error') {
       if (parseConversationIntent(text) === 'recommend') {
@@ -666,6 +670,7 @@ Recent symptoms: ${recentSymptomsSummary}`;
               <Text style={styles.emptyText}>Ask anything or log a dose</Text>
             </View>
           }
+          ListFooterComponent={isAiResponding ? <AssistantMessageSkeleton /> : null}
           renderItem={({ item: message }) => {
             if (message.role === 'user') {
               return <View style={styles.userBubble}><Text style={styles.userText}>{message.text}</Text></View>;
@@ -783,6 +788,16 @@ Recent symptoms: ${recentSymptomsSummary}`;
       </KeyboardAvoidingView>
     </SafeAreaView>
     </ProGate>
+  );
+}
+
+function AssistantMessageSkeleton() {
+  return (
+    <View style={styles.assistantBubble}>
+      <Skeleton width="88%" height={15} borderRadius={8} />
+      <Skeleton width="74%" height={15} borderRadius={8} style={{ marginTop: 8 }} />
+      <Skeleton width="42%" height={15} borderRadius={8} style={{ marginTop: 8 }} />
+    </View>
   );
 }
 
