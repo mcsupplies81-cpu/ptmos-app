@@ -17,6 +17,7 @@ import {
 import { LineChart } from 'react-native-chart-kit';
 import * as Haptics from 'expo-haptics';
 
+import Skeleton from '@/components/Skeleton';
 import Colors from '@/constants/Colors';
 import { displayWeight } from '@/lib/units';
 import { useAuthStore } from '@/stores/authStore';
@@ -110,6 +111,7 @@ export default function LifestyleScreen() {
   const user = useAuthStore((state) => state.user);
   const profile = useProfileStore((state) => state.profile);
   const logs = useLifestyleStore((state) => state.logs);
+  const loading = useLifestyleStore((state) => state.loading);
   const fetchLogs = useLifestyleStore((state) => state.fetchLogs);
   const upsertLog = useLifestyleStore((state) => state.upsertLog);
   const { width } = useWindowDimensions();
@@ -291,40 +293,59 @@ export default function LifestyleScreen() {
             </View>
           </View>
 
-          <View style={[styles.card, styles.scoreCard]}>
-            <View style={styles.scoreTopRow}>
-              <View>
-                <Text style={styles.scoreEyebrow}>LIFESTYLE SCORE</Text>
-                <Text style={styles.scoreLabel}>{scoreLabel(score)}</Text>
+          {loading ? (
+            <View style={[styles.card, styles.scoreCard]}>
+              <View style={styles.scoreTopRow}>
+                <View style={styles.scoreSkeletonCopy}>
+                  <Skeleton width={120} height={12} borderRadius={6} />
+                  <Skeleton width={150} height={26} borderRadius={8} />
+                </View>
+                <Skeleton width={86} height={86} borderRadius={43} />
               </View>
-              <View style={styles.scoreCircle}>
-                <Text style={styles.scoreValue}>{score}</Text>
-                <Text style={styles.scoreMax}>/100</Text>
+              <View style={styles.trendRow}>
+                <View style={styles.scoreSkeletonCopy}>
+                  <Skeleton width={96} height={11} borderRadius={6} />
+                  <Skeleton width={180} height={16} borderRadius={8} />
+                </View>
+                <Skeleton width={120} height={40} borderRadius={10} />
               </View>
             </View>
-            <View style={styles.trendRow}>
-              <View>
-                <Text style={styles.trendLabel}>7-DAY TREND</Text>
-                <Text style={[styles.trendValue, { color: trendIsUp ? Colors.success : Colors.error }]}>
-                  {trendIsUp ? '↗' : '↘'} {Math.abs(trendChange).toFixed(0)}% vs previous 7 days
-                </Text>
+          ) : (
+            <View style={[styles.card, styles.scoreCard]}>
+              <View style={styles.scoreTopRow}>
+                <View>
+                  <Text style={styles.scoreEyebrow}>LIFESTYLE SCORE</Text>
+                  <Text style={styles.scoreLabel}>{scoreLabel(score)}</Text>
+                </View>
+                <View style={styles.scoreCircle}>
+                  <Text style={styles.scoreValue}>{score}</Text>
+                  <Text style={styles.scoreMax}>/100</Text>
+                </View>
               </View>
-              <LineChart
-                data={{ labels: weeklyLabels, datasets: [{ data: currentTrend }] }}
-                width={120}
-                height={40}
-                chartConfig={chartConfig}
-                withDots={false}
-                withInnerLines={false}
-                withOuterLines={false}
-                withVerticalLabels={false}
-                withHorizontalLabels={false}
-                fromZero
-                bezier
-                style={styles.sparkline}
-              />
+              <View style={styles.trendRow}>
+                <View>
+                  <Text style={styles.trendLabel}>7-DAY TREND</Text>
+                  <Text style={[styles.trendValue, { color: trendIsUp ? Colors.success : Colors.error }]}>
+                    {trendIsUp ? '↗' : '↘'} {Math.abs(trendChange).toFixed(0)}% vs previous 7 days
+                  </Text>
+                </View>
+                <LineChart
+                  data={{ labels: weeklyLabels, datasets: [{ data: currentTrend }] }}
+                  width={120}
+                  height={40}
+                  chartConfig={chartConfig}
+                  withDots={false}
+                  withInnerLines={false}
+                  withOuterLines={false}
+                  withVerticalLabels={false}
+                  withHorizontalLabels={false}
+                  fromZero
+                  bezier
+                  style={styles.sparkline}
+                />
+              </View>
             </View>
-          </View>
+          )}
 
           <Text style={styles.sectionHeader}>TODAY'S LOG</Text>
           <View style={styles.card}>
@@ -367,34 +388,46 @@ export default function LifestyleScreen() {
           </View>
 
           <Text style={styles.sectionHeader}>WEEKLY OVERVIEW</Text>
-          <View style={[styles.card, styles.weeklyCard]}>
-            <LineChart
-              data={{
-                labels: weeklyLabels,
-                datasets: [
-                  { data: weeklySleep, color: () => '#8B5CF6', strokeWidth: 2 },
-                  { data: weeklyEnergy, color: () => '#10B981', strokeWidth: 2 },
-                  { data: weeklyMood, color: () => '#F59E0B', strokeWidth: 2 },
-                  { data: weeklyWorkout, color: () => '#F97316', strokeWidth: 2 },
-                ],
-              }}
-              width={Math.max(width - 48, 280)}
-              height={210}
-              chartConfig={chartConfig}
-              withDots={false}
-              withShadow={false}
-              fromZero
-              segments={4}
-              bezier
-              style={styles.weeklyChart}
-            />
-            <View style={styles.legendRow}>
-              <LegendDot color="#8B5CF6" label="Sleep" />
-              <LegendDot color="#10B981" label="Energy" />
-              <LegendDot color="#F59E0B" label="Mood" />
-              <LegendDot color="#F97316" label="Workout" />
+          {loading ? (
+            <View style={[styles.card, styles.weeklyCard, styles.weeklySkeletonCard]}>
+              <Skeleton width="100%" height={210} borderRadius={16} />
+              <View style={styles.legendRow}>
+                <Skeleton width={62} height={14} borderRadius={7} />
+                <Skeleton width={70} height={14} borderRadius={7} />
+                <Skeleton width={60} height={14} borderRadius={7} />
+                <Skeleton width={78} height={14} borderRadius={7} />
+              </View>
             </View>
-          </View>
+          ) : (
+            <View style={[styles.card, styles.weeklyCard]}>
+              <LineChart
+                data={{
+                  labels: weeklyLabels,
+                  datasets: [
+                    { data: weeklySleep, color: () => '#8B5CF6', strokeWidth: 2 },
+                    { data: weeklyEnergy, color: () => '#10B981', strokeWidth: 2 },
+                    { data: weeklyMood, color: () => '#F59E0B', strokeWidth: 2 },
+                    { data: weeklyWorkout, color: () => '#F97316', strokeWidth: 2 },
+                  ],
+                }}
+                width={Math.max(width - 48, 280)}
+                height={210}
+                chartConfig={chartConfig}
+                withDots={false}
+                withShadow={false}
+                fromZero
+                segments={4}
+                bezier
+                style={styles.weeklyChart}
+              />
+              <View style={styles.legendRow}>
+                <LegendDot color="#8B5CF6" label="Sleep" />
+                <LegendDot color="#10B981" label="Energy" />
+                <LegendDot color="#F59E0B" label="Mood" />
+                <LegendDot color="#F97316" label="Workout" />
+              </View>
+            </View>
+          )}
 
           <Text style={styles.sectionHeader}>QUICK ADD</Text>
           <View style={styles.quickAddRow}>
@@ -599,6 +632,7 @@ const styles = StyleSheet.create({
   card: { backgroundColor: Colors.card, borderWidth: 1, borderColor: Colors.border, borderRadius: 18, overflow: 'hidden' },
   scoreCard: { padding: 18, gap: 18 },
   scoreTopRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+  scoreSkeletonCopy: { gap: 10 },
   scoreEyebrow: { color: Colors.textSecondary, fontSize: 12, fontWeight: '800', letterSpacing: 1 },
   scoreLabel: { color: Colors.text, fontSize: 22, fontWeight: '800', marginTop: 6 },
   scoreCircle: { width: 86, height: 86, borderRadius: 43, backgroundColor: Colors.accentLight, alignItems: 'center', justifyContent: 'center' },
@@ -624,6 +658,7 @@ const styles = StyleSheet.create({
   deltaUp: { color: Colors.warning },
   deltaDown: { color: Colors.success },
   weeklyCard: { paddingVertical: 10 },
+  weeklySkeletonCard: { paddingHorizontal: 10, gap: 12 },
   weeklyChart: { marginLeft: -16, borderRadius: 16 },
   legendRow: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'center', gap: 14, paddingHorizontal: 12, paddingBottom: 8 },
   legendItem: { flexDirection: 'row', alignItems: 'center', gap: 6 },

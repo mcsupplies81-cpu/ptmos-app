@@ -1,3 +1,4 @@
+
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { ActivityIndicator, Alert, FlatList, Pressable, RefreshControl, SafeAreaView, StyleSheet, Text, View } from 'react-native';
 import { router } from 'expo-router';
@@ -6,6 +7,7 @@ import { calcAdherence, useProtocolStore, type ProtocolStatus } from '@/stores/p
 import { useDoseLogStore } from '@/stores/doseLogStore';
 import { useAuthStore } from '@/stores/authStore';
 import EmptyState from '@/components/EmptyState';
+import Skeleton from '@/components/Skeleton';
 import { ProGate } from '@/components/ProGate';
 
 type Filter = 'All' | 'Active' | 'Paused' | 'Completed';
@@ -66,6 +68,7 @@ export default function ProtocolsScreen() {
     }
   };
 
+
   const handleRefresh = useCallback(async () => {
     if (!user?.id) return;
 
@@ -76,17 +79,6 @@ export default function ProtocolsScreen() {
       setRefreshing(false);
     }
   }, [fetchProtocols, user?.id]);
-
-  if (loading && !refreshing) {
-    return (
-      <SafeAreaView style={styles.container}>
-        <View style={styles.centerState}>
-          <ActivityIndicator size="large" color={Colors.accent} />
-          <Text style={styles.centerStateText}>Loading protocols...</Text>
-        </View>
-      </SafeAreaView>
-    );
-  }
 
   if (error) {
     return (
@@ -133,6 +125,13 @@ export default function ProtocolsScreen() {
         })}
       </View>
 
+      {loading ? (
+        <View style={styles.listContent}>
+          {Array.from({ length: 3 }).map((_, index) => (
+            <ProtocolRowSkeleton key={index} />
+          ))}
+        </View>
+      ) : (
       <FlatList
         data={filteredProtocols}
         keyExtractor={(item) => item.id}
@@ -187,10 +186,30 @@ export default function ProtocolsScreen() {
           );
         }}
       />
+      )}
 
       <Pressable style={styles.fab} onPress={() => router.push('/protocol/create')}><Text style={styles.fabText}>+</Text></Pressable>
     </SafeAreaView>
     </ProGate>
+  );
+}
+
+function ProtocolRowSkeleton() {
+  return (
+    <View style={styles.card}>
+      <View style={[styles.accentBar, styles.skeletonAccentBar]} />
+      <View style={styles.cardContent}>
+        <View style={styles.cardMainSkeleton}>
+          <Skeleton width="58%" height={18} borderRadius={8} />
+          <Skeleton width="72%" height={14} borderRadius={7} />
+          <Skeleton width="44%" height={12} borderRadius={6} />
+        </View>
+        <View style={styles.cardRight}>
+          <Skeleton width={72} height={22} borderRadius={999} />
+          <Skeleton width={48} height={48} borderRadius={24} />
+        </View>
+      </View>
+    </View>
   );
 }
 
@@ -246,6 +265,7 @@ const styles = StyleSheet.create({
     elevation: 3,
   },
   accentBar: { width: 4, height: '100%', borderRadius: 2, alignSelf: 'stretch' },
+  skeletonAccentBar: { backgroundColor: Colors.border },
   cardContent: {
     flex: 1,
     flexDirection: 'row',
@@ -255,6 +275,7 @@ const styles = StyleSheet.create({
     paddingVertical: 14,
   },
   cardMain: { flex: 1, paddingRight: 12 },
+  cardMainSkeleton: { flex: 1, paddingRight: 12, gap: 8 },
   name: { fontSize: 16, fontWeight: '700', color: Colors.text },
   meta: { marginTop: 5, fontSize: 13, color: Colors.textSecondary },
   time: { marginTop: 5, fontSize: 12, color: Colors.textSecondary },

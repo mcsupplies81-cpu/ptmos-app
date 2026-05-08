@@ -1,11 +1,13 @@
 import { Stack, useRouter, useSegments } from 'expo-router';
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 import { supabase } from '@/lib/supabase';
 import { useAuthStore } from '@/stores/authStore';
 import { useProfileStore } from '@/stores/profileStore';
 import { useSubscriptionStore } from '@/stores/subscriptionStore';
 import { initPurchases } from '@/lib/purchases';
-import { requestNotificationPermission } from '@/utils/notifications';
+import { scheduleDoseReminders } from '@/lib/notifications';
+import { useProtocolStore } from '@/stores/protocolStore';
+import OfflineBanner from '@/components/OfflineBanner';
 
 export default function RootLayout() {
   const router = useRouter();
@@ -13,6 +15,9 @@ export default function RootLayout() {
   const { session, loading, setSession, setLoading } = useAuthStore();
   const { profile, fetchProfile } = useProfileStore();
   const refreshSubscription = useSubscriptionStore((s) => s.refresh);
+  const protocols = useProtocolStore((s) => s.protocols);
+  const protocolsLoading = useProtocolStore((s) => s.loading);
+  const didSkipInitialProtocolSync = useRef(false);
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
@@ -52,15 +57,29 @@ export default function RootLayout() {
   }, [loading, session, profile, segments]);
 
   useEffect(() => {
-    void requestNotificationPermission();
-  }, []);
+    didSkipInitialProtocolSync.current = false;
+  }, [session?.user?.id]);
+
+  useEffect(() => {
+    if (!session?.user?.id || protocolsLoading) return;
+
+    if (!didSkipInitialProtocolSync.current) {
+      didSkipInitialProtocolSync.current = true;
+      return;
+    }
+
+    void scheduleDoseReminders(protocols);
+  }, [protocols, protocolsLoading, session?.user?.id]);
 
   return (
-    <Stack screenOptions={{ headerShown: false }}>
-      <Stack.Screen name="log/sleep" options={{ presentation: 'modal', animation: 'slide_from_bottom' }} />
-      <Stack.Screen name="log/water" options={{ presentation: 'modal', animation: 'slide_from_bottom' }} />
-      <Stack.Screen name="log/workout" options={{ presentation: 'modal', animation: 'slide_from_bottom' }} />
-      <Stack.Screen name="paywall" options={{ presentation: 'modal', animation: 'slide_from_bottom' }} />
-    </Stack>
+    <>
+      <OfflineBanner />
+      <Stack screenOptions={{ headerShown: false }}>
+        <Stack.Screen name="log/sleep" options={{ presentation: 'modal', animation: 'slide_from_bottom' }} />
+        <Stack.Screen name="log/water" options={{ presentation: 'modal', animation: 'slide_from_bottom' }} />
+        <Stack.Screen name="log/workout" options={{ presentation: 'modal', animation: 'slide_from_bottom' }} />
+        <Stack.Screen name="paywall" options={{ presentation: 'modal', animation: 'slide_from_bottom' }} />
+      </Stack>
+    </>
   );
 }

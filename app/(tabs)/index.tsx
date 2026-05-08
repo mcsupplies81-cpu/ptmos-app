@@ -4,6 +4,7 @@ import { useCallback, useMemo, useState } from 'react';
 import { Pressable, RefreshControl, SafeAreaView, ScrollView, StyleSheet, Text, View } from 'react-native';
 import Svg, { Circle } from 'react-native-svg';
 
+import Skeleton from '@/components/Skeleton';
 import Colors from '@/constants/Colors';
 import { displayWeight } from '@/lib/units';
 import { useAuthStore } from '@/stores/authStore';
@@ -82,14 +83,19 @@ export default function DashboardScreen() {
   const fetchProfile = useProfileStore((s) => s.fetchProfile);
 
   const protocols = useProtocolStore((s) => s.protocols);
+  const protocolsLoading = useProtocolStore((s) => s.loading);
   const fetchProtocols = useProtocolStore((s) => s.fetchProtocols);
 
   const doseLogs = useDoseLogStore((s) => s.doseLogs);
+  const doseLogsLoading = useDoseLogStore((s) => s.loading);
   const fetchDoseLogs = useDoseLogStore((s) => s.fetchDoseLogs);
   const addDoseLog = useDoseLogStore((s) => s.addDoseLog);
 
-  const { logs: lifestyleLogs, fetchLogs } = useLifestyleStore();
+
   const [refreshing, setRefreshing] = useState(false);
+
+  const { logs: lifestyleLogs, loading: lifestyleLoading, fetchLogs } = useLifestyleStore();
+
 
   // Re-fetch every time the tab comes into focus so metrics always show latest data
   useFocusEffect(
@@ -221,6 +227,7 @@ export default function DashboardScreen() {
   }, [doseLogs]);
 
   const recentActivity = useMemo(() => doseLogs.slice(0, 5), [doseLogs]);
+  const loading = protocolsLoading || doseLogsLoading || lifestyleLoading;
   const formatWeightDelta = (deltaLbs: number | null) => {
     if (deltaLbs == null) return null;
     const sign = deltaLbs > 0 ? '+' : '';
@@ -375,7 +382,19 @@ export default function DashboardScreen() {
 
         <View style={styles.nextDoseCard}>
           <Text style={styles.nextDoseLabel}>NEXT DOSE</Text>
-          {nextDose ? (
+          {loading ? (
+            <View style={styles.nextDoseSkeleton}>
+              <View style={styles.nextDoseSkeletonRow}>
+                <View style={styles.nextDoseSkeletonCopy}>
+                  <Skeleton width="70%" height={28} borderRadius={8} />
+                  <Skeleton width="48%" height={16} borderRadius={8} />
+                  <Skeleton width="90%" height={14} borderRadius={7} />
+                </View>
+                <Skeleton width={NEXT_RING_SIZE} height={NEXT_RING_SIZE} borderRadius={NEXT_RING_SIZE / 2} />
+              </View>
+              <Skeleton width="100%" height={44} borderRadius={12} />
+            </View>
+          ) : nextDose ? (
             <>
               <View style={styles.nextDoseMainRow}>
                 <View style={styles.nextDoseCopy}>
@@ -419,38 +438,50 @@ export default function DashboardScreen() {
         </View>
 
         <Text style={styles.sectionTitle}>KEY METRICS</Text>
-        <View style={styles.metricsGrid}>
-          <View style={styles.metricsGridRow}>
-            <Pressable style={styles.metricCard} onPress={() => router.push('/log/lifestyle')}>
-              <Text style={styles.metricEmoji}>⚖️</Text>
-              <Text style={styles.metricValue}>{displayWeight(todayLifestyle?.weight_lbs ?? null, weightUnit)}</Text>
-              <Text style={styles.metricLabel}>Weight</Text>
-              {weightDelta != null ? (
-                <Text style={styles.metricSub}>{formatWeightDelta(weightDelta)}</Text>
-              ) : null}
-            </Pressable>
-            <Pressable style={styles.metricCard} onPress={() => router.push('/log/lifestyle')}>
-              <Text style={styles.metricEmoji}>💧</Text>
-              <Text style={styles.metricValue}>{todayLifestyle?.water_oz != null ? `${todayLifestyle.water_oz} oz` : '—'}</Text>
-              <Text style={styles.metricLabel}>of {WATER_GOAL_OZ} oz</Text>
-              <View style={styles.metricProgressTrack}>
-                <View style={[styles.metricProgressFill, { width: `${Math.round(waterPct * 100)}%` }]} />
-              </View>
-            </Pressable>
+        {loading ? (
+          <View style={styles.metricsGrid}>
+            <View style={styles.metricsGridRow}>
+              <MetricCardSkeleton />
+              <MetricCardSkeleton />
+            </View>
+            <View style={styles.metricsGridRow}>
+              <MetricCardSkeleton />
+            </View>
           </View>
-          <View style={styles.metricsGridRow}>
-            <Pressable style={styles.metricCard} onPress={() => router.push('/log/lifestyle')}>
-              <Text style={styles.metricEmoji}>😴</Text>
-              <Text style={styles.metricValue}>{todayLifestyle?.sleep_hours != null ? `${todayLifestyle.sleep_hours}h` : '—'}</Text>
-              <Text style={styles.metricLabel}>Sleep</Text>
-            </Pressable>
-            <Pressable style={styles.metricCard} onPress={() => router.push('/(tabs)/insights')}>
-              <Text style={styles.metricEmoji}>📊</Text>
-              <Text style={styles.metricValue}>{adherencePct}%</Text>
-              <Text style={styles.metricLabel}>vs last week</Text>
-            </Pressable>
+        ) : (
+          <View style={styles.metricsGrid}>
+            <View style={styles.metricsGridRow}>
+              <Pressable style={styles.metricCard} onPress={() => router.push('/log/lifestyle')}>
+                <Text style={styles.metricEmoji}>⚖️</Text>
+                <Text style={styles.metricValue}>{displayWeight(todayLifestyle?.weight_lbs ?? null, weightUnit)}</Text>
+                <Text style={styles.metricLabel}>Weight</Text>
+                {weightDelta != null ? (
+                  <Text style={styles.metricSub}>{formatWeightDelta(weightDelta)}</Text>
+                ) : null}
+              </Pressable>
+              <Pressable style={styles.metricCard} onPress={() => router.push('/log/lifestyle')}>
+                <Text style={styles.metricEmoji}>💧</Text>
+                <Text style={styles.metricValue}>{todayLifestyle?.water_oz != null ? `${todayLifestyle.water_oz} oz` : '—'}</Text>
+                <Text style={styles.metricLabel}>of {WATER_GOAL_OZ} oz</Text>
+                <View style={styles.metricProgressTrack}>
+                  <View style={[styles.metricProgressFill, { width: `${Math.round(waterPct * 100)}%` }]} />
+                </View>
+              </Pressable>
+            </View>
+            <View style={styles.metricsGridRow}>
+              <Pressable style={styles.metricCard} onPress={() => router.push('/log/lifestyle')}>
+                <Text style={styles.metricEmoji}>😴</Text>
+                <Text style={styles.metricValue}>{todayLifestyle?.sleep_hours != null ? `${todayLifestyle.sleep_hours}h` : '—'}</Text>
+                <Text style={styles.metricLabel}>Sleep</Text>
+              </Pressable>
+              <Pressable style={styles.metricCard} onPress={() => router.push('/(tabs)/insights')}>
+                <Text style={styles.metricEmoji}>📊</Text>
+                <Text style={styles.metricValue}>{adherencePct}%</Text>
+                <Text style={styles.metricLabel}>vs last week</Text>
+              </Pressable>
+            </View>
           </View>
-        </View>
+        )}
 
         <View style={styles.sectionHeaderRow}>
           <Text style={styles.sectionTitle}>RECENT ACTIVITY</Text>
@@ -470,6 +501,19 @@ export default function DashboardScreen() {
         </View>
       </ScrollView>
     </SafeAreaView>
+  );
+}
+
+function MetricCardSkeleton() {
+  return (
+    <View style={styles.metricCard}>
+      <Skeleton width={28} height={28} borderRadius={14} />
+      <View style={styles.metricSkeletonCopy}>
+        <Skeleton width="62%" height={24} borderRadius={8} />
+        <Skeleton width="44%" height={14} borderRadius={7} />
+      </View>
+      <Skeleton width="100%" height={7} borderRadius={999} />
+    </View>
   );
 }
 
@@ -540,11 +584,15 @@ const styles = StyleSheet.create({
   nextRingTime: { color: Colors.white, fontSize: 13, fontWeight: '800' },
   nextRingLabel: { color: 'rgba(255, 255, 255, 0.7)', fontSize: 10, fontWeight: '700' },
   nextEmpty: { color: Colors.white, fontSize: 16, fontWeight: '700', textAlign: 'center', paddingVertical: 28 },
+  nextDoseSkeleton: { gap: 16 },
+  nextDoseSkeletonRow: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+  nextDoseSkeletonCopy: { flex: 1, gap: 10 },
   logButton: { backgroundColor: Colors.white, borderRadius: 12, height: 44, alignItems: 'center', justifyContent: 'center' },
   logButtonText: { color: DARK_FOREST, fontSize: 15, fontWeight: '800' },
   metricsGrid: { gap: 10 },
   metricsGridRow: { flexDirection: 'row', gap: 10 },
   metricCard: { flex: 1, minHeight: 112, backgroundColor: Colors.card, borderRadius: 14, borderWidth: 1, borderColor: Colors.border, padding: 14, justifyContent: 'space-between' },
+  metricSkeletonCopy: { gap: 8 },
   metricEmoji: { fontSize: 20 },
   metricValue: { color: Colors.text, fontSize: 22, fontWeight: '800' },
   metricLabel: { color: Colors.textSecondary, fontSize: 13, fontWeight: '600' },

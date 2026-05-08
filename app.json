@@ -35,8 +35,14 @@
     },
     "plugins": [
       "expo-router",
-      "expo-notifications",
-      "react-native-purchases"
+      [
+        "expo-notifications",
+        {
+          "sounds": []
+        }
+      ],
+      "react-native-purchases",
+      "@react-native-community/netinfo"
     ],
     "experiments": {
       "typedRoutes": true
