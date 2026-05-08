@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Alert, FlatList, Pressable, SafeAreaView, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { Alert, FlatList, Pressable, SafeAreaView, StyleSheet, Text, TextInput, View } from 'react-native';
 
 import EmptyState from '@/components/EmptyState';
 import ScreenHeader from '@/components/ScreenHeader';
@@ -69,11 +69,7 @@ export default function DoseHistoryScreen() {
         onChangeText={setSearchQuery}
       />
 
-      <ScrollView
-        horizontal
-        showsHorizontalScrollIndicator={false}
-        contentContainerStyle={styles.chipsContainer}
-      >
+      <View style={styles.chipsContainer}>
         {filterOptions.map((name) => {
           const selected = selectedFilter === name;
 
@@ -89,11 +85,12 @@ export default function DoseHistoryScreen() {
             </Pressable>
           );
         })}
-      </ScrollView>
+      </View>
 
       <FlatList
         data={filteredLogs}
         keyExtractor={(item) => item.id}
+        style={{ flex: 1 }}
         contentContainerStyle={styles.listContent}
         renderItem={({ item }) => (
           <Pressable style={styles.card} onPress={() => onPressRow(item.id)}>
@@ -147,8 +144,8 @@ const styles = StyleSheet.create({
     marginBottom: 12,
     color: Colors.text,
   },
-  chipsContainer: { paddingHorizontal: 16, gap: 8, marginBottom: 8 },
-  chip: { paddingHorizontal: 12, paddingVertical: 6, borderRadius: 999 },
+  chipsContainer: { flexDirection: 'row', flexWrap: 'wrap', paddingHorizontal: 16, gap: 8, marginBottom: 8, flexShrink: 0 },
+  chip: { paddingHorizontal: 10, paddingVertical: 5, borderRadius: 999 },
   chipSelected: { backgroundColor: Colors.accent, borderWidth: 1, borderColor: Colors.accent },
   chipUnselected: { backgroundColor: Colors.card, borderWidth: 1, borderColor: Colors.border },
   chipText: { fontSize: 12, fontWeight: '600' },

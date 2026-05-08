@@ -450,8 +450,8 @@ export default function ChatScreen() {
     <SafeAreaView style={{ flex: 1, backgroundColor: Colors.background }}>
       <KeyboardAvoidingView
         style={{ flex: 1 }}
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-        keyboardVerticalOffset={Platform.OS === 'ios' ? 88 : 0}
+        behavior="height"
+        keyboardVerticalOffset={0}
       >
         <View style={styles.header}>
           <View>
