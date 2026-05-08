@@ -39,7 +39,7 @@ interface LifestyleStore {
 export const useLifestyleStore = create<LifestyleStore>((set, get) => ({
   logs: [],
   loading: false,
-  fetchLogs: async (userId) => {
+  fetchLogs: async (userId: string) => {
     set({ loading: true });
     const { data, error } = await supabase
       .from('lifestyle_logs')
@@ -50,7 +50,7 @@ export const useLifestyleStore = create<LifestyleStore>((set, get) => ({
     if (error) throw error;
     set({ logs: (data ?? []) as LifestyleLog[] });
   },
-  upsertLog: async (log, userId) => {
+  upsertLog: async (log: UpsertLifestyleLog, userId: string) => {
     const { error } = await supabase
       .from('lifestyle_logs')
       .upsert({ ...log, user_id: userId }, { onConflict: 'user_id,date' });

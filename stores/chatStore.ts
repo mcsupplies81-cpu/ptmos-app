@@ -18,7 +18,7 @@ export type ParsedIntent = {
     | 'ask_inventory'
     | 'reconstitute'
     | 'unknown';
-  payload: Record<string, string | number | null>;
+  payload: Record<string, string | number | boolean | null | undefined>;
   confidence: 'high' | 'medium' | 'low';
   displaySummary: string;
 };

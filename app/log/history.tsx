@@ -1,5 +1,5 @@
-import { useEffect, useMemo, useState } from 'react';
-import { Alert, FlatList, Pressable, SafeAreaView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import { Alert, FlatList, Pressable, RefreshControl, SafeAreaView, StyleSheet, Text, TextInput, View } from 'react-native';
 
 import EmptyState from '@/components/EmptyState';
 import ScreenHeader from '@/components/ScreenHeader';
@@ -14,6 +14,7 @@ export default function DoseHistoryScreen() {
   const doseLogs = useDoseLogStore((s) => s.doseLogs);
   const fetchDoseLogs = useDoseLogStore((s) => s.fetchDoseLogs);
   const [searchQuery, setSearchQuery] = useState('');
+  const [refreshing, setRefreshing] = useState(false);
 
   const handleDelete = async (id: string) => {
     await supabase.from('dose_logs').delete().eq('id', id);
@@ -31,6 +32,17 @@ export default function DoseHistoryScreen() {
   useEffect(() => {
     if (user?.id) {
       fetchDoseLogs(user.id);
+    }
+  }, [fetchDoseLogs, user?.id]);
+
+  const handleRefresh = useCallback(async () => {
+    if (!user?.id) return;
+
+    setRefreshing(true);
+    try {
+      await fetchDoseLogs(user.id);
+    } finally {
+      setRefreshing(false);
     }
   }, [fetchDoseLogs, user?.id]);
 
@@ -94,6 +106,7 @@ export default function DoseHistoryScreen() {
         keyExtractor={(item) => item.id}
         style={{ flex: 1 }}
         contentContainerStyle={styles.listContent}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={handleRefresh} tintColor={Colors.accent} />}
         renderItem={({ item }) => (
           <Pressable style={styles.card} onPress={() => onPressRow(item.id)}>
             <View style={styles.rowTop}>
