@@ -22,9 +22,63 @@ import { useLifestyleStore } from '@/stores/lifestyleStore';
 import { useInventoryStore } from '@/stores/inventoryStore';
 import { useProtocolStore } from '@/stores/protocolStore';
 import { useSymptomStore } from '@/stores/symptomStore';
+import { useProfileStore } from '@/stores/profileStore';
 
 const localDateKey = (d: Date) =>
   `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+
+const AI_SYSTEM_PROMPT = `You are an AI research companion built into PT-OS, a peptide protocol tracking app. You help users understand peptide research, optimize their protocols, log health metrics, and get the most from their self-optimization journey.
+You have deep knowledge of peptide research including but not limited to: BPC-157, TB-500, CJC-1295, Ipamorelin, Sermorelin, Hexarelin, GHRP-2, GHRP-6, Tesamorelin, Epithalon, Selank, Semax, PT-141, Melanotan II, AOD-9604, GHK-Cu, Thymosin Alpha-1, NAD+, 5-Amino-1MQ, and others. You understand typical protocols, dosing ranges from published research, common stacks, injection timing, reconstitution, storage, and reported outcomes.
+You can discuss: mechanism of action, research-backed dosing windows, synergistic stacks, cycle lengths, PCT, peptide storage, reconstitution math, injury recovery protocols, sleep optimization, GH pulse timing, and lifestyle factors that affect outcomes.
+Always frame your responses as educational information based on research literature and community experience — not medical advice. Remind users to consult a healthcare provider for medical decisions when relevant, but don't repeat this disclaimer on every message — once per conversation is enough.
+You are conversational, knowledgeable, and direct. Match the user's tone. If they're casual, be casual. Don't be overly cautious or hedge every sentence. Be the informed research buddy they don't have in real life.
+When the user asks about their specific protocols or metrics, use the context provided below about their current stack and recent activity to give personalized, relevant responses.
+If the user's message is a logging request (took a dose, drank water, weighed in, etc.), extract that intent and return it in the structured JSON format. For all other messages, respond conversationally in plain text.`;
+
+type MarkdownSegment = { text: string; bold: boolean };
+
+function parseBoldSegments(text: string): MarkdownSegment[] {
+  const segments: MarkdownSegment[] = [];
+  const parts = text.split(/(\*\*[^*]+\*\*)/g).filter(Boolean);
+  for (const part of parts) {
+    const isBold = part.startsWith('**') && part.endsWith('**') && part.length > 4;
+    segments.push({ text: isBold ? part.slice(2, -2) : part, bold: isBold });
+  }
+  return segments;
+}
+
+function renderMarkdown(text: string) {
+  return text.split('\n').map((line, index) => {
+    const bulletMatch = line.match(/^\s*(?:•|-)\s+(.*)$/);
+    const content = bulletMatch?.[1] ?? line;
+    const segments = parseBoldSegments(content);
+    return (
+      <Text
+        key={`${index}-${line}`}
+        style={[styles.assistantText, bulletMatch && styles.markdownBulletLine]}
+      >
+        {bulletMatch ? '• ' : ''}
+        {segments.map((segment, segmentIndex) => (
+          <Text
+            key={`${index}-${segmentIndex}`}
+            style={segment.bold ? styles.markdownBold : undefined}
+          >
+            {segment.text}
+          </Text>
+        ))}
+      </Text>
+    );
+  });
+}
+
+type ConversationIntent = 'recommend';
+
+function parseConversationIntent(text: string): ConversationIntent | null {
+  if (/(what\s+should\s+i\s+stack|stack\s+with|what'?s\s+good\s+for|suggest|recommend|what\s+do\s+you\s+think\s+about|thoughts\s+on|protocol\s+for|optimi[sz]e|best\s+for|help\s+with\s+(?:recovery|sleep|focus|fat\s*loss|injury))/i.test(text)) {
+    return 'recommend';
+  }
+  return null;
+}
 
 function calcReconstitution(vialMg: number, waterMl: number, peptide: string | null) {
   const concentrationMgPerMl = vialMg / waterMl;
@@ -260,6 +314,9 @@ export default function ChatScreen() {
   const { messages, addMessage, updateMessageStatus, clearMessages } = useChatStore();
   const doseLogs = useDoseLogStore((s) => s.doseLogs);
   const protocols = useProtocolStore((s) => s.protocols);
+  const lifestyleLogs = useLifestyleStore((s) => s.logs);
+  const symptomLogs = useSymptomStore((s) => s.logs);
+  const profile = useProfileStore((s) => s.profile);
   const user = useAuthStore((s) => s.user);
   const fetchDoseLogs = useDoseLogStore((s) => s.fetchDoseLogs);
   const upsertLifestyle = useLifestyleStore((s) => s.upsertLog);
@@ -410,13 +467,67 @@ export default function ChatScreen() {
       const s = new Date(); s.setDate(s.getDate() - 1);
       while (logged.has(s.toISOString().slice(0, 10))) { streakDays++; s.setDate(s.getDate() - 1); }
 
+      const todayKey = localDateKey(new Date());
+      const todayLifestyle = lifestyleLogs.find((log) => log.date === todayKey);
+      const activeProtocols = protocols.filter((protocol) => protocol.status === 'active');
+      const currentStackSummary = activeProtocols
+        .map((protocol) => {
+          const compoundDescription = (protocol as typeof protocol & { compound_description?: string | null }).compound_description;
+          return `${protocol.name} ${protocol.dose_amount}${protocol.dose_unit} ${protocol.frequency} at ${protocol.time_of_day}${compoundDescription ? ` — ${compoundDescription}` : ''}`;
+        })
+        .join(', ') || 'none';
+      const todaySummary = [
+        `water ${todayLifestyle?.water_oz ?? 'not logged'}oz`,
+        `sleep ${todayLifestyle?.sleep_hours ?? 'not logged'}h`,
+        `weight ${todayLifestyle?.weight_lbs ?? 'not logged'}lbs`,
+        `steps ${todayLifestyle?.steps ?? 'not logged'}`,
+      ].join(', ');
+      const recentSymptomsSummary = [...symptomLogs]
+        .sort((a, b) => new Date(b.logged_at).getTime() - new Date(a.logged_at).getTime())
+        .slice(0, 3)
+        .map((symptom) => {
+          const daysAgo = Math.floor((Date.now() - new Date(symptom.logged_at).getTime()) / 86400000);
+          const when = daysAgo === 0 ? 'today' : daysAgo === 1 ? 'yesterday' : `${daysAgo} days ago`;
+          return `${symptom.symptom} (${symptom.severity}/10) ${when}`;
+        })
+        .join(', ') || 'none';
+      const userContext = `[USER CONTEXT]
+Goal: ${profile?.goal ?? 'not set'}
+Active protocols: ${currentStackSummary}
+Today: ${todaySummary}
+Recent symptoms: ${recentSymptomsSummary}`;
+
       const { data, error } = await supabase.functions.invoke('chat-ai', {
         body: {
           message: text,
           imageBase64: imageBase64 ?? null,
+          systemPrompt: AI_SYSTEM_PROMPT,
+          userContext,
           context: {
-            protocols: protocols.map(p => ({ name: p.name, dose_amount: p.dose_amount, dose_unit: p.dose_unit, frequency: p.frequency, status: p.status })),
-            recentDoses: [...doseLogs].sort((a, b) => new Date(b.logged_at).getTime() - new Date(a.logged_at).getTime()).slice(0, 5),
+            protocols: protocols.map(p => {
+              const compoundDescription = (p as typeof p & { compound_description?: string | null }).compound_description;
+              return {
+                name: p.name,
+                dose_amount: p.dose_amount,
+                dose_unit: p.dose_unit,
+                frequency: p.frequency,
+                time_of_day: p.time_of_day,
+                status: p.status,
+                compound_description: compoundDescription ?? null,
+              };
+            }),
+            recentDoses: [...doseLogs].sort((a, b) => new Date(b.logged_at).getTime() - new Date(a.logged_at).getTime()).slice(0, 7),
+            lifestyleToday: todayLifestyle ? {
+              water_oz: todayLifestyle.water_oz,
+              sleep_hours: todayLifestyle.sleep_hours,
+              weight_lbs: todayLifestyle.weight_lbs,
+              steps: todayLifestyle.steps,
+            } : null,
+            recentSymptoms: [...symptomLogs]
+              .sort((a, b) => new Date(b.logged_at).getTime() - new Date(a.logged_at).getTime())
+              .slice(0, 3),
+            goal: profile?.goal ?? null,
+            userContext,
             adherencePct,
             streakDays,
           },
@@ -431,7 +542,7 @@ export default function ChatScreen() {
       console.error('[chat-ai] caught:', e);
       return { type: 'error', reason: String(e) };
     }
-  }, [doseLogs, protocols]);
+  }, [doseLogs, lifestyleLogs, profile?.goal, protocols, symptomLogs]);
 
   const handleSend = useCallback(async (overrideText?: string, imageBase64?: string) => {
     const text = (overrideText ?? inputText).trim();
@@ -444,6 +555,11 @@ export default function ChatScreen() {
     const aiResult = await callAI(text || 'Describe this image and help me log or understand it.', imageBase64);
 
     if (!aiResult || aiResult.type === 'error') {
+      if (parseConversationIntent(text) === 'recommend') {
+        addMessage({ role: 'assistant', text: "I can help with stack and protocol ideas, but I'm having trouble connecting to the research companion right now. Try again in a moment and I'll give you a proper educational breakdown." });
+        return;
+      }
+
       const parsed = mockParse(text);
       if (parsed.intent !== 'unknown') {
         if (parsed.intent === 'ask_last_dose') {
@@ -568,7 +684,7 @@ export default function ChatScreen() {
                   </View>
                 );
               }
-              return <View style={styles.assistantBubble}><Text style={styles.assistantText}>{message.text}</Text></View>;
+              return <View style={styles.assistantBubble}>{renderMarkdown(message.text)}</View>;
             }
             if (message.role === 'success') {
               return <View style={styles.successPill}><Text style={styles.successText}>✓ {message.text}</Text></View>;
@@ -704,7 +820,9 @@ const styles = StyleSheet.create({
     alignSelf: 'flex-start',
     marginVertical: 2,
   },
-  assistantText: { color: Colors.text, fontSize: 15 },
+  assistantText: { color: Colors.text, fontSize: 15, lineHeight: 21 },
+  markdownBold: { fontWeight: '800' },
+  markdownBulletLine: { paddingLeft: 12 },
   receiptCard: {
     backgroundColor: Colors.card,
     borderRadius: 14,
