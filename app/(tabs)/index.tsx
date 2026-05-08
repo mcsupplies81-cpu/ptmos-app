@@ -5,6 +5,7 @@ import { Pressable, RefreshControl, SafeAreaView, ScrollView, StyleSheet, Text, 
 import Svg, { Circle } from 'react-native-svg';
 
 import Colors from '@/constants/Colors';
+import { displayWeight } from '@/lib/units';
 import { useAuthStore } from '@/stores/authStore';
 import { useDoseLogStore } from '@/stores/doseLogStore';
 import { useLifestyleStore } from '@/stores/lifestyleStore';
@@ -128,6 +129,7 @@ export default function DashboardScreen() {
   }, []);
 
   const firstName = useMemo(() => profile?.full_name?.trim().split(' ')[0] ?? '', [profile?.full_name]);
+  const weightUnit = profile?.weight_unit ?? 'lbs';
   const todayDate = useMemo(
     () =>
       new Date().toLocaleDateString('en-US', {
@@ -219,6 +221,11 @@ export default function DashboardScreen() {
   }, [doseLogs]);
 
   const recentActivity = useMemo(() => doseLogs.slice(0, 5), [doseLogs]);
+  const formatWeightDelta = (deltaLbs: number | null) => {
+    if (deltaLbs == null) return null;
+    const sign = deltaLbs > 0 ? '+' : '';
+    return `${sign}${displayWeight(deltaLbs, weightUnit)}`;
+  };
 
   // One-tap quick log: logs with protocol defaults, no form needed
   const handleQuickLog = useCallback(async (protocol: Protocol) => {
@@ -416,10 +423,10 @@ export default function DashboardScreen() {
           <View style={styles.metricsGridRow}>
             <Pressable style={styles.metricCard} onPress={() => router.push('/log/lifestyle')}>
               <Text style={styles.metricEmoji}>⚖️</Text>
-              <Text style={styles.metricValue}>{todayLifestyle?.weight_lbs != null ? `${todayLifestyle.weight_lbs} lbs` : '—'}</Text>
+              <Text style={styles.metricValue}>{displayWeight(todayLifestyle?.weight_lbs ?? null, weightUnit)}</Text>
               <Text style={styles.metricLabel}>Weight</Text>
               {weightDelta != null ? (
-                <Text style={styles.metricSub}>{weightDelta > 0 ? '+' : ''}{weightDelta.toFixed(1)} lbs</Text>
+                <Text style={styles.metricSub}>{formatWeightDelta(weightDelta)}</Text>
               ) : null}
             </Pressable>
             <Pressable style={styles.metricCard} onPress={() => router.push('/log/lifestyle')}>

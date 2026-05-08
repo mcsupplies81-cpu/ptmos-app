@@ -18,8 +18,10 @@ import { LineChart } from 'react-native-chart-kit';
 import * as Haptics from 'expo-haptics';
 
 import Colors from '@/constants/Colors';
+import { displayWeight } from '@/lib/units';
 import { useAuthStore } from '@/stores/authStore';
 import { LifestyleLog, useLifestyleStore } from '@/stores/lifestyleStore';
+import { useProfileStore } from '@/stores/profileStore';
 
 type MetricKey = 'sleep' | 'water' | 'workout' | 'mood' | 'energy' | 'weight';
 
@@ -106,10 +108,12 @@ function ProgressBar({ progress, color = Colors.accent }: { progress: number; co
 
 export default function LifestyleScreen() {
   const user = useAuthStore((state) => state.user);
+  const profile = useProfileStore((state) => state.profile);
   const logs = useLifestyleStore((state) => state.logs);
   const fetchLogs = useLifestyleStore((state) => state.fetchLogs);
   const upsertLog = useLifestyleStore((state) => state.upsertLog);
   const { width } = useWindowDimensions();
+  const weightUnit = profile?.weight_unit ?? 'lbs';
 
   const today = useMemo(() => new Date(), []);
   const todayStr = dateKey(today);
@@ -192,6 +196,11 @@ export default function LifestyleScreen() {
   }, [logs, selectedDateKey]);
 
   const weightDelta = selectedLog?.weight_lbs && previousWeight ? selectedLog.weight_lbs - previousWeight : null;
+  const formatWeightDelta = (deltaLbs: number | null) => {
+    if (deltaLbs == null) return '—';
+    const sign = deltaLbs > 0 ? '+' : '';
+    return `${sign}${displayWeight(deltaLbs, weightUnit)}`;
+  };
 
   const basePayload = (): EditableLifestyleLog => ({
     date: selectedDateKey,
@@ -352,8 +361,8 @@ export default function LifestyleScreen() {
             </Pressable>
             <Pressable style={[styles.logRow, styles.lastLogRow]} onPress={() => openMetric('weight')}>
               <Text style={styles.rowIcon}>⚖️</Text>
-              <View style={styles.rowBody}><Text style={styles.rowLabel}>Weight</Text><Text style={styles.rowValue}>{selectedLog?.weight_lbs ? `${selectedLog.weight_lbs} lbs` : 'Not logged'}</Text></View>
-              <Text style={[styles.rowMeta, weightDelta && weightDelta > 0 ? styles.deltaUp : styles.deltaDown]}>{weightDelta ? `${weightDelta > 0 ? '+' : ''}${weightDelta.toFixed(1)} lbs` : '—'}</Text>
+              <View style={styles.rowBody}><Text style={styles.rowLabel}>Weight</Text><Text style={styles.rowValue}>{selectedLog?.weight_lbs ? displayWeight(selectedLog.weight_lbs, weightUnit) : 'Not logged'}</Text></View>
+              <Text style={[styles.rowMeta, weightDelta && weightDelta > 0 ? styles.deltaUp : styles.deltaDown]}>{formatWeightDelta(weightDelta)}</Text>
             </Pressable>
           </View>
 
