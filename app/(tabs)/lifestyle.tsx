@@ -262,9 +262,6 @@ export default function LifestyleScreen() {
                 </Pressable>
               </View>
             </View>
-            <Pressable style={styles.headerAddButton} onPress={() => openMetric('sleep')}>
-              <Text style={styles.headerAddText}>+</Text>
-            </Pressable>
           </View>
 
           <View style={[styles.card, styles.scoreCard]}>
@@ -572,8 +569,6 @@ const styles = StyleSheet.create({
   disabledArrow: { opacity: 0.35 },
   dateArrowText: { color: Colors.text, fontSize: 16, fontWeight: '800' },
   dateTitle: { color: Colors.textSecondary, fontSize: 15, fontWeight: '700' },
-  headerAddButton: { width: 44, height: 44, borderRadius: 22, alignItems: 'center', justifyContent: 'center', backgroundColor: Colors.accent },
-  headerAddText: { color: Colors.white, fontSize: 28, lineHeight: 32, fontWeight: '300' },
   card: { backgroundColor: Colors.card, borderWidth: 1, borderColor: Colors.border, borderRadius: 18, overflow: 'hidden' },
   scoreCard: { padding: 18, gap: 18 },
   scoreTopRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
