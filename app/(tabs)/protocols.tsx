@@ -7,9 +7,9 @@ import Colors from '@/constants/Colors';
 import { calcAdherence, useProtocolStore, type ProtocolStatus } from '@/stores/protocolStore';
 import { useDoseLogStore } from '@/stores/doseLogStore';
 import { useAuthStore } from '@/stores/authStore';
+import { useSubscriptionStore } from '@/stores/subscriptionStore';
 import EmptyState from '@/components/EmptyState';
 import Skeleton from '@/components/Skeleton';
-import { ProGate } from '@/components/ProGate';
 
 type Filter = 'All' | 'Active' | 'Paused' | 'Completed';
 
@@ -50,6 +50,7 @@ export default function ProtocolsScreen() {
   const user = useAuthStore((state) => state.user);
   const { protocols, loading, error, fetchProtocols } = useProtocolStore();
   const doseLogs = useDoseLogStore((state) => state.doseLogs);
+  const isPro = useSubscriptionStore((s) => s.isPro);
   const [filter, setFilter] = useState<Filter>('All');
   const [refreshing, setRefreshing] = useState(false);
 
@@ -61,7 +62,18 @@ export default function ProtocolsScreen() {
     return filter === 'All' ? protocols : protocols.filter((p) => p.status === filter.toLowerCase());
   }, [protocols, filter]);
 
-  const activeProtocolCount = useMemo(() => protocols.filter((p) => p.status === 'active').length, [protocols]);
+  const activeProtocols = protocols.filter((p) => p.status === 'active');
+  const activeProtocolCount = activeProtocols.length;
+  const shouldShowFreeLimitBanner = !isPro && activeProtocols.length >= 1;
+
+  const handleAddProtocol = () => {
+    if (!isPro && activeProtocols.length >= 1) {
+      router.push('/paywall');
+      return;
+    }
+
+    router.push('/protocol/create');
+  };
 
   const handleSelectFilter = (label: Filter) => {
     void Haptics.selectionAsync();
@@ -101,7 +113,6 @@ export default function ProtocolsScreen() {
   }
 
   return (
-    <ProGate feature="Protocols">
     <SafeAreaView style={styles.container}>
       <View style={styles.header}>
         <View>
@@ -111,7 +122,7 @@ export default function ProtocolsScreen() {
           </Text>
         </View>
 
-        <Pressable style={styles.addButton} onPress={() => router.push('/protocol/create')}>
+        <Pressable style={styles.addButton} onPress={handleAddProtocol}>
           <Text style={styles.addButtonText}>+ Add</Text>
         </Pressable>
       </View>
@@ -194,9 +205,19 @@ export default function ProtocolsScreen() {
       />
       )}
 
-      <Pressable style={styles.fab} onPress={() => router.push('/protocol/create')}><Text style={styles.fabText}>+</Text></Pressable>
+      {shouldShowFreeLimitBanner ? (
+        <View style={{ padding: 12, backgroundColor: Colors.card, borderRadius: 12, margin: 16, borderWidth: 1, borderColor: Colors.border }}>
+          <Text style={{ color: Colors.textSecondary, fontSize: 13, textAlign: 'center' }}>
+            Free plan includes 1 active protocol.{' '}
+            <Text style={{ color: Colors.accent, fontWeight: '700' }} onPress={() => router.push('/paywall')}>
+              Upgrade for unlimited →
+            </Text>
+          </Text>
+        </View>
+      ) : null}
+
+      <Pressable style={styles.fab} onPress={handleAddProtocol}><Text style={styles.fabText}>+</Text></Pressable>
     </SafeAreaView>
-    </ProGate>
   );
 }
 
