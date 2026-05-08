@@ -7,6 +7,7 @@ import Colors from '@/constants/Colors';
 import { useAuthStore } from '@/stores/authStore';
 import { useDoseLogStore } from '@/stores/doseLogStore';
 import { supabase } from '@/lib/supabase';
+import { ProGate } from '@/components/ProGate';
 
 export default function DoseHistoryScreen() {
   const user = useAuthStore((s) => s.user);
@@ -58,6 +59,7 @@ export default function DoseHistoryScreen() {
   }, [doseLogs, searchQuery, selectedFilter]);
 
   return (
+    <ProGate feature="Dose History">
     <SafeAreaView style={styles.safeArea}>
       <ScreenHeader title="Dose History" />
 
@@ -128,6 +130,7 @@ export default function DoseHistoryScreen() {
         }
       />
     </SafeAreaView>
+    </ProGate>
   );
 }
 

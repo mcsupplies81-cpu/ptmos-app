@@ -6,6 +6,7 @@ import { calcAdherence, useProtocolStore, type ProtocolStatus } from '@/stores/p
 import { useDoseLogStore } from '@/stores/doseLogStore';
 import { useAuthStore } from '@/stores/authStore';
 import EmptyState from '@/components/EmptyState';
+import { ProGate } from '@/components/ProGate';
 
 type Filter = 'All' | 'Active' | 'Paused' | 'Completed';
 
@@ -90,6 +91,7 @@ export default function ProtocolsScreen() {
   }
 
   return (
+    <ProGate feature="Protocols">
     <SafeAreaView style={styles.container}>
       <View style={styles.header}>
         <View>
@@ -175,6 +177,7 @@ export default function ProtocolsScreen() {
 
       <Pressable style={styles.fab} onPress={() => router.push('/protocol/create')}><Text style={styles.fabText}>+</Text></Pressable>
     </SafeAreaView>
+    </ProGate>
   );
 }
 

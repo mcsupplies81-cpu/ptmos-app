@@ -15,6 +15,7 @@ import {
 import Colors from '@/constants/Colors';
 import { supabase } from '@/lib/supabase';
 import { useAuthStore } from '@/stores/authStore';
+import { ProGate } from '@/components/ProGate';
 import useChatStore, { type ChatMessage, type ParsedIntent } from '@/stores/chatStore';
 import { useDoseLogStore } from '@/stores/doseLogStore';
 import { useLifestyleStore } from '@/stores/lifestyleStore';
@@ -447,6 +448,7 @@ export default function ChatScreen() {
   }, [inputText, addMessage, callAI, doseLogs, protocols]);
 
   return (
+    <ProGate feature="AI Chat">
     <SafeAreaView style={{ flex: 1, backgroundColor: Colors.background }}>
       <KeyboardAvoidingView
         style={{ flex: 1 }}
@@ -611,6 +613,7 @@ export default function ChatScreen() {
         </View>
       </KeyboardAvoidingView>
     </SafeAreaView>
+    </ProGate>
   );
 }
 

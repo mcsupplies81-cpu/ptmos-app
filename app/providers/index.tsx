@@ -5,6 +5,7 @@ import { router } from 'expo-router';
 import Colors from '@/constants/Colors';
 import { providers } from '@/constants/providers';
 import type { DirectoryProvider, ProviderType } from '@/constants/providers';
+import { ProGate } from '@/components/ProGate';
 
 const FILTERS: Array<'All' | ProviderType> = ['All', 'Clinic', 'Med Spa', 'Online', 'Pharmacy'];
 
@@ -20,9 +21,6 @@ const formatLocation = (provider: DirectoryProvider) => provider.location ?? 'Sh
 export default function ProviderDirectoryScreen() {
   const [activeFilter, setActiveFilter] = useState<(typeof FILTERS)[number]>('All');
   const [search, setSearch] = useState('');
-
-  // TODO: wire to RevenueCat entitlement check
-  const isSubscribed = true;
 
   const filteredProviders = useMemo(() => {
     const query = search.trim().toLowerCase();
@@ -66,66 +64,55 @@ export default function ProviderDirectoryScreen() {
   };
 
   return (
-    <SafeAreaView style={styles.container}>
-      <View style={styles.content}>
-        <View style={styles.headerRow}>
-          <Text style={styles.title}>Provider Directory</Text>
-          <View style={styles.memberBadge}>
-            <Text style={styles.memberBadgeText}>MEMBERS ONLY</Text>
+    <ProGate feature="Provider Directory">
+      <SafeAreaView style={styles.container}>
+        <View style={styles.content}>
+          <View style={styles.headerRow}>
+            <Text style={styles.title}>Provider Directory</Text>
+            <View style={styles.memberBadge}>
+              <Text style={styles.memberBadgeText}>PRO</Text>
+            </View>
           </View>
-        </View>
 
-        <View style={styles.searchWrap}>
-          <Text style={styles.searchIcon}>🔍</Text>
-          <TextInput
-            value={search}
-            onChangeText={setSearch}
-            placeholder="Search name or location"
-            placeholderTextColor={Colors.textSecondary}
-            style={styles.searchInput}
-            autoCapitalize="none"
-            autoCorrect={false}
+          <View style={styles.searchWrap}>
+            <Text style={styles.searchIcon}>🔍</Text>
+            <TextInput
+              value={search}
+              onChangeText={setSearch}
+              placeholder="Search name or location"
+              placeholderTextColor={Colors.textSecondary}
+              style={styles.searchInput}
+              autoCapitalize="none"
+              autoCorrect={false}
+            />
+          </View>
+
+          <View style={styles.filters}>
+            {FILTERS.map((filter) => {
+              const selected = activeFilter === filter;
+              return (
+                <Pressable
+                  key={filter}
+                  onPress={() => setActiveFilter(filter)}
+                  style={[styles.filterChip, selected && styles.filterChipActive]}
+                >
+                  <Text style={[styles.filterText, selected && styles.filterTextActive]}>{filter}</Text>
+                </Pressable>
+              );
+            })}
+          </View>
+
+          <FlatList
+            data={filteredProviders}
+            keyExtractor={(item) => item.id}
+            renderItem={renderProvider}
+            contentContainerStyle={styles.listContent}
+            showsVerticalScrollIndicator={false}
+            ListEmptyComponent={<Text style={styles.empty}>No providers match your search.</Text>}
           />
         </View>
-
-        <View style={styles.filters}>
-          {FILTERS.map((filter) => {
-            const selected = activeFilter === filter;
-            return (
-              <Pressable
-                key={filter}
-                onPress={() => setActiveFilter(filter)}
-                style={[styles.filterChip, selected && styles.filterChipActive]}
-              >
-                <Text style={[styles.filterText, selected && styles.filterTextActive]}>{filter}</Text>
-              </Pressable>
-            );
-          })}
-        </View>
-
-        <FlatList
-          data={filteredProviders}
-          keyExtractor={(item) => item.id}
-          renderItem={renderProvider}
-          contentContainerStyle={styles.listContent}
-          showsVerticalScrollIndicator={false}
-          ListEmptyComponent={<Text style={styles.empty}>No providers match your search.</Text>}
-        />
-      </View>
-
-      {!isSubscribed ? (
-        <View style={styles.paywallOverlay}>
-          <View style={styles.lockCard}>
-            <Text style={styles.lockIcon}>🔒</Text>
-            <Text style={styles.lockTitle}>Members Only</Text>
-            <Text style={styles.lockSubtitle}>Unlock the Provider Directory</Text>
-            <Pressable style={styles.planButton} onPress={() => router.push('/paywall' as never)}>
-              <Text style={styles.planButtonText}>View Plans →</Text>
-            </Pressable>
-          </View>
-        </View>
-      ) : null}
-    </SafeAreaView>
+      </SafeAreaView>
+    </ProGate>
   );
 }
 
@@ -149,7 +136,7 @@ const styles = StyleSheet.create({
   searchIcon: { color: Colors.textSecondary, fontSize: 16, marginRight: 8 },
   searchInput: { flex: 1, color: Colors.text, fontSize: 15, paddingVertical: 12 },
   filters: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 14 },
-  filterChip: { borderColor: Colors.border, borderWidth: 1, borderRadius: 999, paddingHorizontal: 13, paddingVertical: 8, backgroundColor: Colors.white },
+  filterChip: { borderColor: Colors.border, borderWidth: 1, borderRadius: 999, paddingHorizontal: 13, paddingVertical: 8, backgroundColor: Colors.card },
   filterChipActive: { borderColor: Colors.accent, backgroundColor: Colors.accent },
   filterText: { color: Colors.textSecondary, fontSize: 13, fontWeight: '700' },
   filterTextActive: { color: Colors.white },
@@ -160,17 +147,10 @@ const styles = StyleSheet.create({
   providerName: { color: Colors.text, fontWeight: '700', fontSize: 16 },
   typeBadge: { borderRadius: 999, paddingHorizontal: 9, paddingVertical: 5 },
   typeBadgeText: { fontSize: 10, fontWeight: '800', letterSpacing: 0.4 },
-  verifiedBadge: { alignSelf: 'flex-start', backgroundColor: Colors.white, borderColor: Colors.accentLight, borderWidth: 1, borderRadius: 999, paddingHorizontal: 8, paddingVertical: 3 },
+  verifiedBadge: { alignSelf: 'flex-start', backgroundColor: Colors.card, borderColor: Colors.accentLight, borderWidth: 1, borderRadius: 999, paddingHorizontal: 8, paddingVertical: 3 },
   verifiedText: { color: Colors.success, fontSize: 11, fontWeight: '800' },
   location: { color: Colors.textSecondary, fontSize: 14, marginTop: 12 },
   rating: { color: Colors.text, fontSize: 14, fontWeight: '600', marginTop: 8 },
   detailsLink: { color: Colors.accent, fontSize: 14, fontWeight: '800', marginTop: 12 },
   empty: { color: Colors.textSecondary, textAlign: 'center', marginTop: 40 },
-  paywallOverlay: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(255,255,255,0.86)', alignItems: 'center', justifyContent: 'center', padding: 24 },
-  lockCard: { width: '100%', maxWidth: 340, backgroundColor: Colors.white, borderColor: Colors.border, borderWidth: 1, borderRadius: 24, padding: 24, alignItems: 'center', shadowColor: '#000000', shadowOpacity: 0.12, shadowRadius: 18, shadowOffset: { width: 0, height: 10 }, elevation: 5 },
-  lockIcon: { fontSize: 36, marginBottom: 10 },
-  lockTitle: { color: Colors.text, fontSize: 22, fontWeight: '800' },
-  lockSubtitle: { color: Colors.textSecondary, fontSize: 15, marginTop: 6, marginBottom: 20, textAlign: 'center' },
-  planButton: { backgroundColor: Colors.accent, borderRadius: 14, paddingHorizontal: 22, paddingVertical: 13 },
-  planButtonText: { color: Colors.white, fontSize: 15, fontWeight: '800' },
 });

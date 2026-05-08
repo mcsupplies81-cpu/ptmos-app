@@ -3,6 +3,8 @@ import { useEffect } from 'react';
 import { supabase } from '@/lib/supabase';
 import { useAuthStore } from '@/stores/authStore';
 import { useProfileStore } from '@/stores/profileStore';
+import { useSubscriptionStore } from '@/stores/subscriptionStore';
+import { initPurchases } from '@/lib/purchases';
 import { requestNotificationPermission } from '@/utils/notifications';
 
 export default function RootLayout() {
@@ -10,6 +12,7 @@ export default function RootLayout() {
   const segments = useSegments();
   const { session, loading, setSession, setLoading } = useAuthStore();
   const { profile, fetchProfile } = useProfileStore();
+  const refreshSubscription = useSubscriptionStore((s) => s.refresh);
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
@@ -25,7 +28,10 @@ export default function RootLayout() {
   }, []);
 
   useEffect(() => {
-    if (session?.user?.id) fetchProfile(session.user.id);
+    if (session?.user?.id) {
+      fetchProfile(session.user.id);
+      void initPurchases(session.user.id).then(() => refreshSubscription());
+    }
   }, [session?.user?.id]);
 
   useEffect(() => {
@@ -54,6 +60,7 @@ export default function RootLayout() {
       <Stack.Screen name="log/sleep" options={{ presentation: 'modal', animation: 'slide_from_bottom' }} />
       <Stack.Screen name="log/water" options={{ presentation: 'modal', animation: 'slide_from_bottom' }} />
       <Stack.Screen name="log/workout" options={{ presentation: 'modal', animation: 'slide_from_bottom' }} />
+      <Stack.Screen name="paywall" options={{ presentation: 'modal', animation: 'slide_from_bottom' }} />
     </Stack>
   );
 }
