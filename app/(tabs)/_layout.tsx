@@ -1,5 +1,6 @@
 import type { BottomTabBarButtonProps } from '@react-navigation/bottom-tabs';
 import { Tabs } from 'expo-router';
+import * as Haptics from 'expo-haptics';
 import { type ReactNode, useState } from 'react';
 import { Pressable, Text, View } from 'react-native';
 import Svg, { Path } from 'react-native-svg';
@@ -60,6 +61,11 @@ export default function TabsLayout() {
   return (
     <>
       <Tabs
+        screenListeners={{
+          tabPress: () => {
+            void Haptics.selectionAsync();
+          },
+        }}
         screenOptions={{
           headerShown: false,
           tabBarStyle: {
@@ -98,7 +104,15 @@ export default function TabsLayout() {
                 <Text style={{ color: '#fff', fontSize: 28, lineHeight: 32, fontWeight: '300' }}>+</Text>
               </View>
             ),
-            tabBarButton: (props: BottomTabBarButtonProps) => <Pressable {...props} onPress={() => setPlusOpen(true)} />,
+            tabBarButton: (props: BottomTabBarButtonProps) => (
+              <Pressable
+                {...props}
+                onPress={() => {
+                  void Haptics.selectionAsync();
+                  setPlusOpen(true);
+                }}
+              />
+            ),
           }}
         />
         <Tabs.Screen name="lifestyle" layout={withErrorBoundary} options={{ title: 'Lifestyle', tabBarIcon: ({ color }) => <LifestyleIcon color={color} /> }} />

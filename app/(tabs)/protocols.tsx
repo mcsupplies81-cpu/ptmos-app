@@ -2,6 +2,7 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { ActivityIndicator, Alert, FlatList, Pressable, RefreshControl, SafeAreaView, StyleSheet, Text, View } from 'react-native';
 import { router } from 'expo-router';
+import * as Haptics from 'expo-haptics';
 import Colors from '@/constants/Colors';
 import { calcAdherence, useProtocolStore, type ProtocolStatus } from '@/stores/protocolStore';
 import { useDoseLogStore } from '@/stores/doseLogStore';
@@ -62,6 +63,11 @@ export default function ProtocolsScreen() {
 
   const activeProtocolCount = useMemo(() => protocols.filter((p) => p.status === 'active').length, [protocols]);
 
+  const handleSelectFilter = (label: Filter) => {
+    void Haptics.selectionAsync();
+    setFilter(label);
+  };
+
   const handleRetry = () => {
     if (user?.id) {
       fetchProtocols(user.id);
@@ -116,7 +122,7 @@ export default function ProtocolsScreen() {
           return (
             <Pressable
               key={label}
-              onPress={() => setFilter(label)}
+              onPress={() => handleSelectFilter(label)}
               style={[styles.chip, selected ? styles.chipSelected : styles.chipUnselected]}
             >
               <Text style={[styles.chipText, selected ? styles.chipTextSelected : styles.chipTextUnselected]}>{label}</Text>

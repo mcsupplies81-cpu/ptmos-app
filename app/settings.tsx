@@ -1,4 +1,5 @@
 import { router } from 'expo-router';
+import * as Haptics from 'expo-haptics';
 import { useEffect, useMemo, useState } from 'react';
 import { Alert, AppState, Linking, Pressable, SafeAreaView, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 
@@ -7,7 +8,7 @@ import Colors from '@/constants/Colors';
 import { supabase } from '@/lib/supabase';
 import * as Notifications from 'expo-notifications';
 import type { WeightUnit } from '@/lib/units';
-import { cancelAllReminders, scheduleProtocolReminders, requestPermission } from '@/lib/notifications';
+import { requestPermission } from '@/lib/notifications';
 import { useAuthStore } from '@/stores/authStore';
 import { useLifestyleStore } from '@/stores/lifestyleStore';
 import { Profile, useProfileStore } from '@/stores/profileStore';
@@ -19,7 +20,6 @@ export default function SettingsScreen() {
   const profile = useProfileStore((state) => state.profile);
   const setProfile = useProfileStore((state) => state.setProfile);
   const fetchProfile = useProfileStore((state) => state.fetchProfile);
-  const protocols = useProtocolStore((state) => state.protocols);
   const logs = useLifestyleStore((state) => state.logs);
   const fetchLogs = useLifestyleStore((state) => state.fetchLogs);
 
@@ -105,6 +105,11 @@ export default function SettingsScreen() {
     } finally {
       setSavingWeightUnit(false);
     }
+  };
+
+  const handleSelectGoal = (goal: string) => {
+    void Haptics.selectionAsync();
+    setSelectedGoal(goal);
   };
 
   const handleSave = async () => {
@@ -207,7 +212,7 @@ export default function SettingsScreen() {
         <View style={styles.sectionCard}>
           <View style={styles.goalsWrap}>{goals.map((goal) => {
             const selected = selectedGoal === goal;
-            return <Pressable key={goal} onPress={() => setSelectedGoal(goal)} style={[styles.goalPill, selected && styles.goalPillActive]}><Text style={[styles.goalText, selected && styles.goalTextActive]}>{goal}</Text></Pressable>;
+            return <Pressable key={goal} onPress={() => handleSelectGoal(goal)} style={[styles.goalPill, selected && styles.goalPillActive]}><Text style={[styles.goalText, selected && styles.goalTextActive]}>{goal}</Text></Pressable>;
           })}</View>
         </View>
 
