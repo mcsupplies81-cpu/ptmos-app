@@ -194,7 +194,7 @@ Recent symptoms: ${(context.recentSymptoms ?? []).slice(0, 3).map(s => `${s.symp
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        model: imageBase64 ? 'gpt-4o' : 'gpt-4o-mini',
+        model: 'gpt-4o',
         messages: [
           { role: 'system', content: (systemPrompt ?? SYSTEM_PROMPT) + '\n\n' + contextBlock + `\n- 7-day adherence: ${context.adherencePct}%\n- Current streak: ${context.streakDays} days\n- Recent doses: ${context.recentDoses.slice(0, 7).map(d => `${d.peptide_name ?? 'unknown'} ${d.amount}${d.unit} on ${d.logged_at.slice(0, 10)}`).join(', ') || 'none'}` },
           { role: 'user', content: userContent },
