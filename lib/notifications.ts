@@ -48,10 +48,10 @@ function parseTimeOfDay(timeOfDay: string): { hour: number; minute: number } | n
 }
 
 export async function scheduleDoseReminders(protocols: DoseReminderProtocol[]): Promise<void> {
-  await Notifications.cancelAllScheduledNotificationsAsync();
-
   const hasPermission = await requestPermission();
   if (!hasPermission) return;
+
+  await Notifications.cancelAllScheduledNotificationsAsync();
 
   const activeProtocols = protocols.filter((protocol) => protocol.status === 'active');
 
