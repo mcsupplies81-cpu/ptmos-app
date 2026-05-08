@@ -2,6 +2,7 @@ import * as Haptics from 'expo-haptics';
 import { router, useFocusEffect } from 'expo-router';
 import { useCallback, useMemo } from 'react';
 import { Pressable, SafeAreaView, ScrollView, StyleSheet, Text, View } from 'react-native';
+import Svg, { Circle } from 'react-native-svg';
 
 import Colors from '@/constants/Colors';
 import { useAuthStore } from '@/stores/authStore';
@@ -9,6 +10,64 @@ import { useDoseLogStore } from '@/stores/doseLogStore';
 import { useLifestyleStore } from '@/stores/lifestyleStore';
 import { useProfileStore } from '@/stores/profileStore';
 import { useProtocolStore, type Protocol } from '@/stores/protocolStore';
+
+const RING_SIZE = 88;
+const RING_RADIUS = 38;
+const RING_STROKE = 6;
+const NEXT_RING_SIZE = 88;
+const NEXT_RING_RADIUS = 36;
+const NEXT_RING_STROKE = 5;
+const MINUTES_IN_DAY = 24 * 60;
+const WATER_GOAL_OZ = 128;
+const DARK_FOREST = '#1B3A2F';
+
+const clamp01 = (value: number) => Math.max(0, Math.min(1, value));
+
+function ProgressRing({
+  size,
+  radius,
+  strokeWidth,
+  progress,
+  trackColor,
+  progressColor,
+}: {
+  size: number;
+  radius: number;
+  strokeWidth: number;
+  progress: number;
+  trackColor: string;
+  progressColor: string;
+}) {
+  const circumference = 2 * Math.PI * radius;
+  const strokeDashoffset = circumference * (1 - clamp01(progress));
+
+  return (
+    <Svg width={size} height={size} viewBox={`0 0 ${size} ${size}`}>
+      <Circle
+        cx={size / 2}
+        cy={size / 2}
+        r={radius}
+        stroke={trackColor}
+        strokeWidth={strokeWidth}
+        fill="none"
+      />
+      <Circle
+        cx={size / 2}
+        cy={size / 2}
+        r={radius}
+        stroke={progressColor}
+        strokeWidth={strokeWidth}
+        fill="none"
+        strokeLinecap="round"
+        strokeDasharray={`${circumference} ${circumference}`}
+        strokeDashoffset={strokeDashoffset}
+        originX={size / 2}
+        originY={size / 2}
+        rotation="-90"
+      />
+    </Svg>
+  );
+}
 
 const parseTime = (timeOfDay: string) => {
   const [h, m] = timeOfDay.split(':').map(Number);
@@ -80,6 +139,16 @@ export default function DashboardScreen() {
     [todayLogs],
   );
 
+  const dosesLoggedToday = useMemo(
+    () =>
+      activeProtocols.filter((p) => loggedTodayByProtocol.has(p.id) || loggedTodayByName.has(p.name.toLowerCase()))
+        .length,
+    [activeProtocols, loggedTodayByProtocol, loggedTodayByName],
+  );
+  const totalActive = activeProtocols.length;
+  const progressPct = totalActive > 0 ? Math.round((dosesLoggedToday / totalActive) * 100) : 0;
+  const progressRatio = totalActive > 0 ? dosesLoggedToday / totalActive : 0;
+
   const nextDose = useMemo(() => {
     // Separate: unlogged protocols due today (overdue or upcoming)
     const todayTargets = activeProtocols
@@ -102,22 +171,24 @@ export default function DashboardScreen() {
     return null;
   }, [activeProtocols, loggedTodayByProtocol, loggedTodayByName]);
 
-  const countdown = useMemo(() => {
-    if (!nextDose) return '—';
-    if (nextDose.overdue) {
-      const missedMin = Math.abs(nextDose.deltaMin);
-      const h = Math.floor(missedMin / 60);
-      const m = missedMin % 60;
-      return h > 0 ? `overdue ${h}h ${m}m` : `overdue ${m}m`;
-    }
-    if (nextDose.deltaMin <= 5) return 'Due now';
-    const h = Math.floor(nextDose.deltaMin / 60);
-    const m = nextDose.deltaMin % 60;
-    if (h <= 0) return `in ${m}m`;
-    return `in ${h}h ${m}m`;
-  }, [nextDose]);
-
   const todayLifestyle = useMemo(() => lifestyleLogs.find((l) => l.date === todayKey), [lifestyleLogs, todayKey]);
+  const previousWeightLog = useMemo(
+    () => lifestyleLogs.find((l) => l.date !== todayKey && l.weight_lbs != null),
+    [lifestyleLogs, todayKey],
+  );
+  const weightDelta =
+    todayLifestyle?.weight_lbs != null && previousWeightLog?.weight_lbs != null
+      ? todayLifestyle.weight_lbs - previousWeightLog.weight_lbs
+      : null;
+  const waterPct = todayLifestyle?.water_oz != null ? clamp01(todayLifestyle.water_oz / WATER_GOAL_OZ) : 0;
+  const nextDoseRemainingMin = nextDose ? Math.max(0, nextDose.deltaMin) : 0;
+  const nextDoseRemainingHours = Math.floor(nextDoseRemainingMin / 60);
+  const nextDoseRemainingMinutes = nextDoseRemainingMin % 60;
+  const nextDoseProgress = nextDose ? clamp01(nextDose.deltaMin / MINUTES_IN_DAY) : 0;
+  const nextDoseSubtitle = nextDose
+    ? ((nextDose.protocol as Protocol & { compound_description?: string | null }).compound_description?.trim() ||
+      `${nextDose.protocol.dose_amount} ${nextDose.protocol.dose_unit}`)
+    : '';
 
   const adherencePct = useMemo(() => {
     const last7 = Array.from({ length: 7 }).map((_, i) => {
@@ -195,11 +266,35 @@ export default function DashboardScreen() {
           <View style={styles.askArrowCircle}><Text style={styles.askArrow}>→</Text></View>
         </Pressable>
 
+        <View style={styles.progressCard}>
+          <View style={styles.progressCopy}>
+            <Text style={styles.progressValue}>{dosesLoggedToday} / {totalActive}</Text>
+            <Text style={styles.progressLabel}>doses completed</Text>
+            <View style={styles.progressTrack}>
+              <View style={[styles.progressFill, { width: `${progressPct}%` }]} />
+            </View>
+          </View>
+          <View style={styles.progressRingWrap}>
+            <ProgressRing
+              size={RING_SIZE}
+              radius={RING_RADIUS}
+              strokeWidth={RING_STROKE}
+              progress={progressRatio}
+              trackColor="rgba(45, 106, 79, 0.16)"
+              progressColor={Colors.accent}
+            />
+            <View style={styles.progressRingCenter}>
+              <Text style={styles.progressRingPct}>{progressPct}%</Text>
+              <Text style={styles.progressRingLabel}>on track</Text>
+            </View>
+          </View>
+        </View>
+
         <View style={styles.quickRow}>
-          <Pressable style={styles.quickChip} onPress={() => router.push('/log/dose')}><View style={styles.quickIcon}><Text>💉</Text></View><Text style={styles.quickLabel}>Log Dose</Text></Pressable>
-          <Pressable style={styles.quickChip} onPress={() => router.push('/(tabs)/protocols')}><View style={styles.quickIcon}><Text>🗓</Text></View><Text style={styles.quickLabel}>Protocols</Text></Pressable>
-          <Pressable style={styles.quickChip} onPress={() => router.push('/more/inventory')}><View style={styles.quickIcon}><Text>📦</Text></View><Text style={styles.quickLabel}>Inventory</Text></Pressable>
-          <Pressable style={styles.quickChip} onPress={() => router.push('/log/lifestyle')}><View style={styles.quickIcon}><Text>🌿</Text></View><Text style={styles.quickLabel}>Lifestyle</Text></Pressable>
+          <Pressable style={styles.quickChip} onPress={() => router.push('/log/dose')}><View style={styles.quickIcon}><Text style={styles.quickEmoji}>💉</Text></View><Text style={styles.quickLabel}>Log Dose</Text></Pressable>
+          <Pressable style={styles.quickChip} onPress={() => router.push('/(tabs)/protocols')}><View style={styles.quickIcon}><Text style={styles.quickEmoji}>🗓</Text></View><Text style={styles.quickLabel}>Protocols</Text></Pressable>
+          <Pressable style={styles.quickChip} onPress={() => router.push('/more/inventory')}><View style={styles.quickIcon}><Text style={styles.quickEmoji}>📦</Text></View><Text style={styles.quickLabel}>Inventory</Text></Pressable>
+          <Pressable style={styles.quickChip} onPress={() => router.push('/log/lifestyle')}><View style={styles.quickIcon}><Text style={styles.quickEmoji}>🌿</Text></View><Text style={styles.quickLabel}>Lifestyle</Text></Pressable>
         </View>
 
         <View style={styles.sectionHeaderRow}>
@@ -225,48 +320,70 @@ export default function DashboardScreen() {
                 </View>
                 <View style={styles.rowRight}>
                   <Text style={styles.sub}>{p.time_of_day}</Text>
-                  {!logged && (
-                    <Pressable
-                      style={styles.logPill}
-                      onPress={() => router.push({
-                        pathname: '/log/dose',
-                        params: {
-                          protocolId: p.id,
-                          prefillName: p.name,
-                          prefillAmount: String(p.dose_amount),
-                          prefillUnit: p.dose_unit,
-                        },
-                      })}
-                    >
-                      <Text style={styles.logPillText}>Log Now</Text>
-                    </Pressable>
-                  )}
+                  <Pressable
+                    style={[styles.logPill, logged ? styles.loggedPill : styles.unloggedPill]}
+                    onPress={!logged ? () => router.push({
+                      pathname: '/log/dose',
+                      params: {
+                        protocolId: p.id,
+                        prefillName: p.name,
+                        prefillAmount: String(p.dose_amount),
+                        prefillUnit: p.dose_unit,
+                      },
+                    }) : undefined}
+                  >
+                    <Text style={[styles.logPillText, logged ? styles.loggedPillText : styles.unloggedPillText]}>
+                      {logged ? 'Logged' : 'Log'}
+                    </Text>
+                  </Pressable>
                 </View>
               </View>
             );
           })}
+          <Pressable style={styles.scheduleLinkRow} onPress={() => router.push('/(tabs)/protocols')}>
+            <Text style={styles.scheduleLinkText}>View full schedule ›</Text>
+          </Pressable>
         </View>
 
         <View style={styles.nextDoseCard}>
-          <Text style={styles.sectionTitle}>NEXT DOSE</Text>
+          <Text style={styles.nextDoseLabel}>NEXT DOSE</Text>
           {nextDose ? (
             <>
-              <Text style={styles.nextDoseName}>{nextDose.protocol.name}</Text>
-              <Text style={styles.sub}>{nextDose.protocol.dose_amount} {nextDose.protocol.dose_unit}</Text>
-              <View style={styles.nextDoseFooter}>
-                <Text style={[styles.countdown, nextDose?.overdue && { color: Colors.error }]}>{countdown}</Text>
-                <Pressable style={styles.logButton} onPress={() => nextDose && router.push({
-                  pathname: '/log/dose',
-                  params: {
-                    protocolId: nextDose.protocol.id,
-                    prefillName: nextDose.protocol.name,
-                    prefillAmount: String(nextDose.protocol.dose_amount),
-                    prefillUnit: nextDose.protocol.dose_unit,
-                  },
-                })}>
-                  <Text style={styles.logButtonText}>Log Dose</Text>
-                </Pressable>
+              <View style={styles.nextDoseMainRow}>
+                <View style={styles.nextDoseCopy}>
+                  <Text style={styles.nextDoseName}>{nextDose.protocol.name}</Text>
+                  <Text style={styles.nextDoseSub}>{nextDoseSubtitle}</Text>
+                  <View style={styles.nextDoseDetailRow}>
+                    <Text style={styles.nextDoseDetail}>⏰ {nextDose.protocol.time_of_day} · Today</Text>
+                    <Text style={styles.nextDoseDetail}>💧 {nextDose.protocol.dose_amount} {nextDose.protocol.dose_unit} · Sub-Q</Text>
+                  </View>
+                </View>
+                <View style={styles.nextRingWrap}>
+                  <ProgressRing
+                    size={NEXT_RING_SIZE}
+                    radius={NEXT_RING_RADIUS}
+                    strokeWidth={NEXT_RING_STROKE}
+                    progress={nextDoseProgress}
+                    trackColor="rgba(255, 255, 255, 0.2)"
+                    progressColor={Colors.white}
+                  />
+                  <View style={styles.nextRingCenter}>
+                    <Text style={styles.nextRingTime}>{nextDoseRemainingHours}h {nextDoseRemainingMinutes}m</Text>
+                    <Text style={styles.nextRingLabel}>remaining</Text>
+                  </View>
+                </View>
               </View>
+              <Pressable style={styles.logButton} onPress={() => router.push({
+                pathname: '/log/dose',
+                params: {
+                  protocolId: nextDose.protocol.id,
+                  prefillName: nextDose.protocol.name,
+                  prefillAmount: String(nextDose.protocol.dose_amount),
+                  prefillUnit: nextDose.protocol.dose_unit,
+                },
+              })}>
+                <Text style={styles.logButtonText}>Log Dose</Text>
+              </Pressable>
             </>
           ) : (
             <Text style={styles.nextEmpty}>All caught up for today 🎉</Text>
@@ -274,28 +391,38 @@ export default function DashboardScreen() {
         </View>
 
         <Text style={styles.sectionTitle}>KEY METRICS</Text>
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.metricsRow}>
-          <Pressable style={styles.metricChip} onPress={() => router.push('/log/lifestyle')}>
-            <Text style={styles.metricEmoji}>⚖️</Text>
-            <Text style={styles.metricValue}>{todayLifestyle?.weight_lbs != null ? `${todayLifestyle.weight_lbs} lbs` : '—'}</Text>
-            <Text style={styles.metricLabel}>Weight</Text>
-          </Pressable>
-          <Pressable style={styles.metricChip} onPress={() => router.push('/log/lifestyle')}>
-            <Text style={styles.metricEmoji}>💧</Text>
-            <Text style={styles.metricValue}>{todayLifestyle?.water_oz != null ? `${todayLifestyle.water_oz} oz` : '—'}</Text>
-            <Text style={styles.metricLabel}>Water</Text>
-          </Pressable>
-          <Pressable style={styles.metricChip} onPress={() => router.push('/log/lifestyle')}>
-            <Text style={styles.metricEmoji}>😴</Text>
-            <Text style={styles.metricValue}>{todayLifestyle?.sleep_hours != null ? `${todayLifestyle.sleep_hours}h` : '—'}</Text>
-            <Text style={styles.metricLabel}>Sleep</Text>
-          </Pressable>
-          <Pressable style={styles.metricChip} onPress={() => router.push('/(tabs)/insights')}>
-            <Text style={styles.metricEmoji}>📊</Text>
-            <Text style={styles.metricValue}>{adherencePct}%</Text>
-            <Text style={styles.metricLabel}>Adherence</Text>
-          </Pressable>
-        </ScrollView>
+        <View style={styles.metricsGrid}>
+          <View style={styles.metricsGridRow}>
+            <Pressable style={styles.metricCard} onPress={() => router.push('/log/lifestyle')}>
+              <Text style={styles.metricEmoji}>⚖️</Text>
+              <Text style={styles.metricValue}>{todayLifestyle?.weight_lbs != null ? `${todayLifestyle.weight_lbs} lbs` : '—'}</Text>
+              <Text style={styles.metricLabel}>Weight</Text>
+              {weightDelta != null ? (
+                <Text style={styles.metricSub}>{weightDelta > 0 ? '+' : ''}{weightDelta.toFixed(1)} lbs</Text>
+              ) : null}
+            </Pressable>
+            <Pressable style={styles.metricCard} onPress={() => router.push('/log/lifestyle')}>
+              <Text style={styles.metricEmoji}>💧</Text>
+              <Text style={styles.metricValue}>{todayLifestyle?.water_oz != null ? `${todayLifestyle.water_oz} oz` : '—'}</Text>
+              <Text style={styles.metricLabel}>of {WATER_GOAL_OZ} oz</Text>
+              <View style={styles.metricProgressTrack}>
+                <View style={[styles.metricProgressFill, { width: `${Math.round(waterPct * 100)}%` }]} />
+              </View>
+            </Pressable>
+          </View>
+          <View style={styles.metricsGridRow}>
+            <Pressable style={styles.metricCard} onPress={() => router.push('/log/lifestyle')}>
+              <Text style={styles.metricEmoji}>😴</Text>
+              <Text style={styles.metricValue}>{todayLifestyle?.sleep_hours != null ? `${todayLifestyle.sleep_hours}h` : '—'}</Text>
+              <Text style={styles.metricLabel}>Sleep</Text>
+            </Pressable>
+            <Pressable style={styles.metricCard} onPress={() => router.push('/(tabs)/insights')}>
+              <Text style={styles.metricEmoji}>📊</Text>
+              <Text style={styles.metricValue}>{adherencePct}%</Text>
+              <Text style={styles.metricLabel}>vs last week</Text>
+            </Pressable>
+          </View>
+        </View>
 
         <View style={styles.sectionHeaderRow}>
           <Text style={styles.sectionTitle}>RECENT ACTIVITY</Text>
@@ -336,9 +463,20 @@ const styles = StyleSheet.create({
   askSub: { color: Colors.textSecondary, fontSize: 13 },
   askArrowCircle: { width: 32, height: 32, borderRadius: 16, backgroundColor: Colors.accent, alignItems: 'center', justifyContent: 'center' },
   askArrow: { color: Colors.white, fontSize: 17, fontWeight: '700' },
+  progressCard: { backgroundColor: Colors.accentLight, borderRadius: 16, borderWidth: 1, borderColor: Colors.border, padding: 16, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 14 },
+  progressCopy: { flex: 1, gap: 4 },
+  progressValue: { color: Colors.text, fontSize: 30, fontWeight: '800' },
+  progressLabel: { color: Colors.textSecondary, fontSize: 13, fontWeight: '600' },
+  progressTrack: { marginTop: 10, height: 8, borderRadius: 999, backgroundColor: 'rgba(45, 106, 79, 0.16)', overflow: 'hidden' },
+  progressFill: { height: '100%', borderRadius: 999, backgroundColor: Colors.accent },
+  progressRingWrap: { width: RING_SIZE, height: RING_SIZE, alignItems: 'center', justifyContent: 'center' },
+  progressRingCenter: { ...StyleSheet.absoluteFillObject, alignItems: 'center', justifyContent: 'center' },
+  progressRingPct: { color: Colors.text, fontSize: 18, fontWeight: '800' },
+  progressRingLabel: { color: Colors.textSecondary, fontSize: 11, fontWeight: '700' },
   quickRow: { flexDirection: 'row', gap: 10 },
   quickChip: { flex: 1, backgroundColor: Colors.card, borderRadius: 14, borderWidth: 1, borderColor: Colors.border, paddingVertical: 10, paddingHorizontal: 8, alignItems: 'center', gap: 8 },
-  quickIcon: { width: 28, height: 28, borderRadius: 14, backgroundColor: Colors.background, alignItems: 'center', justifyContent: 'center' },
+  quickIcon: { width: 30, height: 30, borderRadius: 15, backgroundColor: Colors.background, alignItems: 'center', justifyContent: 'center' },
+  quickEmoji: { fontSize: 17, textAlign: 'center' },
   quickLabel: { fontSize: 13, color: Colors.text, textAlign: 'center' },
   sectionHeaderRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   sectionTitle: { fontSize: 11, fontWeight: '700', letterSpacing: 1.5, color: Colors.textSecondary },
@@ -353,20 +491,38 @@ const styles = StyleSheet.create({
   rowRight: { alignItems: 'flex-end', gap: 6 },
   name: { color: Colors.text, fontWeight: '700', fontSize: 15 },
   sub: { color: Colors.textSecondary, fontSize: 13 },
-  logPill: { backgroundColor: Colors.accentLight, borderRadius: 999, paddingHorizontal: 10, paddingVertical: 5 },
-  logPillText: { color: Colors.accent, fontSize: 12, fontWeight: '700' },
-  nextDoseCard: { backgroundColor: Colors.accentLight, borderRadius: 16, borderWidth: 1, borderColor: Colors.border, padding: 16, gap: 6 },
-  nextDoseName: { fontSize: 24, fontWeight: '800', color: Colors.text },
-  nextDoseFooter: { marginTop: 2, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  nextEmpty: { color: Colors.text, fontSize: 15 },
-  countdown: { color: Colors.accent, fontWeight: '700', fontSize: 15 },
-  logButton: { backgroundColor: Colors.accent, borderRadius: 10, paddingHorizontal: 12, paddingVertical: 8 },
-  logButtonText: { color: Colors.white, fontSize: 13, fontWeight: '700' },
-  metricsRow: { gap: 10, paddingRight: 8 },
-  metricChip: { width: 140, height: 90, backgroundColor: Colors.card, borderRadius: 14, borderWidth: 1, borderColor: Colors.border, padding: 14, justifyContent: 'space-between' },
+  logPill: { borderRadius: 999, paddingHorizontal: 10, paddingVertical: 5 },
+  loggedPill: { backgroundColor: Colors.accent },
+  unloggedPill: { backgroundColor: Colors.border },
+  logPillText: { fontSize: 12, fontWeight: '700' },
+  loggedPillText: { color: Colors.white },
+  unloggedPillText: { color: Colors.textSecondary },
+  scheduleLinkRow: { marginTop: 10, paddingTop: 14, borderTopWidth: 1, borderTopColor: Colors.border, alignItems: 'center' },
+  scheduleLinkText: { color: Colors.accent, fontSize: 14, fontWeight: '700' },
+  nextDoseCard: { backgroundColor: DARK_FOREST, borderRadius: 20, padding: 20, gap: 16 },
+  nextDoseLabel: { color: 'rgba(255, 255, 255, 0.6)', fontSize: 11, fontWeight: '800', letterSpacing: 1.5 },
+  nextDoseMainRow: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+  nextDoseCopy: { flex: 1, gap: 7 },
+  nextDoseName: { fontSize: 24, fontWeight: '800', color: Colors.white },
+  nextDoseSub: { color: 'rgba(255, 255, 255, 0.78)', fontSize: 14, fontWeight: '600' },
+  nextDoseDetailRow: { flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', columnGap: 10, rowGap: 4 },
+  nextDoseDetail: { color: 'rgba(255, 255, 255, 0.86)', fontSize: 13, fontWeight: '600' },
+  nextRingWrap: { width: NEXT_RING_SIZE, height: NEXT_RING_SIZE, alignItems: 'center', justifyContent: 'center' },
+  nextRingCenter: { ...StyleSheet.absoluteFillObject, alignItems: 'center', justifyContent: 'center' },
+  nextRingTime: { color: Colors.white, fontSize: 13, fontWeight: '800' },
+  nextRingLabel: { color: 'rgba(255, 255, 255, 0.7)', fontSize: 10, fontWeight: '700' },
+  nextEmpty: { color: Colors.white, fontSize: 16, fontWeight: '700', textAlign: 'center', paddingVertical: 28 },
+  logButton: { backgroundColor: Colors.white, borderRadius: 12, height: 44, alignItems: 'center', justifyContent: 'center' },
+  logButtonText: { color: DARK_FOREST, fontSize: 15, fontWeight: '800' },
+  metricsGrid: { gap: 10 },
+  metricsGridRow: { flexDirection: 'row', gap: 10 },
+  metricCard: { flex: 1, minHeight: 112, backgroundColor: Colors.card, borderRadius: 14, borderWidth: 1, borderColor: Colors.border, padding: 14, justifyContent: 'space-between' },
   metricEmoji: { fontSize: 20 },
   metricValue: { color: Colors.text, fontSize: 22, fontWeight: '800' },
   metricLabel: { color: Colors.textSecondary, fontSize: 13, fontWeight: '600' },
+  metricSub: { color: Colors.accent, fontSize: 12, fontWeight: '700' },
+  metricProgressTrack: { height: 7, borderRadius: 999, backgroundColor: Colors.border, overflow: 'hidden' },
+  metricProgressFill: { height: '100%', borderRadius: 999, backgroundColor: Colors.accent },
   activityRow: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: Colors.border },
   activityDot: { width: 8, height: 8, borderRadius: 4, backgroundColor: Colors.accent },
   lastRow: { borderBottomWidth: 0 },
