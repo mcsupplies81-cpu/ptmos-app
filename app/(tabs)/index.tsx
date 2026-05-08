@@ -13,6 +13,7 @@ import { useDoseLogStore } from '@/stores/doseLogStore';
 import { useLifestyleStore } from '@/stores/lifestyleStore';
 import { useProfileStore } from '@/stores/profileStore';
 import { useProtocolStore, type Protocol } from '@/stores/protocolStore';
+import { useSubscriptionStore } from '@/stores/subscriptionStore';
 
 const RING_SIZE = 88;
 const RING_RADIUS = 38;
@@ -92,7 +93,7 @@ export default function DashboardScreen() {
   const doseLogsLoading = useDoseLogStore((s) => s.loading);
   const fetchDoseLogs = useDoseLogStore((s) => s.fetchDoseLogs);
   const addDoseLog = useDoseLogStore((s) => s.addDoseLog);
-
+  const isPro = useSubscriptionStore((s) => s.isPro);
 
   const [refreshing, setRefreshing] = useState(false);
 
@@ -364,6 +365,35 @@ export default function DashboardScreen() {
           <Pressable style={styles.quickChip} onPress={() => router.push('/more/inventory')}><View style={styles.quickIcon}><Text style={styles.quickEmoji}>📦</Text></View><Text style={styles.quickLabel}>Inventory</Text></Pressable>
           <Pressable style={styles.quickChip} onPress={() => router.push('/log/lifestyle')}><View style={styles.quickIcon}><Text style={styles.quickEmoji}>🌿</Text></View><Text style={styles.quickLabel}>Lifestyle</Text></Pressable>
         </View>
+
+        {!isPro ? (
+          <Pressable
+            onPress={() => router.push('/paywall')}
+            style={{
+              marginHorizontal: 16,
+              marginBottom: 16,
+              backgroundColor: '#1B3A2F',
+              borderRadius: 16,
+              borderWidth: 1,
+              borderColor: Colors.accent,
+              padding: 16,
+              flexDirection: 'row',
+              alignItems: 'center',
+              gap: 12,
+            }}
+          >
+            <Text style={{ fontSize: 28 }}>👑</Text>
+            <View style={{ flex: 1 }}>
+              <Text style={{ color: Colors.white, fontWeight: '700', fontSize: 14 }}>
+                Unlock PT-OS Pro
+              </Text>
+              <Text style={{ color: Colors.textSecondary, fontSize: 12, marginTop: 2 }}>
+                AI coaching, unlimited protocols & provider directory
+              </Text>
+            </View>
+            <Text style={{ color: Colors.accent, fontWeight: '800', fontSize: 13 }}>Try →</Text>
+          </Pressable>
+        ) : null}
 
         <View style={styles.sectionHeaderRow}>
           <Text style={styles.sectionTitle}>TODAY'S STACK</Text>
