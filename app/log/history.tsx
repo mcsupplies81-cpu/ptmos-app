@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { Alert, FlatList, Pressable, SafeAreaView, StyleSheet, Text, TextInput, View } from 'react-native';
 
 import EmptyState from '@/components/EmptyState';
+import Skeleton from '@/components/Skeleton';
 import ScreenHeader from '@/components/ScreenHeader';
 import Colors from '@/constants/Colors';
 import { useAuthStore } from '@/stores/authStore';
@@ -12,6 +13,7 @@ import { ProGate } from '@/components/ProGate';
 export default function DoseHistoryScreen() {
   const user = useAuthStore((s) => s.user);
   const doseLogs = useDoseLogStore((s) => s.doseLogs);
+  const loading = useDoseLogStore((s) => s.loading);
   const fetchDoseLogs = useDoseLogStore((s) => s.fetchDoseLogs);
   const [searchQuery, setSearchQuery] = useState('');
 
@@ -89,6 +91,13 @@ export default function DoseHistoryScreen() {
         })}
       </View>
 
+      {loading ? (
+        <View style={styles.listContent}>
+          {Array.from({ length: 5 }).map((_, index) => (
+            <DoseLogRowSkeleton key={index} />
+          ))}
+        </View>
+      ) : (
       <FlatList
         data={filteredLogs}
         keyExtractor={(item) => item.id}
@@ -129,8 +138,24 @@ export default function DoseHistoryScreen() {
           />
         }
       />
+      )}
     </SafeAreaView>
     </ProGate>
+  );
+}
+
+function DoseLogRowSkeleton() {
+  return (
+    <View style={styles.card}>
+      <View style={styles.rowTop}>
+        <Skeleton width="54%" height={18} borderRadius={8} />
+        <Skeleton width={64} height={18} borderRadius={8} />
+      </View>
+      <View style={styles.rowBottom}>
+        <Skeleton width="38%" height={14} borderRadius={7} />
+        <Skeleton width="44%" height={14} borderRadius={7} />
+      </View>
+    </View>
   );
 }
 
