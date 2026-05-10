@@ -1,4 +1,5 @@
 import { useRouter } from 'expo-router';
+import { useOnboardingStore } from '@/stores/onboardingStore';
 import { useState, type ReactNode } from 'react';
 import {
   KeyboardAvoidingView,
@@ -10,7 +11,7 @@ import {
   TextInput,
   View,
 } from 'react-native';
-import Svg, { Circle, Line, Path, Rect } from 'react-native-svg';
+import Svg, { Rect } from 'react-native-svg';
 
 const ACCENT = '#2563EB';
 const BACKGROUND = '#FFFFFF';
@@ -20,6 +21,15 @@ const TEXT_TERTIARY = '#9CA3AF';
 const BORDER = '#F3F4F6';
 const INPUT_BORDER = '#E5E7EB';
 const CARD = '#FFFFFF';
+const TOTAL_STEPS = 7;
+
+const GOALS = ['Fat loss', 'Recovery', 'Muscle gain', 'Sleep', 'Energy', 'Longevity', 'Research', 'Custom'];
+
+const EXPERIENCE_LEVELS = [
+  { id: 'new', label: 'New', desc: "I'm new to peptide tracking and want a guided start." },
+  { id: 'intermediate', label: 'Intermediate', desc: 'I have some experience and want more flexibility.' },
+  { id: 'advanced', label: 'Advanced', desc: "I'm experienced and want full control and customization." },
+];
 
 const SCHEDULE_ROWS = [
   { compound: 'BPC-157', time: '9:00 AM' },
@@ -34,9 +44,15 @@ export default function OnboardingScreen() {
   const [step, setStep] = useState(0);
   const [name, setName] = useState('');
   const [nameError, setNameError] = useState('');
+  const [goals, setGoals] = useState<string[]>([]);
+  const [goalsError, setGoalsError] = useState('');
+  const [experience, setExperience] = useState('');
+  const [experienceError, setExperienceError] = useState('');
 
   const goBack = () => {
     setNameError('');
+    setGoalsError('');
+    setExperienceError('');
     setStep((currentStep) => Math.max(currentStep - 1, 0));
   };
 
@@ -49,12 +65,38 @@ export default function OnboardingScreen() {
         return;
       }
 
-      router.push({ pathname: '/onboarding/paywall', params: { name: trimmedName } });
+      useOnboardingStore.getState().setName(trimmedName);
+      setNameError('');
+      setStep(5);
+      return;
+    }
+
+    if (step === 5) {
+      if (goals.length === 0) {
+        setGoalsError('Select at least one goal.');
+        return;
+      }
+
+      setGoalsError('');
+      setStep(6);
+      return;
+    }
+
+    if (step === 6) {
+      if (!experience) {
+        setExperienceError('Select your experience level.');
+        return;
+      }
+
+      setExperienceError('');
+      router.push('/onboarding/create-account');
       return;
     }
 
     setNameError('');
-    setStep((currentStep) => Math.min(currentStep + 1, 4));
+    setGoalsError('');
+    setExperienceError('');
+    setStep((currentStep) => Math.min(currentStep + 1, TOTAL_STEPS - 1));
   };
 
   return (
@@ -73,7 +115,7 @@ export default function OnboardingScreen() {
           )}
 
           <View style={styles.dots}>
-            {[0, 1, 2, 3, 4].map((dot) => (
+            {Array.from({ length: TOTAL_STEPS }, (_, dot) => dot).map((dot) => (
               <View key={dot} style={[styles.dot, dot === step && styles.dotActive]} />
             ))}
           </View>
@@ -81,12 +123,35 @@ export default function OnboardingScreen() {
           <View style={styles.backButtonPlaceholder} />
         </View>
 
-        <View style={styles.content}>{renderStep(step, name, setName, nameError, setNameError)}</View>
+        <View style={styles.content}>
+          {renderStep(
+            step,
+            name,
+            setName,
+            nameError,
+            setNameError,
+            goals,
+            setGoals,
+            goalsError,
+            setGoalsError,
+            experience,
+            setExperience,
+            experienceError,
+            setExperienceError,
+          )}
+        </View>
 
         <View style={styles.footer}>
           <Pressable style={styles.primaryButton} onPress={goNext} accessibilityRole="button">
-            <Text style={styles.primaryButtonText}>{step === 0 ? 'Start tracking →' : 'Next →'}</Text>
+            <Text style={styles.primaryButtonText}>{step === 0 ? 'Get started' : 'Next'}</Text>
           </Pressable>
+          {step === 0 ? (
+            <Pressable onPress={() => router.push('/(auth)/sign-in')} accessibilityRole="button">
+              <Text style={styles.signInText}>
+                Already have an account? <Text style={styles.signInLink}>Sign in</Text>
+              </Text>
+            </Pressable>
+          ) : null}
         </View>
       </KeyboardAvoidingView>
     </SafeAreaView>
@@ -99,6 +164,14 @@ function renderStep(
   setName: (name: string) => void,
   nameError: string,
   setNameError: (error: string) => void,
+  goals: string[],
+  setGoals: (goals: string[]) => void,
+  goalsError: string,
+  setGoalsError: (error: string) => void,
+  experience: string,
+  setExperience: (experience: string) => void,
+  experienceError: string,
+  setExperienceError: (error: string) => void,
 ) {
   switch (step) {
     case 0:
@@ -120,6 +193,34 @@ function renderStep(
           }}
         />
       );
+    case 5:
+      return (
+        <GoalsStep
+          goals={goals}
+          goalsError={goalsError}
+          onToggleGoal={(goal) => {
+            const nextGoals = goals.includes(goal)
+              ? goals.filter((selectedGoal) => selectedGoal !== goal)
+              : [...goals, goal];
+
+            setGoals(nextGoals);
+            useOnboardingStore.getState().setGoals(nextGoals);
+            if (goalsError) setGoalsError('');
+          }}
+        />
+      );
+    case 6:
+      return (
+        <ExperienceStep
+          experience={experience}
+          experienceError={experienceError}
+          onSelectExperience={(value) => {
+            setExperience(value);
+            useOnboardingStore.getState().setExperience(value);
+            if (experienceError) setExperienceError('');
+          }}
+        />
+      );
     default:
       return null;
   }
@@ -136,8 +237,9 @@ function WelcomeStep() {
         </Svg>
         <Text style={styles.logoText}>PT-OS</Text>
       </View>
-      <Text style={styles.heroTitle}>Your peptide{`\n`}operating system.</Text>
-      <Text style={styles.heroSubtitle}>Track protocols, log doses, and stay consistent.</Text>
+      <Text style={styles.heroEyebrow}>Your peptide operating system</Text>
+      <Text style={styles.heroTitle}>Track peptides{`\n`}with <Text style={styles.heroTitleAccent}>clarity.</Text></Text>
+      <Text style={styles.heroSubtitle}>Log doses, monitor protocols, and understand your routine in one place.</Text>
     </View>
   );
 }
@@ -181,24 +283,17 @@ function VisualizeDoseStep() {
 
 function ReminderStep() {
   return (
-    <FeatureShell title="Never miss a dose." subtitle="Get notified at the right time, every time.">
-      <View style={[styles.premiumCard, styles.notificationCard]}>
-        <View style={styles.bellCircle}>
-          <Svg width={28} height={28} viewBox="0 0 28 28" fill="none">
-            <Path
-              d="M8.5 12.4C8.5 9.2 10.8 6.8 14 6.8C17.2 6.8 19.5 9.2 19.5 12.4V16.1L21.2 19.5H6.8L8.5 16.1V12.4Z"
-              stroke={TEXT}
-              strokeWidth={1.8}
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            />
-            <Line x1={11.5} y1={22} x2={16.5} y2={22} stroke={TEXT} strokeWidth={1.8} strokeLinecap="round" />
-            <Circle cx={14} cy={5.2} r={1.4} fill={TEXT} />
-          </Svg>
+    <FeatureShell title="Chat with your peptide copilot" subtitle="Ask questions, log actions, and get guided support in natural language.">
+      <View style={[styles.premiumCard, styles.copilotCard]}>
+        <View style={styles.chatBubbleUser}>
+          <Text style={styles.chatBubbleUserText}>I just took 300 mcg BPC in my right arm.</Text>
         </View>
-        <View style={styles.notificationCopy}>
-          <Text style={styles.notificationTitle}>BPC-157 reminder</Text>
-          <Text style={styles.notificationSubtitle}>9:00 AM · Daily</Text>
+        <View style={styles.chatBubbleAssistant}>
+          <Text style={styles.chatBubbleAssistantTitle}>Got it — here's what I'll log:</Text>
+          <Text style={styles.chatBubbleAssistantText}>Peptide BPC-157 · Dose 300 mcg · Site Right Arm</Text>
+        </View>
+        <View style={styles.confirmButton}>
+          <Text style={styles.confirmButtonText}>Confirm & Log</Text>
         </View>
       </View>
     </FeatureShell>
@@ -229,6 +324,84 @@ function NameStep({
         style={[styles.nameInput, nameError ? styles.nameInputError : null]}
       />
       {nameError ? <Text style={styles.errorText}>{nameError}</Text> : null}
+    </View>
+  );
+}
+
+
+function GoalsStep({
+  goals,
+  goalsError,
+  onToggleGoal,
+}: {
+  goals: string[];
+  goalsError: string;
+  onToggleGoal: (goal: string) => void;
+}) {
+  return (
+    <View style={styles.selectionStep}>
+      <Text style={styles.featureTitle}>What are you{`\n`}focused on?</Text>
+      <Text style={styles.featureSubtitle}>We'll tailor PT-OS around your goals.</Text>
+      <View style={styles.goalsGrid}>
+        {GOALS.map((goal) => {
+          const selected = goals.includes(goal);
+
+          return (
+            <Pressable
+              key={goal}
+              onPress={() => onToggleGoal(goal)}
+              style={[styles.goalCard, selected && styles.selectableCardSelected]}
+              accessibilityRole="button"
+            >
+              <Text style={styles.goalLabel}>{goal}</Text>
+              {selected ? (
+                <View style={styles.checkCircle}>
+                  <Text style={styles.checkText}>✓</Text>
+                </View>
+              ) : null}
+            </Pressable>
+          );
+        })}
+      </View>
+      {goalsError ? <Text style={styles.errorText}>{goalsError}</Text> : null}
+    </View>
+  );
+}
+
+function ExperienceStep({
+  experience,
+  experienceError,
+  onSelectExperience,
+}: {
+  experience: string;
+  experienceError: string;
+  onSelectExperience: (experience: string) => void;
+}) {
+  return (
+    <View style={styles.selectionStep}>
+      <Text style={styles.featureTitle}>How experienced{`\n`}are you?</Text>
+      <Text style={styles.featureSubtitle}>This helps us customize your setup and guidance.</Text>
+      <View style={styles.experienceList}>
+        {EXPERIENCE_LEVELS.map((option) => {
+          const selected = experience === option.id;
+
+          return (
+            <Pressable
+              key={option.id}
+              onPress={() => onSelectExperience(option.id)}
+              style={[styles.experienceCard, selected && styles.selectableCardSelected]}
+              accessibilityRole="button"
+            >
+              <View style={styles.radioCircle}>{selected ? <View style={styles.radioDot} /> : null}</View>
+              <View style={styles.experienceCopy}>
+                <Text style={styles.experienceLabel}>{option.label}</Text>
+                <Text style={styles.experienceDesc}>{option.desc}</Text>
+              </View>
+            </Pressable>
+          );
+        })}
+      </View>
+      {experienceError ? <Text style={styles.errorText}>{experienceError}</Text> : null}
     </View>
   );
 }
@@ -293,6 +466,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   footer: {
+    gap: 14,
     paddingBottom: 28,
     paddingTop: 16,
   },
@@ -307,6 +481,15 @@ const styles = StyleSheet.create({
   primaryButtonText: {
     color: CARD,
     fontSize: 17,
+    fontWeight: '700',
+  },
+  signInText: {
+    color: TEXT_SECONDARY,
+    fontSize: 13,
+    textAlign: 'center',
+  },
+  signInLink: {
+    color: ACCENT,
     fontWeight: '700',
   },
   welcomeStep: {
@@ -326,6 +509,13 @@ const styles = StyleSheet.create({
     fontWeight: '900',
     letterSpacing: 0.4,
   },
+  heroEyebrow: {
+    color: TEXT_SECONDARY,
+    fontSize: 13,
+    fontWeight: '600',
+    marginTop: -8,
+    textAlign: 'center',
+  },
   heroTitle: {
     color: TEXT,
     fontSize: 40,
@@ -334,6 +524,9 @@ const styles = StyleSheet.create({
     lineHeight: 44,
     maxWidth: 340,
     textAlign: 'center',
+  },
+  heroTitleAccent: {
+    color: ACCENT,
   },
   heroSubtitle: {
     color: TEXT_SECONDARY,
@@ -470,9 +663,149 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '600',
   },
+  copilotCard: {
+    gap: 12,
+    padding: 18,
+    width: '100%',
+  },
+  chatBubbleUser: {
+    alignSelf: 'flex-end',
+    backgroundColor: '#065F46',
+    borderRadius: 14,
+    maxWidth: '82%',
+    padding: 12,
+  },
+  chatBubbleUserText: {
+    color: CARD,
+    fontSize: 13,
+    fontWeight: '600',
+    lineHeight: 18,
+  },
+  chatBubbleAssistant: {
+    backgroundColor: '#F8FAFC',
+    borderColor: INPUT_BORDER,
+    borderRadius: 14,
+    borderWidth: 1,
+    gap: 6,
+    padding: 12,
+  },
+  chatBubbleAssistantTitle: {
+    color: TEXT,
+    fontSize: 13,
+    fontWeight: '800',
+  },
+  chatBubbleAssistantText: {
+    color: TEXT_SECONDARY,
+    fontSize: 12,
+    lineHeight: 17,
+  },
+  confirmButton: {
+    alignItems: 'center',
+    backgroundColor: '#065F46',
+    borderRadius: 10,
+    height: 42,
+    justifyContent: 'center',
+  },
+  confirmButtonText: {
+    color: CARD,
+    fontSize: 13,
+    fontWeight: '800',
+  },
   nameStep: {
     alignItems: 'center',
     gap: 18,
+  },
+  selectionStep: {
+    alignItems: 'center',
+    gap: 16,
+  },
+  goalsGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 12,
+    justifyContent: 'space-between',
+    marginTop: 6,
+    width: '100%',
+  },
+  goalCard: {
+    alignItems: 'center',
+    backgroundColor: CARD,
+    borderColor: INPUT_BORDER,
+    borderRadius: 14,
+    borderWidth: 1.5,
+    flexDirection: 'row',
+    height: 52,
+    justifyContent: 'space-between',
+    paddingHorizontal: 16,
+    width: '48%',
+  },
+  selectableCardSelected: {
+    backgroundColor: '#EFF6FF',
+    borderColor: ACCENT,
+  },
+  goalLabel: {
+    color: TEXT,
+    fontSize: 14,
+    fontWeight: '700',
+  },
+  checkCircle: {
+    alignItems: 'center',
+    backgroundColor: ACCENT,
+    borderRadius: 11,
+    height: 22,
+    justifyContent: 'center',
+    width: 22,
+  },
+  checkText: {
+    color: CARD,
+    fontSize: 14,
+    fontWeight: '900',
+    lineHeight: 18,
+  },
+  experienceList: {
+    gap: 12,
+    marginTop: 6,
+    width: '100%',
+  },
+  experienceCard: {
+    alignItems: 'center',
+    backgroundColor: CARD,
+    borderColor: INPUT_BORDER,
+    borderRadius: 14,
+    borderWidth: 1.5,
+    flexDirection: 'row',
+    gap: 14,
+    padding: 16,
+    width: '100%',
+  },
+  radioCircle: {
+    alignItems: 'center',
+    borderColor: INPUT_BORDER,
+    borderRadius: 11,
+    borderWidth: 1.5,
+    height: 22,
+    justifyContent: 'center',
+    width: 22,
+  },
+  radioDot: {
+    backgroundColor: ACCENT,
+    borderRadius: 5,
+    height: 10,
+    width: 10,
+  },
+  experienceCopy: {
+    flex: 1,
+    gap: 4,
+  },
+  experienceLabel: {
+    color: TEXT,
+    fontSize: 16,
+    fontWeight: '700',
+  },
+  experienceDesc: {
+    color: TEXT_SECONDARY,
+    fontSize: 13,
+    lineHeight: 18,
   },
   nameInput: {
     backgroundColor: CARD,

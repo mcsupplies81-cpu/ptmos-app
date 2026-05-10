@@ -149,25 +149,25 @@ export default function SignInScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#1B3A2F' },
+  container: { flex: 1, backgroundColor: '#FFFFFF' },
   keyboardContainer: { flex: 1 },
-  topSection: { flex: 0.35, alignItems: 'center', justifyContent: 'center' },
+  topSection: { flex: 0.28, alignItems: 'center', justifyContent: 'center', backgroundColor: '#FFFFFF' },
   logoCircle: {
     width: 56,
     height: 56,
     borderRadius: 28,
-    backgroundColor: 'rgba(255,255,255,0.15)',
+    backgroundColor: '#EFF6FF',
     alignItems: 'center',
     justifyContent: 'center',
   },
-  logoText: { fontSize: 26, fontWeight: '800', color: '#FFFFFF' },
-  heading: { color: '#FFFFFF', fontSize: 22, fontWeight: '700', marginTop: 14 },
-  subheading: { color: 'rgba(255,255,255,0.65)', fontSize: 14, marginTop: 4 },
+  logoText: { fontSize: 26, fontWeight: '800', color: Colors.accent },
+  heading: { color: Colors.text, fontSize: 22, fontWeight: '700', marginTop: 14 },
+  subheading: { color: Colors.textSecondary, fontSize: 14, marginTop: 4 },
   bottomSheet: {
     flex: 1,
     backgroundColor: Colors.background,
-    borderTopLeftRadius: 28,
-    borderTopRightRadius: 28,
+    borderTopLeftRadius: 0,
+    borderTopRightRadius: 0,
     padding: 28,
     paddingTop: 32,
   },
