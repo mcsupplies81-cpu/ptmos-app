@@ -12,7 +12,7 @@ import {
   View,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
-import Svg, { Circle, Path, Rect } from 'react-native-svg';
+import Svg, { Circle, Line, Path, Rect } from 'react-native-svg';
 
 const ACCENT = '#1B4332';
 const BACKGROUND = '#F8F8F6';
@@ -26,7 +26,7 @@ const TOTAL_STEPS = 7;
 const SHOWCASE_DOTS = 5;
 const FEATURE_TRACK_STEP = 1;
 
-const GOALS = ['Fat loss', 'Recovery', 'Muscle gain', 'Sleep', 'Energy', 'Longevity', 'Research', 'Custom'];
+const GOALS = ['Fat loss', 'Muscle gain', 'Recovery', 'Sleep', 'Energy', 'Longevity', 'Research', 'Custom'];
 
 const EXPERIENCE_LEVELS = [
   { id: 'new', label: 'New', desc: "I'm new to peptide tracking and want a guided start." },
@@ -40,16 +40,20 @@ const SCHEDULE_ROWS = [
   { compound: 'Retatrutide', time: '8:00 PM' },
 ];
 
-const DAYS = ['Day 1', 'Day 2', 'Day 3', 'Day 4', 'Day 5', 'Day 6', 'Day 7'];
-
 export default function OnboardingScreen() {
   const router = useRouter();
+  const storedName = useOnboardingStore((state) => state.name);
+  const setStoredName = useOnboardingStore((state) => state.setName);
+  const storeGoals = useOnboardingStore((state) => state.goals);
+  const setStoreGoals = useOnboardingStore((state) => state.setGoals);
+  const experience = useOnboardingStore((state) => state.experience);
+  const setExperience = useOnboardingStore((state) => state.setExperience);
+
   const [step, setStep] = useState(0);
-  const [name, setName] = useState('');
+  const [name, setName] = useState(storedName);
   const [nameError, setNameError] = useState('');
-  const [goals, setGoals] = useState<string[]>([]);
+  const [goals, setGoals] = useState<string[]>(storeGoals ?? []);
   const [goalsError, setGoalsError] = useState('');
-  const [experience, setExperience] = useState('');
   const [experienceError, setExperienceError] = useState('');
 
   const goBack = () => {
@@ -68,29 +72,19 @@ export default function OnboardingScreen() {
         return;
       }
 
-      useOnboardingStore.getState().setName(trimmedName);
+      setStoredName(trimmedName);
       setNameError('');
       setStep(5);
       return;
     }
 
     if (step === 5) {
-      if (goals.length === 0) {
-        setGoalsError('Select at least one goal.');
-        return;
-      }
-
       setGoalsError('');
       setStep(6);
       return;
     }
 
     if (step === 6) {
-      if (!experience) {
-        setExperienceError('Select your experience level.');
-        return;
-      }
-
       setExperienceError('');
       router.push('/onboarding/create-account');
       return;
@@ -102,70 +96,184 @@ export default function OnboardingScreen() {
     setStep((currentStep) => Math.min(currentStep + 1, TOTAL_STEPS - 1));
   };
 
+  const isNameStep = step === 4;
+
   return (
-    <SafeAreaView style={styles.safeArea}>
+    <SafeAreaView
+      style={[
+        styles.safeArea,
+        step === 2 && styles.visualizeSafeArea,
+        step === 3 && styles.copilotSafeArea,
+        isNameStep && styles.nameSafeArea,
+        step === 5 && styles.goalsSafeArea,
+        step === 6 && styles.experienceSafeArea,
+      ]}
+    >
       <KeyboardAvoidingView
-        style={styles.container}
+        style={[styles.container, isNameStep && styles.nameContainer, step === 6 && styles.experienceContainer]}
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       >
-        <View style={styles.progressHeader}>
-          {step > 0 ? (
-            <Pressable onPress={goBack} style={styles.backButton} accessibilityRole="button">
-              <Text style={styles.backButtonText}>‹</Text>
-            </Pressable>
-          ) : (
-            <View style={styles.backButtonPlaceholder} />
-          )}
+        {isNameStep ? (
+          <NameStep
+            name={name}
+            nameError={nameError}
+            onBack={goBack}
+            onNext={goNext}
+            onChangeName={(value) => {
+              setName(value);
+              setStoredName(value);
+              if (nameError) setNameError('');
+            }}
+          />
+        ) : (
+          <>
+            <View style={styles.progressHeader}>
+              {step > 0 ? (
+                <Pressable
+                  onPress={goBack}
+                  style={[
+                    styles.backButton,
+                    step === 3 && styles.copilotBackButton,
+                    step === 5 && styles.goalsBackButton,
+                  ]}
+                  accessibilityRole="button"
+                >
+                  <Text
+                    style={[
+                      styles.backButtonText,
+                      step === 3 && styles.copilotBackButtonText,
+                      step === 5 && styles.goalsBackButtonText,
+                    ]}
+                  >
+                    ‹
+                  </Text>
+                </Pressable>
+              ) : (
+                <View style={styles.backButtonPlaceholder} />
+              )}
 
-          <View style={styles.dots}>
-            {Array.from({ length: SHOWCASE_DOTS }, (_, dot) => dot).map((dot) => (
-              <View key={dot} style={[styles.dot, dot === Math.min(step, SHOWCASE_DOTS - 1) && styles.dotActive]} />
-            ))}
-          </View>
-
-          <View style={styles.backButtonPlaceholder} />
-        </View>
-
-        <View style={[styles.content, step === FEATURE_TRACK_STEP && styles.trackDoseContent]}>
-          {renderStep(
-            step,
-            name,
-            setName,
-            nameError,
-            setNameError,
-            goals,
-            setGoals,
-            goalsError,
-            setGoalsError,
-            experience,
-            setExperience,
-            experienceError,
-            setExperienceError,
-          )}
-        </View>
-
-        <View style={[styles.footer, step === FEATURE_TRACK_STEP && styles.trackDoseFooter]}>
-          {step === FEATURE_TRACK_STEP ? (
-            <Pressable style={styles.trackNextButton} onPress={goNext} accessibilityRole="button">
-              <View style={styles.trackNextIcon}>
-                <Text style={styles.trackNextArrow}>→</Text>
+              <View style={styles.dots}>
+                {Array.from(
+                  { length: step === 2 ? 5 : step === 3 ? 4 : step === 5 ? 5 : step === 6 ? 6 : SHOWCASE_DOTS },
+                  (_, dot) => dot,
+                ).map((dot) => {
+                  const isActive =
+                    step === 2
+                      ? dot === 0
+                      : step === 3
+                        ? dot === 3
+                        : step === 5
+                          ? dot === 4
+                          : step === 6
+                            ? dot === 5
+                            : dot === Math.min(step, SHOWCASE_DOTS - 1);
+                  return (
+                    <View
+                      key={dot}
+                      style={[
+                        styles.dot,
+                        step === 5 && styles.goalsDot,
+                        step === 6 && styles.experienceDot,
+                        isActive && styles.dotActive,
+                      ]}
+                    />
+                  );
+                })}
               </View>
-              <Text style={styles.trackNextText}>Next</Text>
-              <View style={styles.trackNextSpacer} />
-            </Pressable>
-          ) : (
-            <Pressable style={styles.primaryButton} onPress={goNext} accessibilityRole="button">
-              <Text style={styles.primaryButtonText}>{step === 0 ? 'Get started' : 'Next'}</Text>
-            </Pressable>
-          )}
-          {step === 0 ? (
-            <Pressable onPress={() => router.push('/(auth)/sign-in')} accessibilityRole="button">
-              <Text style={styles.signInText}>
-                Already have an account? <Text style={styles.signInLink}>Sign in</Text>
-              </Text>
-            </Pressable>
-          ) : null}
-        </View>
+
+              <View style={styles.backButtonPlaceholder} />
+            </View>
+
+            <View
+              style={[
+                styles.content,
+                step === FEATURE_TRACK_STEP && styles.trackDoseContent,
+                step === 2 && styles.visualizeContent,
+                step === 5 && styles.goalsContent,
+                step === 6 && styles.experienceContent,
+              ]}
+            >
+              {renderStep(
+                step,
+                name,
+                setName,
+                nameError,
+                setNameError,
+                goals,
+                (nextGoals) => {
+                  setGoals(nextGoals);
+                  setStoreGoals(nextGoals);
+                },
+                goalsError,
+                setGoalsError,
+                experience,
+                setExperience,
+                experienceError,
+                setExperienceError,
+              )}
+            </View>
+
+            <View
+              style={[
+                styles.footer,
+                step === FEATURE_TRACK_STEP && styles.trackDoseFooter,
+                step === 2 && styles.visualizeFooter,
+                step === 3 && styles.copilotFooter,
+                step === 5 && styles.goalsFooter,
+                step === 6 && styles.experienceFooter,
+              ]}
+            >
+              {step === FEATURE_TRACK_STEP ? (
+                <Pressable style={styles.trackNextButton} onPress={goNext} accessibilityRole="button">
+                  <View style={styles.trackNextIcon}>
+                    <Text style={styles.trackNextArrow}>→</Text>
+                  </View>
+                  <Text style={styles.trackNextText}>Next</Text>
+                  <View style={styles.trackNextSpacer} />
+                </Pressable>
+              ) : step === 2 ? (
+                <Pressable style={styles.visualizePrimaryButton} onPress={goNext} accessibilityRole="button">
+                  <View style={styles.nextArrowCircle}>
+                    <Text style={styles.nextArrow}>→</Text>
+                  </View>
+                  <Text style={styles.primaryButtonText}>Next</Text>
+                </Pressable>
+              ) : step === 3 ? (
+                <Pressable style={styles.copilotNextButton} onPress={goNext} accessibilityRole="button">
+                  <View style={styles.copilotNextArrowCircle}>
+                    <Text style={styles.copilotNextArrowText}>→</Text>
+                  </View>
+                  <Text style={[styles.primaryButtonText, styles.copilotNextButtonText]}>Next</Text>
+                </Pressable>
+              ) : step === 5 ? (
+                <Pressable style={styles.goalsPrimaryButton} onPress={goNext} accessibilityRole="button">
+                  <View style={styles.goalsButtonArrowCircle}>
+                    <Text style={styles.goalsButtonArrow}>→</Text>
+                  </View>
+                  <Text style={[styles.primaryButtonText, styles.goalsPrimaryButtonText]}>Next</Text>
+                </Pressable>
+              ) : step === 6 ? (
+                <Pressable style={styles.experienceNextButton} onPress={goNext} accessibilityRole="button">
+                  <View style={styles.experienceNextIcon}>
+                    <Text style={styles.experienceNextArrow}>→</Text>
+                  </View>
+                  <Text style={styles.experienceNextText}>Next</Text>
+                </Pressable>
+              ) : (
+                <Pressable style={styles.primaryButton} onPress={goNext} accessibilityRole="button">
+                  <Text style={styles.primaryButtonText}>{step === 0 ? 'Get started' : 'Next'}</Text>
+                </Pressable>
+              )}
+              {step === 0 ? (
+                <Pressable onPress={() => router.push('/(auth)/sign-in')} accessibilityRole="button">
+                  <Text style={styles.signInText}>
+                    Already have an account? <Text style={styles.signInLink}>Sign in</Text>
+                  </Text>
+                </Pressable>
+              ) : null}
+            </View>
+          </>
+        )}
       </KeyboardAvoidingView>
     </SafeAreaView>
   );
@@ -196,16 +304,7 @@ function renderStep(
     case 3:
       return <ReminderStep />;
     case 4:
-      return (
-        <NameStep
-          name={name}
-          nameError={nameError}
-          onChangeName={(value) => {
-            setName(value);
-            if (nameError) setNameError('');
-          }}
-        />
-      );
+      return null;
     case 5:
       return (
         <GoalsStep
@@ -217,7 +316,6 @@ function renderStep(
               : [...goals, goal];
 
             setGoals(nextGoals);
-            useOnboardingStore.getState().setGoals(nextGoals);
             if (goalsError) setGoalsError('');
           }}
         />
@@ -229,7 +327,6 @@ function renderStep(
           experienceError={experienceError}
           onSelectExperience={(value) => {
             setExperience(value);
-            useOnboardingStore.getState().setExperience(value);
             if (experienceError) setExperienceError('');
           }}
         />
@@ -247,7 +344,9 @@ function WelcomeStep() {
         <Text style={styles.logoText}>PT-OS</Text>
       </View>
       <Text style={styles.heroEyebrow}>Your peptide operating system</Text>
-      <Text style={styles.heroTitle}>Track peptides{`\n`}with <Text style={styles.heroTitleAccent}>clarity.</Text></Text>
+      <Text style={styles.heroTitle}>
+        Track peptides{`\n`}with <Text style={styles.heroTitleAccent}>clarity.</Text>
+      </Text>
       <Text style={styles.heroSubtitle}>Log doses, monitor protocols, and understand your routine in one place.</Text>
     </View>
   );
@@ -343,72 +442,429 @@ function BarLogo({ size = 25 }: { size?: number }) {
   );
 }
 
+// ── VisualizeDoseStep (case 2) ────────────────────────────────────────────────
+
 function VisualizeDoseStep() {
   return (
-    <FeatureShell title="See what's active." subtitle="Understand estimated active levels at a glance.">
-      <View style={[styles.premiumCard, styles.activeCard]}>
-        <View style={styles.activeLine} />
-        <Text style={styles.activeLabel}>ESTIMATED ACTIVE</Text>
-        <Text style={styles.activeValue}>142 mcg</Text>
-        <View style={styles.dayRow}>
-          {DAYS.map((day) => (
-            <Text key={day} style={styles.dayLabel}>
-              {day}
+    <View style={styles.visualizeStep}>
+      <View style={styles.visualizeLogoRow}>
+        <Svg width={36} height={42} viewBox="0 0 36 42" fill="none">
+          <Rect x={4} y={14} width={7} height={22} rx={3.5} fill={ACCENT} />
+          <Rect x={15} y={4} width={7} height={34} rx={3.5} fill={ACCENT} />
+          <Rect x={26} y={12} width={6} height={8} rx={3} fill={ACCENT} />
+          <Rect x={26} y={24} width={6} height={14} rx={3} fill={ACCENT} />
+        </Svg>
+        <Text style={styles.visualizeLogoText}>PT-OS</Text>
+      </View>
+
+      <View style={styles.visualizeHeadlineBlock}>
+        <Text style={styles.visualizeHeadline}>Visualize your</Text>
+        <Text style={[styles.visualizeHeadline, styles.visualizeHeadlineAccent]}>peptide life</Text>
+        <Text style={styles.visualizeSubtext}>See active levels, progress, and your routine at a glance.</Text>
+      </View>
+
+      <View style={[styles.premiumCard, styles.chartCard]}>
+        <View style={styles.chartHeader}>
+          <View style={styles.vialThumb} />
+          <View style={styles.chartHeaderCopy}>
+            <Text style={styles.peptideName}>BPC-157</Text>
+            <Text style={styles.peptideDose}>500 mcg</Text>
+          </View>
+          <View style={styles.activeBadge}>
+            <View style={styles.activeBadgeDot} />
+            <Text style={styles.activeBadgeText}>Active</Text>
+          </View>
+        </View>
+
+        <View style={styles.chartLabelRow}>
+          <Text style={styles.chartTitle}>Estimated Active Level</Text>
+          <View style={styles.infoCircle}>
+            <Text style={styles.infoText}>i</Text>
+          </View>
+        </View>
+
+        <View style={styles.chartWrap}>
+          <View style={styles.yLabels}>
+            {['100%', '75%', '50%', '25%', '0%'].map((label) => (
+              <Text key={label} style={styles.axisLabel}>
+                {label}
+              </Text>
+            ))}
+          </View>
+          <View style={styles.chartPlot}>
+            <Svg width="100%" height="100%" viewBox="0 0 280 150" preserveAspectRatio="none">
+              {[10, 42.5, 75, 107.5, 140].map((y) => (
+                <Line key={y} x1={0} y1={y} x2={280} y2={y} stroke="#F3F4F6" strokeWidth={1} />
+              ))}
+              <Path
+                d="M 0 140 L 40 113 L 80 23 L 120 33 L 160 56 L 200 80 L 240 109 L 280 129 L 280 140 L 0 140 Z"
+                fill="rgba(27,67,50,0.08)"
+              />
+              <Path
+                d="M 0 140 L 40 113 L 80 23 L 120 33 L 160 56 L 200 80 L 240 109 L 280 129"
+                fill="none"
+                stroke={ACCENT}
+                strokeWidth={2}
+              />
+              {[
+                [0, 140],
+                [40, 113],
+                [80, 23],
+                [120, 33],
+                [160, 56],
+                [200, 80],
+                [240, 109],
+                [280, 129],
+              ].map(([cx, cy]) => (
+                <Circle key={`${cx}-${cy}`} cx={cx} cy={cy} r={4} fill={ACCENT} />
+              ))}
+              <Circle cx={80} cy={23} r={9} fill="rgba(27,67,50,0.22)" />
+              <Circle cx={80} cy={23} r={5} fill={ACCENT} stroke={CARD} strokeWidth={2} />
+            </Svg>
+            <View style={styles.tooltip}>
+              <Text style={styles.tooltipDay}>Day 2</Text>
+              <Text style={styles.tooltipValue}>84%</Text>
+              <View style={styles.tooltipPointer} />
+            </View>
+          </View>
+        </View>
+        <View style={styles.xLabels}>
+          {['Day 0', 'Day 1', 'Day 2', 'Day 3', 'Day 4', 'Day 5', 'Day 6', 'Day 7'].map((label) => (
+            <Text key={label} style={styles.axisLabel}>
+              {label}
             </Text>
           ))}
         </View>
+
+        <View style={styles.statsRow}>
+          <View style={styles.statColumn}>
+            <Text style={styles.statIcon}>↗</Text>
+            <Text style={styles.statLabel}>Peak</Text>
+            <Text style={styles.statValue}>84%</Text>
+            <Text style={styles.statUnit}>Day 2</Text>
+          </View>
+          <View style={[styles.statColumn, styles.statDivider]}>
+            <Text style={styles.statIcon}>🕐</Text>
+            <Text style={styles.statLabel}>Half-life</Text>
+            <Text style={styles.statValue}>27</Text>
+            <Text style={styles.statUnit}>hours</Text>
+          </View>
+          <View style={[styles.statColumn, styles.statDivider]}>
+            <Text style={styles.statIcon}>📅</Text>
+            <Text style={styles.statLabel}>Duration</Text>
+            <Text style={styles.statValue}>6–7</Text>
+            <Text style={styles.statUnit}>days</Text>
+          </View>
+        </View>
       </View>
-    </FeatureShell>
+
+      <View style={styles.disclaimerCard}>
+        <View style={styles.shieldCircle}>
+          <Svg width={28} height={28} viewBox="0 0 28 28" fill="none">
+            <Path
+              d="M14 3 L23 6.5 V13.5 C23 19.2 19.4 23.4 14 25 C8.6 23.4 5 19.2 5 13.5 V6.5 L14 3 Z"
+              stroke={ACCENT}
+              strokeWidth={2.2}
+              fill="none"
+            />
+            <Path
+              d="M9.5 14 L12.5 17 L18.8 10.5"
+              stroke={ACCENT}
+              strokeWidth={2.2}
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
+          </Svg>
+        </View>
+        <View style={styles.disclaimerCopy}>
+          <Text style={styles.disclaimerTitle}>For tracking and insights only</Text>
+          <Text style={styles.disclaimerText}>
+            PT-OS provides visual estimates to help you understand your routine. Not medical advice.
+          </Text>
+        </View>
+      </View>
+    </View>
   );
 }
 
+// ── ReminderStep (case 3) ─────────────────────────────────────────────────────
+
 function ReminderStep() {
+  const detailRows = [
+    { label: 'Peptide', value: 'BPC-157' },
+    { label: 'Dose', value: '300 mcg' },
+    { label: 'Route', value: 'Injection (SubQ)' },
+    { label: 'Site', value: 'Right Arm' },
+    { label: 'Time', value: 'Today 9:41 AM' },
+  ];
+
   return (
-    <FeatureShell title="Chat with your peptide copilot" subtitle="Ask questions, log actions, and get guided support in natural language.">
+    <View style={styles.copilotStep}>
+      <View style={styles.mediterraneanBackground} />
+      <View style={styles.copilotLogoBlock}>
+        <View style={styles.logoRow}>
+          <BarChartLogo color={ACCENT} />
+          <Text style={[styles.logoText, styles.copilotLogoText]}>PT-OS</Text>
+        </View>
+        <Text style={styles.copilotTitle}>
+          Chat with your{`\n`}
+          <Text style={styles.copilotTitleAccent}>peptide copilot</Text>
+        </Text>
+        <Text style={styles.copilotSubtitle}>
+          Ask questions, log actions, and get guided support in natural language.
+        </Text>
+      </View>
+
       <View style={[styles.premiumCard, styles.copilotCard]}>
         <View style={styles.chatBubbleUser}>
           <Text style={styles.chatBubbleUserText}>I just took 300 mcg BPC in my right arm.</Text>
         </View>
-        <View style={styles.chatBubbleAssistant}>
-          <Text style={styles.chatBubbleAssistantTitle}>Got it — here's what I'll log:</Text>
-          <Text style={styles.chatBubbleAssistantText}>Peptide BPC-157 · Dose 300 mcg · Site Right Arm</Text>
+
+        <View style={styles.aiRow}>
+          <BarChartLogo color={ACCENT} size="small" />
+          <Text style={styles.aiRowText}>Got it — here's what I'll log.</Text>
         </View>
+
+        <View style={styles.logDetailCard}>
+          <View style={styles.logDetailHeader}>
+            <View style={styles.vialPlaceholder} />
+            <Text style={styles.logPeptideName}>BPC-157</Text>
+          </View>
+
+          {detailRows.map((row, index) => (
+            <View
+              key={row.label}
+              style={[styles.logDetailRow, index < detailRows.length - 1 && styles.logDetailRowDivider]}
+            >
+              <DetailRowIcon />
+              <Text style={styles.logDetailLabel}>{row.label}</Text>
+              <Text style={styles.logDetailValue}>{row.value}</Text>
+            </View>
+          ))}
+        </View>
+
         <View style={styles.confirmButton}>
           <Text style={styles.confirmButtonText}>Confirm & Log</Text>
         </View>
+
+        <View style={styles.fakeInputBar}>
+          <Text style={styles.fakeInputPlaceholder}>Ask anything or log a dose...</Text>
+          <View style={styles.sendButton}>
+            <Text style={styles.sendButtonText}>↑</Text>
+          </View>
+        </View>
       </View>
-    </FeatureShell>
+
+      <View style={styles.privacyCard}>
+        <ShieldCheckIcon />
+        <View style={styles.privacyCopy}>
+          <Text style={styles.privacyTitle}>Your data stays private</Text>
+          <Text style={styles.privacyBody}>
+            Encrypted health logs stay under your control and are never shared without permission.
+          </Text>
+        </View>
+      </View>
+    </View>
+  );
+}
+
+function BarChartLogo({ color, size = 'regular' }: { color: string; size?: 'regular' | 'small' }) {
+  const width = size === 'small' ? 19 : 25;
+  const height = size === 'small' ? 17 : 22;
+
+  return (
+    <Svg width={width} height={height} viewBox="0 0 25 22" fill="none">
+      <Rect x={2} y={8} width={4} height={12} rx={2} fill={color} />
+      <Rect x={9} y={2} width={4} height={18} rx={2} fill={color} />
+      <Rect x={16} y={6} width={4} height={14} rx={2} fill={color} />
+    </Svg>
+  );
+}
+
+function DetailRowIcon() {
+  return (
+    <Svg width={16} height={16} viewBox="0 0 16 16" fill="none">
+      <Circle cx={8} cy={8} r={7} fill={ACCENT} />
+      <Path
+        d="M5 8.2 7.1 10.3 11.2 5.9"
+        stroke="#FFFFFF"
+        strokeWidth={1.6}
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </Svg>
+  );
+}
+
+function ShieldCheckIcon() {
+  return (
+    <Svg width={28} height={28} viewBox="0 0 28 28" fill="none">
+      <Path d="M14 3.5 23 7.3v6.6c0 5.4-3.7 9.2-9 10.6-5.3-1.4-9-5.2-9-10.6V7.3l9-3.8Z" fill={ACCENT} />
+      <Path
+        d="M9.4 14.2 12.5 17.3 18.8 10.8"
+        stroke="#FFFFFF"
+        strokeWidth={2.1}
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </Svg>
+  );
+}
+
+// ── NameStep (case 4) ─────────────────────────────────────────────────────────
+
+function LogoMark({ width = 31, height = 38 }: { width?: number; height?: number }) {
+  return (
+    <Svg width={width} height={height} viewBox="0 0 31 38" fill="none">
+      <Rect x={0} y={12} width={5} height={17} rx={2.5} fill={ACCENT} />
+      <Rect x={9} y={4} width={5} height={27} rx={2.5} fill={ACCENT} />
+      <Rect x={18} y={0} width={5} height={38} rx={2.5} fill={ACCENT} />
+      <Rect x={27} y={10} width={4} height={18} rx={2} fill={ACCENT} />
+    </Svg>
+  );
+}
+
+function PersonIcon({ size = 24, color = ACCENT }: { size?: number; color?: string }) {
+  return (
+    <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
+      <Circle cx={12} cy={7.5} r={3.5} stroke={color} strokeWidth={2} />
+      <Path
+        d="M4.5 20c.7-4 3.3-6.2 7.5-6.2s6.8 2.2 7.5 6.2H4.5Z"
+        stroke={color}
+        strokeWidth={2}
+        strokeLinejoin="round"
+      />
+    </Svg>
+  );
+}
+
+function ArrowRightIcon() {
+  return (
+    <Svg width={24} height={24} viewBox="0 0 24 24" fill="none">
+      <Path
+        d="M5 12h13M13 6l6 6-6 6"
+        stroke={ACCENT}
+        strokeWidth={2.5}
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </Svg>
   );
 }
 
 function NameStep({
   name,
   nameError,
+  onBack,
+  onNext,
   onChangeName,
 }: {
   name: string;
   nameError: string;
+  onBack: () => void;
+  onNext: () => void;
   onChangeName: (name: string) => void;
 }) {
+  const [isNameInputFocused, setIsNameInputFocused] = useState(true);
+  const isDisabled = name.trim().length === 0;
+
   return (
-    <View style={styles.nameStep}>
-      <Text style={styles.featureTitle}>What's your{`\n`}first name?</Text>
-      <Text style={styles.featureSubtitle}>We'll personalize your experience.</Text>
-      <TextInput
-        value={name}
-        onChangeText={onChangeName}
-        placeholder="First name"
-        placeholderTextColor={TEXT_TERTIARY}
-        autoCapitalize="words"
-        autoCorrect={false}
-        returnKeyType="done"
-        style={[styles.nameInput, nameError ? styles.nameInputError : null]}
-      />
-      {nameError ? <Text style={styles.errorText}>{nameError}</Text> : null}
+    <View style={styles.nameScreen}>
+      <View style={styles.nameTopNav}>
+        <Pressable onPress={onBack} style={styles.nameBackButton} accessibilityRole="button">
+          <Text style={styles.nameBackButtonText}>‹</Text>
+        </Pressable>
+
+        <View style={styles.nameDots}>
+          {Array.from({ length: 5 }, (_, dot) => dot).map((dot) => (
+            <View key={dot} style={[styles.nameDot, dot === 4 && styles.nameDotActive]} />
+          ))}
+        </View>
+
+        <View style={styles.nameNavSpacer} />
+      </View>
+
+      <View style={styles.nameIntro}>
+        <View style={styles.nameLogoRow}>
+          <LogoMark />
+          <Text style={styles.nameLogoText}>PT-OS</Text>
+        </View>
+
+        <View style={styles.nameHeadlineGroup}>
+          <Text style={styles.nameHeadlineDark}>What's your</Text>
+          <Text style={styles.nameHeadlineGreen}>first name?</Text>
+        </View>
+
+        <Text style={styles.nameSubtext}>We'll use this to personalize your PT-OS experience.</Text>
+      </View>
+
+      <View
+        style={[
+          styles.floatingNameInput,
+          isNameInputFocused && styles.floatingNameInputFocused,
+          nameError ? styles.nameInputError : null,
+        ]}
+      >
+        <View style={styles.nameFieldCopy}>
+          <Text style={styles.floatingNameLabel}>First name</Text>
+          <TextInput
+            value={name}
+            onChangeText={onChangeName}
+            onFocus={() => setIsNameInputFocused(true)}
+            onBlur={() => setIsNameInputFocused(false)}
+            autoFocus
+            autoCapitalize="words"
+            autoCorrect={false}
+            returnKeyType="next"
+            style={styles.floatingNameTextInput}
+          />
+        </View>
+        <PersonIcon size={29} />
+      </View>
+      {nameError ? <Text style={styles.nameScreenError}>{nameError}</Text> : null}
+
+      <View style={styles.nameScenicBlock}>
+        <LinearGradient
+          colors={[CARD, 'rgba(255,255,255,0.72)', 'rgba(255,255,255,0)']}
+          style={styles.nameScenicGradient}
+        />
+        <View style={styles.placeholderSun} />
+        <View style={styles.placeholderCliffOne} />
+        <View style={styles.placeholderCliffTwo} />
+        <View style={styles.placeholderTree} />
+        <View style={styles.placeholderMountainOne} />
+        <View style={styles.placeholderMountainTwo} />
+        <LinearGradient colors={['rgba(255,255,255,0)', CARD]} style={styles.nameScenicBottomFade} />
+      </View>
+
+      <View style={styles.nameBottomContent}>
+        <View style={styles.nameInfoCard}>
+          <View style={styles.nameInfoIconCircle}>
+            <PersonIcon size={25} />
+          </View>
+          <View style={styles.nameInfoCopy}>
+            <Text style={styles.nameInfoTitle}>We keep it personal.</Text>
+            <Text style={styles.nameInfoText}>Your name helps us personalize your PT-OS experience.</Text>
+          </View>
+        </View>
+
+        <Pressable
+          onPress={onNext}
+          disabled={isDisabled}
+          style={[styles.nameNextButton, isDisabled && styles.nameNextButtonDisabled]}
+          accessibilityRole="button"
+        >
+          <View style={styles.nameNextIconCircle}>
+            <ArrowRightIcon />
+          </View>
+          <Text style={styles.nameNextText}>Next</Text>
+        </Pressable>
+      </View>
     </View>
   );
 }
 
+// ── GoalsStep (case 5) ────────────────────────────────────────────────────────
 
 function GoalsStep({
   goals,
@@ -420,9 +876,22 @@ function GoalsStep({
   onToggleGoal: (goal: string) => void;
 }) {
   return (
-    <View style={styles.selectionStep}>
-      <Text style={styles.featureTitle}>What are you{`\n`}focused on?</Text>
-      <Text style={styles.featureSubtitle}>We'll tailor PT-OS around your goals.</Text>
+    <View style={styles.goalsStep}>
+      <View style={styles.goalsLogoRow}>
+        <Svg width={38} height={38} viewBox="0 0 38 38" fill="none">
+          <Rect x={8} y={13} width={5} height={16} rx={2.5} fill={ACCENT} />
+          <Rect x={17} y={6} width={5} height={25} rx={2.5} fill={ACCENT} />
+          <Rect x={26} y={16} width={5} height={18} rx={2.5} fill={ACCENT} />
+        </Svg>
+        <Text style={styles.goalsLogoText}>PT-OS</Text>
+      </View>
+
+      <View style={styles.goalsHeaderCopy}>
+        <Text style={styles.goalsTitle}>What are you</Text>
+        <Text style={[styles.goalsTitle, styles.goalsTitleAccent]}>focused on?</Text>
+        <Text style={styles.goalsSubtitle}>We'll tailor PT-OS around your goals.</Text>
+      </View>
+
       <View style={styles.goalsGrid}>
         {GOALS.map((goal) => {
           const selected = goals.includes(goal);
@@ -431,23 +900,127 @@ function GoalsStep({
             <Pressable
               key={goal}
               onPress={() => onToggleGoal(goal)}
-              style={[styles.goalCard, selected && styles.selectableCardSelected]}
+              style={[styles.goalCard, selected && styles.goalCardSelected]}
               accessibilityRole="button"
+              accessibilityState={{ selected }}
             >
-              <Text style={styles.goalLabel}>{goal}</Text>
-              {selected ? (
-                <View style={styles.checkCircle}>
-                  <Text style={styles.checkText}>✓</Text>
+              <View style={styles.goalCardTopRow}>
+                <View style={styles.goalIconCircle}>
+                  <GoalIcon goal={goal} />
                 </View>
-              ) : null}
+                <View style={[styles.goalSelectionCircle, selected && styles.goalSelectionCircleSelected]}>
+                  {selected ? <Text style={styles.checkText}>✓</Text> : null}
+                </View>
+              </View>
+              <Text style={styles.goalLabel}>{goal}</Text>
             </Pressable>
           );
         })}
       </View>
+
+      <View style={styles.goalsInfoCard}>
+        <View style={styles.goalsInfoIconCircle}>
+          <GoalIcon goal="Fat loss" size={24} />
+        </View>
+        <View style={styles.goalsInfoCopy}>
+          <Text style={styles.goalsInfoTitle}>You can always change this later.</Text>
+          <Text style={styles.goalsInfoText}>PT-OS adapts as your goals and protocols evolve.</Text>
+        </View>
+      </View>
+
       {goalsError ? <Text style={styles.errorText}>{goalsError}</Text> : null}
     </View>
   );
 }
+
+function GoalIcon({ goal, size = 24 }: { goal: string; size?: number }) {
+  const common = {
+    stroke: ACCENT,
+    strokeWidth: 1.8,
+    strokeLinecap: 'round' as const,
+    strokeLinejoin: 'round' as const,
+    fill: 'none',
+  };
+
+  switch (goal) {
+    case 'Fat loss':
+      return (
+        <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
+          <Circle cx={11} cy={13} r={7} {...common} />
+          <Circle cx={11} cy={13} r={3.5} {...common} />
+          <Line x1={11} y1={13} x2={20} y2={4} {...common} />
+          <Path d="M17 4h3v3" {...common} />
+          <Path d="M20 4l-3 3" {...common} />
+        </Svg>
+      );
+    case 'Muscle gain':
+      return (
+        <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
+          <Path
+            d="M7 14c1-4 2.5-7 5-8l1.2 2.6-1.6 2.2h3.2c2 0 3.7 1.6 3.7 3.7v3H13l-1.4-2.3L9 19H5.5v-3.2c0-1 .6-1.7 1.5-1.8Z"
+            {...common}
+          />
+          <Path d="M14 6c.5-1.2 1.5-2 3-2" {...common} />
+          <Path d="M18.5 17.5h2" {...common} />
+        </Svg>
+      );
+    case 'Recovery':
+      return (
+        <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
+          <Path d="M19 9a7 7 0 0 0-12-3l-2 2" {...common} />
+          <Path d="M5 4v4h4" {...common} />
+          <Path d="M5 15a7 7 0 0 0 12 3l2-2" {...common} />
+          <Path d="M19 20v-4h-4" {...common} />
+        </Svg>
+      );
+    case 'Sleep':
+      return (
+        <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
+          <Path d="M18.5 15.5A8 8 0 0 1 8.5 5.5a8 8 0 1 0 10 10Z" {...common} />
+          <Path d="M17 6h3l-3 4h3" {...common} />
+          <Path d="M12.5 8h2l-2 3h2" {...common} />
+        </Svg>
+      );
+    case 'Energy':
+      return (
+        <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
+          <Path d="M13 2 5 13h6l-1 9 8-12h-6l1-8Z" {...common} />
+        </Svg>
+      );
+    case 'Longevity':
+      return (
+        <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
+          <Path d="M7 3h10" {...common} />
+          <Path d="M7 21h10" {...common} />
+          <Path d="M8 3v4.5L12 12l4-4.5V3" {...common} />
+          <Path d="M8 21v-4.5L12 12l4 4.5V21" {...common} />
+          <Path d="M10 7h4" {...common} />
+          <Path d="M10 17h4" {...common} />
+        </Svg>
+      );
+    case 'Research':
+      return (
+        <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
+          <Path d="M9 3h6" {...common} />
+          <Path d="M10 3v6l-4.6 8.2A2.6 2.6 0 0 0 7.7 21h8.6a2.6 2.6 0 0 0 2.3-3.8L14 9V3" {...common} />
+          <Path d="M8.5 16h7" {...common} />
+          <Circle cx={10} cy={18} r={0.8} fill={ACCENT} />
+          <Circle cx={14} cy={14.5} r={0.8} fill={ACCENT} />
+        </Svg>
+      );
+    default:
+      return (
+        <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
+          <Path d="M4 17.5V21h3.5L18.8 9.7l-3.5-3.5L4 17.5Z" {...common} />
+          <Path d="m14 7.5 3.5 3.5" {...common} />
+          <Path d="M19.5 8.5 16.5 5.5l1.2-1.2a2 2 0 0 1 2.8 2.8l-1 1.4Z" {...common} />
+          <Line x1={4} y1={22} x2={14} y2={22} {...common} />
+        </Svg>
+      );
+  }
+}
+
+// ── ExperienceStep (case 6) ───────────────────────────────────────────────────
 
 function ExperienceStep({
   experience,
@@ -459,9 +1032,23 @@ function ExperienceStep({
   onSelectExperience: (experience: string) => void;
 }) {
   return (
-    <View style={styles.selectionStep}>
-      <Text style={styles.featureTitle}>How experienced{`\n`}are you?</Text>
-      <Text style={styles.featureSubtitle}>This helps us customize your setup and guidance.</Text>
+    <View style={styles.experienceStep}>
+      <View style={styles.experienceLogoRow}>
+        <Svg width={46} height={40} viewBox="0 0 46 40" fill="none">
+          <Rect x={3} y={12} width={7} height={24} rx={3.5} fill={ACCENT} />
+          <Rect x={17} y={3} width={7} height={34} rx={3.5} fill={ACCENT} />
+          <Rect x={31} y={10} width={7} height={26} rx={3.5} fill={ACCENT} />
+          <Circle cx={42} cy={17} r={4} fill={ACCENT} />
+        </Svg>
+        <Text style={styles.experienceLogoText}>PT-OS</Text>
+      </View>
+
+      <View style={styles.experienceHeaderCopy}>
+        <Text style={styles.experienceTitle}>How experienced</Text>
+        <Text style={styles.experienceTitleAccent}>are you?</Text>
+        <Text style={styles.experienceSubtitle}>This helps us customize your setup and guidance.</Text>
+      </View>
+
       <View style={styles.experienceList}>
         {EXPERIENCE_LEVELS.map((option) => {
           const selected = experience === option.id;
@@ -470,10 +1057,13 @@ function ExperienceStep({
             <Pressable
               key={option.id}
               onPress={() => onSelectExperience(option.id)}
-              style={[styles.experienceCard, selected && styles.selectableCardSelected]}
-              accessibilityRole="button"
+              style={[styles.experienceCard, selected && styles.experienceCardSelected]}
+              accessibilityRole="radio"
+              accessibilityState={{ selected }}
             >
-              <View style={styles.radioCircle}>{selected ? <View style={styles.radioDot} /> : null}</View>
+              <View style={[styles.radioCircle, selected && styles.radioCircleSelected]}>
+                {selected ? <View style={styles.radioDot} /> : null}
+              </View>
               <View style={styles.experienceCopy}>
                 <Text style={styles.experienceLabel}>{option.label}</Text>
                 <Text style={styles.experienceDesc}>{option.desc}</Text>
@@ -483,9 +1073,36 @@ function ExperienceStep({
         })}
       </View>
       {experienceError ? <Text style={styles.errorText}>{experienceError}</Text> : null}
+
+      <View style={styles.experienceInfoCard}>
+        <View style={styles.experienceInfoIconCircle}>
+          <Svg width={28} height={28} viewBox="0 0 28 28" fill="none">
+            <Path
+              d="M14 3.5L23 7.2V13.4C23 19.1 19.2 23.7 14 25.2C8.8 23.7 5 19.1 5 13.4V7.2L14 3.5Z"
+              stroke={ACCENT}
+              strokeWidth={2.3}
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
+            <Path
+              d="M10 14.1L12.8 16.9L18.5 11.2"
+              stroke={ACCENT}
+              strokeWidth={2.3}
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
+          </Svg>
+        </View>
+        <View style={styles.experienceInfoCopy}>
+          <Text style={styles.experienceInfoTitle}>We adapt to you.</Text>
+          <Text style={styles.experienceInfoText}>You can always update this later in your settings.</Text>
+        </View>
+      </View>
     </View>
   );
 }
+
+// ── Shared shell ──────────────────────────────────────────────────────────────
 
 function FeatureShell({ title, subtitle, children }: { title: string; subtitle: string; children: ReactNode }) {
   return (
@@ -502,9 +1119,31 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: BACKGROUND,
   },
+  visualizeSafeArea: {
+    backgroundColor: '#F8F8F6',
+  },
+  copilotSafeArea: {
+    backgroundColor: '#F8F8F6',
+  },
+  nameSafeArea: {
+    backgroundColor: '#F8F8F6',
+  },
+  goalsSafeArea: {
+    backgroundColor: '#F8F8F6',
+  },
+  experienceSafeArea: {
+    backgroundColor: '#F8F8F6',
+  },
   container: {
     flex: 1,
     paddingHorizontal: 24,
+  },
+  nameContainer: {
+    backgroundColor: CARD,
+    paddingHorizontal: 0,
+  },
+  experienceContainer: {
+    paddingHorizontal: 32,
   },
   progressHeader: {
     alignItems: 'center',
@@ -528,6 +1167,18 @@ const styles = StyleSheet.create({
     elevation: 4,
     width: 44,
   },
+  copilotBackButton: {
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.06,
+    shadowRadius: 8,
+    elevation: 2,
+  },
+  goalsBackButton: {
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.08,
+    shadowRadius: 18,
+    elevation: 4,
+  },
   backButtonPlaceholder: {
     height: 44,
     width: 44,
@@ -536,6 +1187,19 @@ const styles = StyleSheet.create({
     color: ACCENT,
     fontSize: 42,
     fontWeight: '500',
+    lineHeight: 42,
+    marginTop: -3,
+  },
+  copilotBackButtonText: {
+    color: ACCENT,
+    fontSize: 32,
+    fontWeight: '800',
+    lineHeight: 34,
+  },
+  goalsBackButtonText: {
+    color: ACCENT,
+    fontSize: 40,
+    fontWeight: '600',
     lineHeight: 42,
     marginTop: -3,
   },
@@ -558,14 +1222,65 @@ const styles = StyleSheet.create({
   dotActive: {
     backgroundColor: ACCENT,
   },
+  goalsDot: {
+    backgroundColor: '#D1D5DB',
+    borderRadius: 7,
+    height: 14,
+    width: 14,
+  },
+  goalsDotActive: {
+    backgroundColor: ACCENT,
+    width: 14,
+  },
+  experienceDot: {
+    backgroundColor: '#D1D5DB',
+    height: 8,
+    width: 8,
+  },
+  experienceDotActive: {
+    backgroundColor: ACCENT,
+    width: 8,
+  },
   content: {
     flex: 1,
     justifyContent: 'center',
+  },
+  trackDoseContent: {
+    justifyContent: 'flex-start',
+    marginHorizontal: -24,
+  },
+  visualizeContent: {
+    justifyContent: 'flex-start',
+    paddingTop: 28,
+  },
+  goalsContent: {
+    justifyContent: 'flex-start',
+  },
+  experienceContent: {
+    justifyContent: 'flex-start',
   },
   footer: {
     gap: 14,
     paddingBottom: 28,
     paddingTop: 16,
+  },
+  trackDoseFooter: {
+    paddingTop: 10,
+  },
+  visualizeFooter: {
+    gap: 18,
+    paddingTop: 18,
+  },
+  copilotFooter: {
+    paddingTop: 12,
+  },
+  goalsFooter: {
+    paddingBottom: 18,
+    paddingTop: 8,
+  },
+  experienceFooter: {
+    paddingBottom: 28,
+    paddingTop: 12,
   },
   primaryButton: {
     alignItems: 'center',
@@ -580,6 +1295,131 @@ const styles = StyleSheet.create({
     fontSize: 17,
     fontWeight: '700',
   },
+  // ── VisualizeDoseStep button ──
+  visualizePrimaryButton: {
+    alignItems: 'center',
+    backgroundColor: ACCENT,
+    borderRadius: 30,
+    flexDirection: 'row',
+    height: 60,
+    justifyContent: 'center',
+    position: 'relative',
+    width: '100%',
+  },
+  nextArrowCircle: {
+    alignItems: 'center',
+    backgroundColor: CARD,
+    borderRadius: 25,
+    height: 50,
+    justifyContent: 'center',
+    left: 6,
+    position: 'absolute',
+    width: 50,
+  },
+  nextArrow: {
+    color: ACCENT,
+    fontSize: 30,
+    fontWeight: '800',
+    lineHeight: 32,
+  },
+  // ── ReminderStep button ──
+  copilotNextButton: {
+    alignItems: 'center',
+    backgroundColor: ACCENT,
+    borderRadius: 28,
+    flexDirection: 'row',
+    height: 56,
+    justifyContent: 'center',
+    position: 'relative',
+    width: '100%',
+  },
+  copilotNextArrowCircle: {
+    alignItems: 'center',
+    backgroundColor: CARD,
+    borderRadius: 20,
+    height: 40,
+    justifyContent: 'center',
+    left: 8,
+    position: 'absolute',
+    width: 40,
+  },
+  copilotNextArrowText: {
+    color: ACCENT,
+    fontSize: 22,
+    fontWeight: '900',
+    lineHeight: 24,
+  },
+  copilotNextButtonText: {
+    fontSize: 18,
+    fontWeight: '800',
+  },
+  // ── GoalsStep button ──
+  goalsPrimaryButton: {
+    alignItems: 'center',
+    backgroundColor: ACCENT,
+    borderRadius: 30,
+    height: 60,
+    justifyContent: 'center',
+    position: 'relative',
+    shadowColor: ACCENT,
+    shadowOffset: { width: 0, height: 12 },
+    shadowOpacity: 0.18,
+    shadowRadius: 18,
+    elevation: 5,
+    width: '100%',
+  },
+  goalsButtonArrowCircle: {
+    alignItems: 'center',
+    backgroundColor: CARD,
+    borderRadius: 25,
+    height: 50,
+    justifyContent: 'center',
+    left: 5,
+    position: 'absolute',
+    width: 50,
+  },
+  goalsButtonArrow: {
+    color: ACCENT,
+    fontSize: 30,
+    fontWeight: '800',
+    lineHeight: 32,
+  },
+  goalsPrimaryButtonText: {
+    fontSize: 20,
+    fontWeight: '600',
+  },
+  // ── ExperienceStep button ──
+  experienceNextButton: {
+    alignItems: 'center',
+    backgroundColor: ACCENT,
+    borderRadius: 30,
+    flexDirection: 'row',
+    height: 60,
+    justifyContent: 'center',
+    position: 'relative',
+    width: '100%',
+  },
+  experienceNextIcon: {
+    alignItems: 'center',
+    backgroundColor: CARD,
+    borderRadius: 24,
+    height: 48,
+    justifyContent: 'center',
+    left: 6,
+    position: 'absolute',
+    width: 48,
+  },
+  experienceNextArrow: {
+    color: ACCENT,
+    fontSize: 30,
+    fontWeight: '700',
+    lineHeight: 32,
+  },
+  experienceNextText: {
+    color: CARD,
+    fontSize: 20,
+    fontWeight: '500',
+  },
   signInText: {
     color: TEXT_SECONDARY,
     fontSize: 13,
@@ -589,6 +1429,7 @@ const styles = StyleSheet.create({
     color: ACCENT,
     fontWeight: '700',
   },
+  // ── WelcomeStep ──
   welcomeStep: {
     alignItems: 'center',
     gap: 18,
@@ -632,11 +1473,7 @@ const styles = StyleSheet.create({
     maxWidth: 310,
     textAlign: 'center',
   },
-
-  trackDoseContent: {
-    justifyContent: 'flex-start',
-    marginHorizontal: -24,
-  },
+  // ── TrackDoseStep ──
   trackDoseStep: {
     flex: 1,
   },
@@ -836,9 +1673,6 @@ const styles = StyleSheet.create({
     maxWidth: 305,
     textAlign: 'center',
   },
-  trackDoseFooter: {
-    paddingTop: 10,
-  },
   trackNextButton: {
     alignItems: 'center',
     backgroundColor: ACCENT,
@@ -873,6 +1707,7 @@ const styles = StyleSheet.create({
   trackNextSpacer: {
     width: 44,
   },
+  // ── FeatureShell ──
   featureStep: {
     alignItems: 'center',
     gap: 24,
@@ -902,249 +1737,1021 @@ const styles = StyleSheet.create({
     shadowRadius: 12,
     elevation: 3,
   },
-  scheduleCard: {
-    paddingHorizontal: 20,
-    paddingVertical: 6,
+  // ── VisualizeDoseStep ──
+  visualizeStep: {
+    alignItems: 'center',
+    gap: 14,
     width: '100%',
   },
-  scheduleRow: {
+  visualizeLogoRow: {
     alignItems: 'center',
-    borderBottomColor: BORDER,
-    borderBottomWidth: 1,
     flexDirection: 'row',
-    justifyContent: 'space-between',
-    minHeight: 66,
-  },
-  scheduleRowLast: {
-    borderBottomWidth: 0,
-  },
-  scheduleCompound: {
-    color: TEXT,
-    fontSize: 17,
-    fontWeight: '800',
-  },
-  scheduleTime: {
-    color: ACCENT,
-    fontSize: 16,
-    fontWeight: '800',
-  },
-  activeCard: {
-    alignItems: 'center',
-    height: 220,
+    gap: 12,
     justifyContent: 'center',
-    overflow: 'hidden',
-    paddingHorizontal: 20,
-    width: '100%',
   },
-  activeLine: {
-    backgroundColor: ACCENT,
-    height: 2,
-    left: 20,
-    position: 'absolute',
-    right: 20,
-    top: '30%',
-  },
-  activeLabel: {
-    color: TEXT_SECONDARY,
-    fontSize: 11,
-    fontWeight: '800',
-    letterSpacing: 1.9,
-    marginBottom: 10,
-  },
-  activeValue: {
-    color: TEXT,
-    fontSize: 48,
+  visualizeLogoText: {
+    color: ACCENT,
+    fontSize: 29,
     fontWeight: '900',
-    letterSpacing: -1.5,
-    lineHeight: 56,
-    marginBottom: 32,
+    letterSpacing: 3,
   },
-  dayRow: {
+  visualizeHeadlineBlock: {
     alignItems: 'center',
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    width: '100%',
+    gap: 2,
   },
-  dayLabel: {
-    color: TEXT_TERTIARY,
-    fontSize: 11,
-    fontWeight: '600',
+  visualizeHeadline: {
+    color: TEXT,
+    fontSize: 40,
+    fontWeight: '800',
+    letterSpacing: -1.2,
+    lineHeight: 43,
+    textAlign: 'center',
   },
-  notificationCard: {
-    alignItems: 'center',
-    flexDirection: 'row',
-    gap: 16,
-    minHeight: 104,
+  visualizeHeadlineAccent: {
+    color: ACCENT,
+  },
+  visualizeSubtext: {
+    color: TEXT_SECONDARY,
+    fontSize: 15,
+    lineHeight: 22,
+    marginTop: 8,
+    maxWidth: 290,
+    textAlign: 'center',
+  },
+  chartCard: {
+    borderRadius: 20,
     padding: 20,
     width: '100%',
   },
-  bellCircle: {
+  chartHeader: {
     alignItems: 'center',
-    borderColor: BORDER,
-    borderRadius: 24,
-    borderWidth: 1,
-    height: 48,
-    justifyContent: 'center',
-    width: 48,
+    flexDirection: 'row',
+    gap: 12,
   },
-  notificationCopy: {
+  vialThumb: {
+    backgroundColor: '#E5E7EB',
+    borderRadius: 10,
+    height: 60,
+    width: 40,
+  },
+  chartHeaderCopy: {
     flex: 1,
-    gap: 5,
+    gap: 4,
   },
-  notificationTitle: {
+  peptideName: {
     color: TEXT,
     fontSize: 18,
     fontWeight: '800',
   },
-  notificationSubtitle: {
+  peptideDose: {
     color: TEXT_SECONDARY,
-    fontSize: 16,
+    fontSize: 15,
     fontWeight: '600',
   },
-  copilotCard: {
-    gap: 12,
-    padding: 18,
-    width: '100%',
+  activeBadge: {
+    alignItems: 'center',
+    backgroundColor: '#F0FDF4',
+    borderRadius: 999,
+    flexDirection: 'row',
+    gap: 8,
+    paddingHorizontal: 14,
+    paddingVertical: 9,
   },
-  chatBubbleUser: {
-    alignSelf: 'flex-end',
-    backgroundColor: '#065F46',
-    borderRadius: 14,
-    maxWidth: '82%',
-    padding: 12,
+  activeBadgeDot: {
+    backgroundColor: ACCENT,
+    borderRadius: 5,
+    height: 9,
+    width: 9,
   },
-  chatBubbleUserText: {
-    color: CARD,
-    fontSize: 13,
-    fontWeight: '600',
-    lineHeight: 18,
+  activeBadgeText: {
+    color: ACCENT,
+    fontSize: 14,
+    fontWeight: '700',
   },
-  chatBubbleAssistant: {
-    backgroundColor: '#F8FAFC',
-    borderColor: INPUT_BORDER,
-    borderRadius: 14,
-    borderWidth: 1,
-    gap: 6,
-    padding: 12,
+  chartLabelRow: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    gap: 8,
+    marginTop: 18,
   },
-  chatBubbleAssistantTitle: {
+  chartTitle: {
     color: TEXT,
     fontSize: 13,
     fontWeight: '800',
   },
-  chatBubbleAssistantText: {
+  infoCircle: {
+    alignItems: 'center',
+    borderColor: '#D1D5DB',
+    borderRadius: 9,
+    borderWidth: 1,
+    height: 18,
+    justifyContent: 'center',
+    width: 18,
+  },
+  infoText: {
+    color: TEXT_SECONDARY,
+    fontSize: 11,
+    fontWeight: '800',
+    lineHeight: 14,
+  },
+  chartWrap: {
+    flexDirection: 'row',
+    gap: 10,
+    height: 150,
+    marginTop: 14,
+  },
+  yLabels: {
+    justifyContent: 'space-between',
+    paddingVertical: 2,
+    width: 42,
+  },
+  chartPlot: {
+    flex: 1,
+    position: 'relative',
+  },
+  axisLabel: {
+    color: TEXT_SECONDARY,
+    fontSize: 10,
+    fontWeight: '500',
+  },
+  xLabels: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginLeft: 52,
+    marginTop: 8,
+  },
+  tooltip: {
+    backgroundColor: CARD,
+    borderRadius: 10,
+    elevation: 5,
+    left: '20%',
+    paddingHorizontal: 12,
+    paddingVertical: 9,
+    position: 'absolute',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.12,
+    shadowRadius: 9,
+    top: -12,
+  },
+  tooltipDay: {
+    color: TEXT_SECONDARY,
+    fontSize: 11,
+    fontWeight: '600',
+  },
+  tooltipValue: {
+    color: TEXT,
+    fontSize: 16,
+    fontWeight: '900',
+  },
+  tooltipPointer: {
+    alignSelf: 'center',
+    borderLeftColor: 'transparent',
+    borderLeftWidth: 6,
+    borderRightColor: 'transparent',
+    borderRightWidth: 6,
+    borderTopColor: CARD,
+    borderTopWidth: 7,
+    bottom: -7,
+    height: 0,
+    position: 'absolute',
+    width: 0,
+  },
+  statsRow: {
+    borderTopColor: BORDER,
+    borderTopWidth: 1,
+    flexDirection: 'row',
+    marginTop: 16,
+    paddingTop: 16,
+  },
+  statColumn: {
+    alignItems: 'center',
+    flex: 1,
+    gap: 3,
+  },
+  statDivider: {
+    borderLeftColor: INPUT_BORDER,
+    borderLeftWidth: 1,
+  },
+  statIcon: {
+    color: ACCENT,
+    fontSize: 20,
+    fontWeight: '900',
+  },
+  statLabel: {
     color: TEXT_SECONDARY,
     fontSize: 12,
+    fontWeight: '600',
+  },
+  statValue: {
+    color: TEXT,
+    fontSize: 20,
+    fontWeight: '900',
+    lineHeight: 24,
+  },
+  statUnit: {
+    color: TEXT_SECONDARY,
+    fontSize: 12,
+    fontWeight: '500',
+  },
+  disclaimerCard: {
+    alignItems: 'center',
+    backgroundColor: '#F9FAFB',
+    borderColor: INPUT_BORDER,
+    borderRadius: 16,
+    borderWidth: 1,
+    flexDirection: 'row',
+    gap: 14,
+    padding: 16,
+    width: '100%',
+  },
+  shieldCircle: {
+    alignItems: 'center',
+    backgroundColor: CARD,
+    borderRadius: 24,
+    height: 48,
+    justifyContent: 'center',
+    width: 48,
+  },
+  disclaimerCopy: {
+    flex: 1,
+    gap: 3,
+  },
+  disclaimerTitle: {
+    color: TEXT,
+    fontSize: 14,
+    fontWeight: '800',
+  },
+  disclaimerText: {
+    color: TEXT_SECONDARY,
+    fontSize: 13,
+    lineHeight: 18,
+  },
+  // ── ReminderStep (copilot) ──
+  copilotStep: {
+    alignItems: 'center',
+    gap: 16,
+  },
+  mediterraneanBackground: {
+    backgroundColor: '#E8F0EE',
+    borderBottomLeftRadius: 32,
+    borderBottomRightRadius: 32,
+    height: 210,
+    left: -24,
+    position: 'absolute',
+    right: -24,
+    top: -28,
+  },
+  copilotLogoBlock: {
+    alignItems: 'center',
+    gap: 10,
+    paddingTop: 4,
+  },
+  copilotLogoText: {
+    color: ACCENT,
+  },
+  copilotTitle: {
+    color: TEXT,
+    fontSize: 40,
+    fontWeight: '800',
+    letterSpacing: -1,
+    lineHeight: 43,
+    textAlign: 'center',
+  },
+  copilotTitleAccent: {
+    color: ACCENT,
+  },
+  copilotSubtitle: {
+    color: TEXT_SECONDARY,
+    fontSize: 15,
+    lineHeight: 22,
+    maxWidth: 320,
+    textAlign: 'center',
+  },
+  copilotCard: {
+    borderRadius: 20,
+    gap: 12,
+    padding: 20,
+    width: '100%',
+  },
+  chatBubbleUser: {
+    alignSelf: 'flex-end',
+    backgroundColor: ACCENT,
+    borderRadius: 999,
+    maxWidth: '88%',
+    paddingHorizontal: 14,
+    paddingVertical: 11,
+  },
+  chatBubbleUserText: {
+    color: CARD,
+    fontSize: 12,
+    fontWeight: '700',
     lineHeight: 17,
+  },
+  aiRow: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    gap: 8,
+  },
+  aiRowText: {
+    color: TEXT,
+    fontSize: 14,
+    fontWeight: '800',
+  },
+  logDetailCard: {
+    borderColor: INPUT_BORDER,
+    borderRadius: 14,
+    borderWidth: 1,
+    padding: 14,
+  },
+  logDetailHeader: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    gap: 12,
+    marginBottom: 8,
+  },
+  vialPlaceholder: {
+    backgroundColor: '#D1D5DB',
+    borderRadius: 6,
+    height: 44,
+    width: 30,
+  },
+  logPeptideName: {
+    color: ACCENT,
+    fontSize: 17,
+    fontWeight: '800',
+  },
+  logDetailRow: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    gap: 10,
+    minHeight: 34,
+  },
+  logDetailRowDivider: {
+    borderBottomColor: INPUT_BORDER,
+    borderBottomWidth: 1,
+  },
+  logDetailLabel: {
+    color: TEXT_SECONDARY,
+    flex: 1,
+    fontSize: 13,
+    fontWeight: '700',
+  },
+  logDetailValue: {
+    color: TEXT,
+    fontSize: 13,
+    fontWeight: '800',
+    textAlign: 'right',
   },
   confirmButton: {
     alignItems: 'center',
-    backgroundColor: '#065F46',
+    backgroundColor: ACCENT,
     borderRadius: 10,
-    height: 42,
+    height: 44,
     justifyContent: 'center',
+    width: '100%',
   },
   confirmButtonText: {
     color: CARD,
-    fontSize: 13,
+    fontSize: 14,
     fontWeight: '800',
   },
-  nameStep: {
+  fakeInputBar: {
     alignItems: 'center',
-    gap: 18,
+    backgroundColor: BORDER,
+    borderRadius: 14,
+    flexDirection: 'row',
+    height: 48,
+    justifyContent: 'space-between',
+    paddingLeft: 14,
+    paddingRight: 6,
   },
-  selectionStep: {
+  fakeInputPlaceholder: {
+    color: TEXT_SECONDARY,
+    fontSize: 13,
+    fontWeight: '600',
+  },
+  sendButton: {
     alignItems: 'center',
+    backgroundColor: ACCENT,
+    borderRadius: 18,
+    height: 36,
+    justifyContent: 'center',
+    width: 36,
+  },
+  sendButtonText: {
+    color: CARD,
+    fontSize: 18,
+    fontWeight: '900',
+    lineHeight: 20,
+  },
+  privacyCard: {
+    alignItems: 'center',
+    backgroundColor: '#F9FAFB',
+    borderRadius: 18,
+    flexDirection: 'row',
+    gap: 12,
+    padding: 16,
+    width: '100%',
+  },
+  privacyCopy: {
+    flex: 1,
+    gap: 3,
+  },
+  privacyTitle: {
+    color: TEXT,
+    fontSize: 15,
+    fontWeight: '800',
+  },
+  privacyBody: {
+    color: TEXT_SECONDARY,
+    fontSize: 12,
+    fontWeight: '600',
+    lineHeight: 17,
+  },
+  // ── NameStep ──
+  nameScreen: {
+    backgroundColor: CARD,
+    flex: 1,
+    overflow: 'hidden',
+  },
+  nameTopNav: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    paddingHorizontal: 40,
+    paddingTop: 8,
+  },
+  nameBackButton: {
+    alignItems: 'center',
+    backgroundColor: CARD,
+    borderRadius: 22,
+    height: 44,
+    justifyContent: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.08,
+    shadowRadius: 18,
+    elevation: 4,
+    width: 44,
+  },
+  nameBackButtonText: {
+    color: ACCENT,
+    fontSize: 40,
+    fontWeight: '500',
+    lineHeight: 42,
+    marginTop: -3,
+  },
+  nameNavSpacer: {
+    height: 44,
+    width: 44,
+  },
+  nameDots: {
+    alignItems: 'center',
+    flexDirection: 'row',
     gap: 16,
+  },
+  nameDot: {
+    backgroundColor: '#D1D5DB',
+    borderRadius: 7,
+    height: 14,
+    opacity: 0.9,
+    width: 14,
+  },
+  nameDotActive: {
+    backgroundColor: ACCENT,
+    opacity: 1,
+  },
+  nameIntro: {
+    alignItems: 'center',
+    paddingHorizontal: 40,
+    paddingTop: 69,
+    zIndex: 3,
+  },
+  nameLogoRow: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    gap: 20,
+    justifyContent: 'center',
+    marginBottom: 40,
+  },
+  nameLogoText: {
+    color: ACCENT,
+    fontSize: 34,
+    fontWeight: '900',
+    letterSpacing: 4,
+  },
+  nameHeadlineGroup: {
+    alignItems: 'center',
+    marginBottom: 20,
+  },
+  nameHeadlineDark: {
+    color: TEXT,
+    fontSize: 40,
+    fontWeight: '800',
+    letterSpacing: -0.8,
+    lineHeight: 44,
+    textAlign: 'center',
+  },
+  nameHeadlineGreen: {
+    color: ACCENT,
+    fontSize: 40,
+    fontWeight: '800',
+    letterSpacing: -0.8,
+    lineHeight: 44,
+    textAlign: 'center',
+  },
+  nameSubtext: {
+    color: TEXT_SECONDARY,
+    fontSize: 15,
+    lineHeight: 22,
+    maxWidth: 300,
+    textAlign: 'center',
+  },
+  floatingNameInput: {
+    alignItems: 'center',
+    alignSelf: 'center',
+    backgroundColor: CARD,
+    borderColor: INPUT_BORDER,
+    borderRadius: 16,
+    borderWidth: 1.5,
+    flexDirection: 'row',
+    height: 80,
+    justifyContent: 'space-between',
+    marginTop: 70,
+    paddingHorizontal: 16,
+    paddingTop: 10,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.03,
+    shadowRadius: 10,
+    width: '82%',
+    zIndex: 4,
+  },
+  floatingNameInputFocused: {
+    borderColor: ACCENT,
+  },
+  nameFieldCopy: {
+    flex: 1,
+    justifyContent: 'center',
+    paddingRight: 14,
+  },
+  floatingNameLabel: {
+    color: TEXT_SECONDARY,
+    fontSize: 12,
+    fontWeight: '500',
+    marginBottom: 5,
+  },
+  floatingNameTextInput: {
+    color: TEXT,
+    fontSize: 20,
+    fontWeight: '500',
+    height: 38,
+    margin: 0,
+    padding: 0,
+  },
+  nameScreenError: {
+    alignSelf: 'center',
+    color: '#DC2626',
+    fontSize: 13,
+    fontWeight: '600',
+    marginTop: 8,
+    width: '82%',
+    zIndex: 4,
+  },
+  nameScenicBlock: {
+    backgroundColor: '#E8F0EE',
+    height: 330,
+    left: 0,
+    overflow: 'hidden',
+    position: 'absolute',
+    right: 0,
+    top: 475,
+    zIndex: 1,
+  },
+  nameScenicGradient: {
+    height: 135,
+    left: 0,
+    position: 'absolute',
+    right: 0,
+    top: 0,
+    zIndex: 5,
+  },
+  nameScenicBottomFade: {
+    bottom: 0,
+    height: 80,
+    left: 0,
+    position: 'absolute',
+    right: 0,
+    zIndex: 5,
+  },
+  placeholderSun: {
+    backgroundColor: 'rgba(255,255,255,0.55)',
+    borderRadius: 130,
+    height: 260,
+    left: -80,
+    position: 'absolute',
+    top: 0,
+    width: 260,
+  },
+  placeholderMountainOne: {
+    backgroundColor: 'rgba(149, 182, 193, 0.42)',
+    height: 160,
+    left: -38,
+    position: 'absolute',
+    top: 172,
+    transform: [{ rotate: '22deg' }],
+    width: 260,
+  },
+  placeholderMountainTwo: {
+    backgroundColor: 'rgba(122, 164, 177, 0.32)',
+    height: 190,
+    left: 190,
+    position: 'absolute',
+    top: 150,
+    transform: [{ rotate: '-25deg' }],
+    width: 290,
+  },
+  placeholderCliffOne: {
+    backgroundColor: 'rgba(255,255,255,0.86)',
+    borderTopLeftRadius: 14,
+    height: 205,
+    position: 'absolute',
+    right: 0,
+    top: 74,
+    width: 170,
+  },
+  placeholderCliffTwo: {
+    backgroundColor: 'rgba(255,255,255,0.94)',
+    borderTopLeftRadius: 18,
+    bottom: 20,
+    height: 115,
+    position: 'absolute',
+    right: 90,
+    width: 170,
+  },
+  placeholderTree: {
+    backgroundColor: 'rgba(89, 105, 69, 0.34)',
+    borderRadius: 42,
+    height: 150,
+    position: 'absolute',
+    right: -25,
+    top: 136,
+    transform: [{ rotate: '-13deg' }],
+    width: 72,
+    zIndex: 4,
+  },
+  nameBottomContent: {
+    bottom: 22,
+    left: 0,
+    paddingHorizontal: 40,
+    position: 'absolute',
+    right: 0,
+    zIndex: 6,
+  },
+  nameInfoCard: {
+    alignItems: 'center',
+    backgroundColor: CARD,
+    borderRadius: 16,
+    flexDirection: 'row',
+    gap: 16,
+    marginBottom: 45,
+    padding: 16,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.07,
+    shadowRadius: 22,
+    elevation: 4,
+  },
+  nameInfoIconCircle: {
+    alignItems: 'center',
+    backgroundColor: '#F3F4F6',
+    borderRadius: 20,
+    height: 40,
+    justifyContent: 'center',
+    width: 40,
+  },
+  nameInfoCopy: {
+    flex: 1,
+    gap: 5,
+  },
+  nameInfoTitle: {
+    color: TEXT,
+    fontSize: 14,
+    fontWeight: '800',
+  },
+  nameInfoText: {
+    color: TEXT_SECONDARY,
+    fontSize: 13,
+    lineHeight: 20,
+  },
+  nameNextButton: {
+    alignItems: 'center',
+    backgroundColor: ACCENT,
+    borderRadius: 30,
+    height: 60,
+    justifyContent: 'center',
+    shadowColor: ACCENT,
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.18,
+    shadowRadius: 18,
+    width: '100%',
+  },
+  nameNextButtonDisabled: {
+    opacity: 0.5,
+  },
+  nameNextIconCircle: {
+    alignItems: 'center',
+    backgroundColor: CARD,
+    borderRadius: 24,
+    height: 48,
+    justifyContent: 'center',
+    left: 10,
+    position: 'absolute',
+    width: 48,
+  },
+  nameNextText: {
+    color: CARD,
+    fontSize: 20,
+    fontWeight: '500',
+  },
+  // ── GoalsStep ──
+  goalsStep: {
+    alignItems: 'center',
+    flex: 1,
+    paddingTop: 26,
+    width: '100%',
+  },
+  goalsLogoRow: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    gap: 10,
+    justifyContent: 'center',
+    marginBottom: 18,
+  },
+  goalsLogoText: {
+    color: ACCENT,
+    fontSize: 28,
+    fontWeight: '900',
+    letterSpacing: 2,
+  },
+  goalsHeaderCopy: {
+    alignItems: 'center',
+    marginBottom: 24,
+  },
+  goalsTitle: {
+    color: TEXT,
+    fontSize: 38,
+    fontWeight: '800',
+    letterSpacing: -0.6,
+    lineHeight: 42,
+    textAlign: 'center',
+  },
+  goalsTitleAccent: {
+    color: ACCENT,
+  },
+  goalsSubtitle: {
+    color: TEXT_SECONDARY,
+    fontSize: 15,
+    lineHeight: 22,
+    marginTop: 12,
+    textAlign: 'center',
   },
   goalsGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
     gap: 12,
     justifyContent: 'space-between',
-    marginTop: 6,
     width: '100%',
   },
   goalCard: {
-    alignItems: 'center',
     backgroundColor: CARD,
     borderColor: INPUT_BORDER,
-    borderRadius: 14,
-    borderWidth: 1.5,
-    flexDirection: 'row',
-    height: 52,
+    borderRadius: 16,
+    borderWidth: 1,
+    height: 102,
     justifyContent: 'space-between',
-    paddingHorizontal: 16,
+    padding: 16,
     width: '48%',
   },
-  selectableCardSelected: {
-    backgroundColor: '#EFF6FF',
+  goalCardSelected: {
+    borderColor: ACCENT,
+    borderWidth: 2,
+    padding: 15,
+  },
+  goalCardTopRow: {
+    alignItems: 'flex-start',
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+  },
+  goalIconCircle: {
+    alignItems: 'center',
+    backgroundColor: '#F1F3F1',
+    borderRadius: 24,
+    height: 48,
+    justifyContent: 'center',
+    width: 48,
+  },
+  goalSelectionCircle: {
+    alignItems: 'center',
+    borderColor: '#D1D5DB',
+    borderRadius: 11,
+    borderWidth: 1.5,
+    height: 22,
+    justifyContent: 'center',
+    width: 22,
+  },
+  goalSelectionCircleSelected: {
+    backgroundColor: ACCENT,
     borderColor: ACCENT,
   },
   goalLabel: {
     color: TEXT,
-    fontSize: 14,
-    fontWeight: '700',
-  },
-  checkCircle: {
-    alignItems: 'center',
-    backgroundColor: ACCENT,
-    borderRadius: 11,
-    height: 22,
-    justifyContent: 'center',
-    width: 22,
+    fontSize: 15,
+    fontWeight: '600',
   },
   checkText: {
     color: CARD,
-    fontSize: 14,
+    fontSize: 15,
     fontWeight: '900',
     lineHeight: 18,
   },
-  experienceList: {
-    gap: 12,
-    marginTop: 6,
-    width: '100%',
-  },
-  experienceCard: {
+  goalsInfoCard: {
     alignItems: 'center',
     backgroundColor: CARD,
-    borderColor: INPUT_BORDER,
-    borderRadius: 14,
-    borderWidth: 1.5,
+    borderRadius: 16,
     flexDirection: 'row',
     gap: 14,
+    marginTop: 24,
     padding: 16,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.05,
+    shadowRadius: 18,
+    elevation: 3,
     width: '100%',
   },
-  radioCircle: {
+  goalsInfoIconCircle: {
     alignItems: 'center',
-    borderColor: INPUT_BORDER,
-    borderRadius: 11,
-    borderWidth: 1.5,
-    height: 22,
+    backgroundColor: '#F1F3F1',
+    borderRadius: 20,
+    height: 40,
     justifyContent: 'center',
-    width: 22,
+    width: 40,
   },
-  radioDot: {
-    backgroundColor: ACCENT,
-    borderRadius: 5,
-    height: 10,
-    width: 10,
-  },
-  experienceCopy: {
+  goalsInfoCopy: {
     flex: 1,
-    gap: 4,
+    gap: 3,
   },
-  experienceLabel: {
+  goalsInfoTitle: {
     color: TEXT,
-    fontSize: 16,
-    fontWeight: '700',
+    fontSize: 14,
+    fontWeight: '800',
   },
-  experienceDesc: {
+  goalsInfoText: {
     color: TEXT_SECONDARY,
     fontSize: 13,
     lineHeight: 18,
   },
+  // ── ExperienceStep ──
+  experienceStep: {
+    alignItems: 'center',
+    flex: 1,
+    paddingTop: 42,
+    width: '100%',
+  },
+  experienceLogoRow: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    gap: 13,
+    justifyContent: 'center',
+    marginBottom: 34,
+  },
+  experienceLogoText: {
+    color: ACCENT,
+    fontSize: 28,
+    fontWeight: '900',
+    letterSpacing: 3,
+  },
+  experienceHeaderCopy: {
+    alignItems: 'center',
+    marginBottom: 24,
+    width: '100%',
+  },
+  experienceTitle: {
+    color: TEXT,
+    fontSize: 38,
+    fontWeight: '800',
+    letterSpacing: -0.9,
+    lineHeight: 42,
+    textAlign: 'center',
+  },
+  experienceTitleAccent: {
+    color: ACCENT,
+    fontSize: 38,
+    fontWeight: '800',
+    letterSpacing: -0.9,
+    lineHeight: 42,
+    textAlign: 'center',
+  },
+  experienceSubtitle: {
+    color: TEXT_SECONDARY,
+    fontSize: 15,
+    lineHeight: 22,
+    marginTop: 16,
+    maxWidth: 270,
+    textAlign: 'center',
+  },
+  experienceList: {
+    gap: 12,
+    width: '100%',
+  },
+  experienceCard: {
+    alignItems: 'flex-start',
+    backgroundColor: CARD,
+    borderColor: 'transparent',
+    borderRadius: 16,
+    borderWidth: 2,
+    flexDirection: 'row',
+    gap: 16,
+    padding: 20,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.04,
+    shadowRadius: 10,
+    width: '100%',
+    elevation: 2,
+  },
+  experienceCardSelected: {
+    backgroundColor: CARD,
+    borderColor: ACCENT,
+  },
+  radioCircle: {
+    alignItems: 'center',
+    borderColor: '#D1D5DB',
+    borderRadius: 12,
+    borderWidth: 2,
+    height: 24,
+    justifyContent: 'center',
+    marginTop: 2,
+    width: 24,
+  },
+  radioCircleSelected: {
+    borderColor: ACCENT,
+  },
+  radioDot: {
+    backgroundColor: ACCENT,
+    borderRadius: 6,
+    height: 12,
+    width: 12,
+  },
+  experienceCopy: {
+    flex: 1,
+  },
+  experienceLabel: {
+    color: TEXT,
+    fontSize: 16,
+    fontWeight: '800',
+  },
+  experienceDesc: {
+    color: TEXT_SECONDARY,
+    fontSize: 14,
+    lineHeight: 20,
+    marginTop: 4,
+  },
+  experienceInfoCard: {
+    alignItems: 'center',
+    backgroundColor: '#F9FAFB',
+    borderRadius: 16,
+    flexDirection: 'row',
+    gap: 14,
+    marginTop: 20,
+    padding: 16,
+    width: '100%',
+  },
+  experienceInfoIconCircle: {
+    alignItems: 'center',
+    backgroundColor: CARD,
+    borderRadius: 28,
+    height: 56,
+    justifyContent: 'center',
+    width: 56,
+  },
+  experienceInfoCopy: {
+    flex: 1,
+  },
+  experienceInfoTitle: {
+    color: TEXT,
+    fontSize: 14,
+    fontWeight: '800',
+  },
+  experienceInfoText: {
+    color: TEXT_SECONDARY,
+    fontSize: 13,
+    lineHeight: 19,
+    marginTop: 3,
+  },
+  // ── Shared ──
   nameInput: {
     backgroundColor: CARD,
     borderColor: INPUT_BORDER,
