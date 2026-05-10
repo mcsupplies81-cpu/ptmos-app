@@ -1,224 +1,213 @@
 import { useRouter } from 'expo-router';
-import { useState } from 'react';
-import { ActivityIndicator, Alert, Platform, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Image, Pressable, StyleSheet, Text, View } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import Svg, { Rect } from 'react-native-svg';
 
-import Colors from '@/constants/Colors';
-import { signInWithProvider } from '@/utils/oauth';
+const PRIMARY = '#1B4332';
+const BACKGROUND = '#F8F8F6';
+const TEXT = '#0A0A0F';
+const TEXT_SECONDARY = '#6B7280';
+const BUTTON_BORDER = '#D1D5DB';
+
+function LogoMark() {
+  return (
+    <Svg width={62} height={62} viewBox="0 0 62 62" fill="none">
+      <Rect x={7} y={19} width={9} height={30} rx={4.5} fill={PRIMARY} />
+      <Rect x={25} y={9} width={9} height={43} rx={4.5} fill={PRIMARY} />
+      <Rect x={43} y={23} width={9} height={12} rx={4.5} fill={PRIMARY} />
+      <Rect x={43} y={40} width={9} height={17} rx={4.5} fill={PRIMARY} />
+    </Svg>
+  );
+}
 
 export default function WelcomeScreen() {
   const router = useRouter();
-  const [oauthLoading, setOauthLoading] = useState<'google' | 'apple' | null>(null);
-
-  const handleOAuth = async (provider: 'google' | 'apple') => {
-    setOauthLoading(provider);
-    const err = await signInWithProvider(provider);
-    setOauthLoading(null);
-    if (err) Alert.alert('Sign in failed', err);
-    // On success, authStore session listener fires → _layout.tsx routes to (tabs)
-  };
 
   return (
-    <View style={styles.container}>
-      <View style={styles.topSection}>
-        <View style={styles.logoContainer}>
-          <Text style={styles.logoText}>P</Text>
-        </View>
-        <Text style={styles.brandText}>PT-OS</Text>
-        <Text style={styles.subtitleText}>All-in-one peptide{`\n`}tracking and optimization platform.</Text>
-      </View>
-
-      <View style={styles.bottomSection}>
-        {/* Primary CTA */}
-        <Pressable style={styles.primaryButton} onPress={() => router.replace('/(auth)/sign-up')}>
-          <Text style={styles.primaryButtonText}>Create Account</Text>
-        </Pressable>
-
-        {/* Divider */}
-        <View style={styles.dividerRow}>
-          <View style={styles.dividerLine} />
-          <Text style={styles.dividerText}>or continue with</Text>
-          <View style={styles.dividerLine} />
+    <SafeAreaView style={styles.safeArea}>
+      <View style={styles.container}>
+        <View style={styles.logoSection}>
+          <View style={styles.logoRow}>
+            <LogoMark />
+            <Text style={styles.brandText}>PT-OS</Text>
+          </View>
+          <Text style={styles.tagline}>YOUR PEPTIDE OPERATING SYSTEM</Text>
         </View>
 
-        {/* Social buttons */}
-        <View style={styles.socialRow}>
-          <Pressable
-            style={[styles.socialButton, oauthLoading === 'google' && styles.socialButtonLoading]}
-            onPress={() => handleOAuth('google')}
-            disabled={oauthLoading !== null}
-          >
-            {oauthLoading === 'google' ? (
-              <ActivityIndicator size="small" color={Colors.text} />
-            ) : (
-              <>
-                <Text style={styles.socialIcon}>G</Text>
-                <Text style={styles.socialButtonText}>Google</Text>
-              </>
-            )}
+        <View style={styles.copySection}>
+          <Text style={styles.headline}>
+            Track peptides with <Text style={styles.headlineAccent}>clarity.</Text>
+          </Text>
+          <Text style={styles.bodyCopy}>Log doses, monitor protocols, and understand your routine in one place.</Text>
+        </View>
+
+        <View style={styles.heroSection}>
+          <Image style={styles.heroImagePlaceholder} resizeMode="cover" accessibilityLabel="Peptide vial hero image" />
+        </View>
+
+        <View style={styles.buttonSection}>
+          <Pressable style={styles.getStartedButton} onPress={() => router.push('/onboarding')}>
+            <View style={styles.arrowCircle}>
+              <Text style={styles.arrowText}>→</Text>
+            </View>
+            <Text style={styles.getStartedText}>Get started</Text>
+            <View style={styles.buttonSpacer} />
           </Pressable>
 
-          {Platform.OS === 'ios' && (
-            <Pressable
-              style={[styles.socialButton, styles.appleButton, oauthLoading === 'apple' && styles.socialButtonLoading]}
-              onPress={() => handleOAuth('apple')}
-              disabled={oauthLoading !== null}
-            >
-              {oauthLoading === 'apple' ? (
-                <ActivityIndicator size="small" color="#fff" />
-              ) : (
-                <>
-                  <Text style={styles.appleIcon}></Text>
-                  <Text style={styles.appleButtonText}>Apple</Text>
-                </>
-              )}
-            </Pressable>
-          )}
+          <Pressable style={styles.signInButton} onPress={() => router.push('/(auth)/sign-in')}>
+            <Text style={styles.signInText}>
+              Already have an account? <Text style={styles.signInTextBold}>Sign in</Text>
+            </Text>
+          </Pressable>
         </View>
 
-        {/* Sign in link */}
-        <Pressable onPress={() => router.replace('/(auth)/sign-in')} style={styles.signInRow}>
-          <Text style={styles.signInText}>Already have an account? <Text style={styles.signInLink}>Sign In</Text></Text>
-        </Pressable>
-
-        <Text style={styles.legalText}>By continuing you agree to our Terms & Privacy Policy.</Text>
+        <View style={styles.footer}>
+          <Text style={styles.lockIcon}>🔒</Text>
+          <Text style={styles.footerText}>Your data is private and secure. PT-OS does not sell your health data.</Text>
+        </View>
       </View>
-    </View>
+    </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
+  safeArea: {
+    flex: 1,
+    backgroundColor: BACKGROUND,
+  },
   container: {
     flex: 1,
+    backgroundColor: BACKGROUND,
+    paddingHorizontal: 28,
   },
-  topSection: {
-    flex: 1.3,
-    backgroundColor: '#1B3A2F',
-    justifyContent: 'center',
+  logoSection: {
     alignItems: 'center',
+    paddingTop: 118,
   },
-  logoContainer: {
-    width: 80,
-    height: 80,
-    backgroundColor: '#2D6A4F',
-    borderRadius: 20,
-    justifyContent: 'center',
+  logoRow: {
+    flexDirection: 'row',
     alignItems: 'center',
-  },
-  logoText: {
-    fontSize: 48,
-    fontWeight: '900',
-    color: '#FFFFFF',
+    justifyContent: 'center',
+    gap: 20,
   },
   brandText: {
-    marginTop: 12,
-    fontSize: 28,
+    color: PRIMARY,
+    fontSize: 43,
     fontWeight: '800',
-    color: '#FFFFFF',
-    letterSpacing: 0.5,
+    letterSpacing: 2.4,
   },
-  subtitleText: {
-    marginTop: 10,
-    fontSize: 14,
-    color: 'rgba(255,255,255,0.72)',
+  tagline: {
+    marginTop: 34,
+    color: TEXT_SECONDARY,
+    fontSize: 11,
+    fontWeight: '600',
+    letterSpacing: 2,
     textAlign: 'center',
-    lineHeight: 21,
-    maxWidth: 240,
   },
-  bottomSection: {
-    flex: 1,
-    backgroundColor: '#FFFFFF',
-    borderTopLeftRadius: 28,
-    borderTopRightRadius: 28,
-    padding: 28,
-    paddingTop: 36,
-  },
-  primaryButton: {
-    width: '100%',
-    backgroundColor: Colors.accent,
-    borderRadius: 14,
-    height: 52,
-    justifyContent: 'center',
+  copySection: {
     alignItems: 'center',
-    marginBottom: 20,
+    paddingTop: 47,
   },
-  primaryButtonText: {
-    color: '#FFFFFF',
-    fontSize: 16,
-    fontWeight: '700',
-  },
-  dividerRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 16,
-  },
-  dividerLine: {
-    flex: 1,
-    height: 1,
-    backgroundColor: Colors.border,
-  },
-  dividerText: {
-    color: Colors.textSecondary,
-    fontSize: 13,
-    marginHorizontal: 12,
-  },
-  socialRow: {
-    flexDirection: 'row',
-    gap: 12,
-    marginBottom: 20,
-  },
-  socialButton: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    height: 48,
-    borderRadius: 12,
-    borderWidth: 1.5,
-    borderColor: Colors.border,
-    backgroundColor: '#FFFFFF',
-    gap: 8,
-  },
-  socialButtonLoading: {
-    opacity: 0.7,
-  },
-  socialIcon: {
-    fontSize: 16,
+  headline: {
+    color: TEXT,
+    fontSize: 40,
     fontWeight: '800',
-    color: '#4285F4',
+    lineHeight: 46,
+    textAlign: 'center',
   },
-  socialButtonText: {
-    fontSize: 15,
-    fontWeight: '600',
-    color: Colors.text,
+  headlineAccent: {
+    color: PRIMARY,
   },
-  appleButton: {
-    backgroundColor: '#000000',
-    borderColor: '#000000',
-  },
-  appleIcon: {
+  bodyCopy: {
+    maxWidth: 335,
+    marginTop: 26,
+    color: TEXT_SECONDARY,
     fontSize: 16,
-    color: '#FFFFFF',
+    lineHeight: 24,
+    textAlign: 'center',
   },
-  appleButtonText: {
-    fontSize: 15,
-    fontWeight: '600',
-    color: '#FFFFFF',
+  heroSection: {
+    marginHorizontal: -28,
+    marginTop: 26,
   },
-  signInRow: {
+  heroImagePlaceholder: {
+    width: '100%',
+    height: 320,
+    backgroundColor: '#EEF0F2',
+  },
+  buttonSection: {
+    marginTop: 28,
+    gap: 18,
+  },
+  getStartedButton: {
+    width: '100%',
+    height: 72,
+    flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 12,
+    justifyContent: 'space-between',
+    borderRadius: 36,
+    backgroundColor: PRIMARY,
+    paddingLeft: 14,
+    paddingRight: 24,
+  },
+  arrowCircle: {
+    width: 52,
+    height: 52,
+    borderRadius: 26,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#FFFFFF',
+  },
+  arrowText: {
+    color: PRIMARY,
+    fontSize: 33,
+    fontWeight: '500',
+    lineHeight: 36,
+  },
+  getStartedText: {
+    color: '#FFFFFF',
+    fontSize: 22,
+    fontWeight: '400',
+  },
+  buttonSpacer: {
+    width: 52,
+  },
+  signInButton: {
+    width: '100%',
+    height: 58,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: 29,
+    borderWidth: 1,
+    borderColor: BUTTON_BORDER,
+    backgroundColor: '#FFFFFF',
   },
   signInText: {
-    fontSize: 14,
-    color: Colors.textSecondary,
+    color: TEXT,
+    fontSize: 16,
+    fontWeight: '400',
   },
-  signInLink: {
-    color: Colors.accent,
-    fontWeight: '700',
+  signInTextBold: {
+    color: PRIMARY,
+    fontWeight: '800',
   },
-  legalText: {
-    fontSize: 11,
-    color: Colors.textSecondary,
+  footer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 10,
+    paddingTop: 34,
+    paddingBottom: 12,
+  },
+  lockIcon: {
+    fontSize: 17,
+    lineHeight: 22,
+  },
+  footerText: {
+    maxWidth: 300,
+    color: TEXT_SECONDARY,
+    fontSize: 13,
+    lineHeight: 18,
     textAlign: 'center',
   },
 });
