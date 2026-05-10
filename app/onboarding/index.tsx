@@ -11,9 +11,11 @@ import {
   TextInput,
   View,
 } from 'react-native';
-import Svg, { Rect } from 'react-native-svg';
+import { LinearGradient } from 'expo-linear-gradient';
+import Svg, { Circle, Path, Rect } from 'react-native-svg';
 
 const ACCENT = '#2563EB';
+const PRIMARY = '#1B4332';
 const BACKGROUND = '#FFFFFF';
 const TEXT = '#0A0A0F';
 const TEXT_SECONDARY = '#6B7280';
@@ -41,8 +43,10 @@ const DAYS = ['Day 1', 'Day 2', 'Day 3', 'Day 4', 'Day 5', 'Day 6', 'Day 7'];
 
 export default function OnboardingScreen() {
   const router = useRouter();
+  const storedName = useOnboardingStore((state) => state.name);
+  const setName = useOnboardingStore((state) => state.setName);
   const [step, setStep] = useState(0);
-  const [name, setName] = useState('');
+  const [name, setNameState] = useState(storedName);
   const [nameError, setNameError] = useState('');
   const [goals, setGoals] = useState<string[]>([]);
   const [goalsError, setGoalsError] = useState('');
@@ -65,7 +69,7 @@ export default function OnboardingScreen() {
         return;
       }
 
-      useOnboardingStore.getState().setName(trimmedName);
+      setName(trimmedName);
       setNameError('');
       setStep(5);
       return;
@@ -99,12 +103,34 @@ export default function OnboardingScreen() {
     setStep((currentStep) => Math.min(currentStep + 1, TOTAL_STEPS - 1));
   };
 
+  const isNameStep = step === 4;
+
+  const skipNameStep = () => {
+    setNameError('');
+    setStep(5);
+  };
+
   return (
-    <SafeAreaView style={styles.safeArea}>
+    <SafeAreaView style={[styles.safeArea, isNameStep && styles.nameSafeArea]}>
       <KeyboardAvoidingView
-        style={styles.container}
+        style={[styles.container, isNameStep && styles.nameContainer]}
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       >
+        {isNameStep ? (
+          <NameStep
+            name={name}
+            nameError={nameError}
+            onBack={goBack}
+            onNext={goNext}
+            onSkip={skipNameStep}
+            onChangeName={(value) => {
+              setNameState(value);
+              setName(value);
+              if (nameError) setNameError('');
+            }}
+          />
+        ) : (
+          <>
         <View style={styles.progressHeader}>
           {step > 0 ? (
             <Pressable onPress={goBack} style={styles.backButton} accessibilityRole="button">
@@ -127,7 +153,7 @@ export default function OnboardingScreen() {
           {renderStep(
             step,
             name,
-            setName,
+            setNameState,
             nameError,
             setNameError,
             goals,
@@ -153,6 +179,8 @@ export default function OnboardingScreen() {
             </Pressable>
           ) : null}
         </View>
+          </>
+        )}
       </KeyboardAvoidingView>
     </SafeAreaView>
   );
@@ -183,16 +211,7 @@ function renderStep(
     case 3:
       return <ReminderStep />;
     case 4:
-      return (
-        <NameStep
-          name={name}
-          nameError={nameError}
-          onChangeName={(value) => {
-            setName(value);
-            if (nameError) setNameError('');
-          }}
-        />
-      );
+      return null;
     case 5:
       return (
         <GoalsStep
@@ -300,34 +319,148 @@ function ReminderStep() {
   );
 }
 
+function LogoMark({ width = 31, height = 38 }: { width?: number; height?: number }) {
+  return (
+    <Svg width={width} height={height} viewBox="0 0 31 38" fill="none">
+      <Rect x={0} y={12} width={5} height={17} rx={2.5} fill={PRIMARY} />
+      <Rect x={9} y={4} width={5} height={27} rx={2.5} fill={PRIMARY} />
+      <Rect x={18} y={0} width={5} height={38} rx={2.5} fill={PRIMARY} />
+      <Rect x={27} y={10} width={4} height={18} rx={2} fill={PRIMARY} />
+    </Svg>
+  );
+}
+
+function PersonIcon({ size = 24, color = PRIMARY }: { size?: number; color?: string }) {
+  return (
+    <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
+      <Circle cx={12} cy={7.5} r={3.5} stroke={color} strokeWidth={2} />
+      <Path d="M4.5 20c.7-4 3.3-6.2 7.5-6.2s6.8 2.2 7.5 6.2H4.5Z" stroke={color} strokeWidth={2} strokeLinejoin="round" />
+    </Svg>
+  );
+}
+
+function ArrowRightIcon() {
+  return (
+    <Svg width={24} height={24} viewBox="0 0 24 24" fill="none">
+      <Path d="M5 12h13M13 6l6 6-6 6" stroke={PRIMARY} strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round" />
+    </Svg>
+  );
+}
+
 function NameStep({
   name,
   nameError,
+  onBack,
+  onNext,
+  onSkip,
   onChangeName,
 }: {
   name: string;
   nameError: string;
+  onBack: () => void;
+  onNext: () => void;
+  onSkip: () => void;
   onChangeName: (name: string) => void;
 }) {
+  const [isNameInputFocused, setIsNameInputFocused] = useState(true);
+  const isDisabled = name.trim().length === 0;
+
   return (
-    <View style={styles.nameStep}>
-      <Text style={styles.featureTitle}>What's your{`\n`}first name?</Text>
-      <Text style={styles.featureSubtitle}>We'll personalize your experience.</Text>
-      <TextInput
-        value={name}
-        onChangeText={onChangeName}
-        placeholder="First name"
-        placeholderTextColor={TEXT_TERTIARY}
-        autoCapitalize="words"
-        autoCorrect={false}
-        returnKeyType="done"
-        style={[styles.nameInput, nameError ? styles.nameInputError : null]}
-      />
-      {nameError ? <Text style={styles.errorText}>{nameError}</Text> : null}
+    <View style={styles.nameScreen}>
+      <View style={styles.nameTopNav}>
+        <Pressable onPress={onBack} style={styles.nameBackButton} accessibilityRole="button">
+          <Text style={styles.nameBackButtonText}>‹</Text>
+        </Pressable>
+
+        <View style={styles.nameDots}>
+          {Array.from({ length: 5 }, (_, dot) => dot).map((dot) => (
+            <View key={dot} style={[styles.nameDot, dot === 4 && styles.nameDotActive]} />
+          ))}
+        </View>
+
+        <View style={styles.nameNavSpacer} />
+      </View>
+
+      <View style={styles.nameIntro}>
+        <View style={styles.nameLogoRow}>
+          <LogoMark />
+          <Text style={styles.nameLogoText}>PT-OS</Text>
+        </View>
+
+        <View style={styles.nameHeadlineGroup}>
+          <Text style={styles.nameHeadlineDark}>What's your</Text>
+          <Text style={styles.nameHeadlineGreen}>first name?</Text>
+        </View>
+
+        <Text style={styles.nameSubtext}>We'll use this to personalize your PT-OS experience.</Text>
+      </View>
+
+      <View
+        style={[
+          styles.floatingNameInput,
+          isNameInputFocused && styles.floatingNameInputFocused,
+          nameError ? styles.nameInputError : null,
+        ]}
+      >
+        <View style={styles.nameFieldCopy}>
+          <Text style={styles.floatingNameLabel}>First name</Text>
+          <TextInput
+            value={name}
+            onChangeText={onChangeName}
+            onFocus={() => setIsNameInputFocused(true)}
+            onBlur={() => setIsNameInputFocused(false)}
+            autoFocus
+            autoCapitalize="words"
+            autoCorrect={false}
+            returnKeyType="next"
+            style={styles.floatingNameTextInput}
+          />
+        </View>
+        <PersonIcon size={29} />
+      </View>
+      {nameError ? <Text style={styles.nameScreenError}>{nameError}</Text> : null}
+
+      <View style={styles.nameScenicBlock}>
+        <LinearGradient colors={[BACKGROUND, 'rgba(255,255,255,0.72)', 'rgba(255,255,255,0)']} style={styles.nameScenicGradient} />
+        <View style={styles.placeholderSun} />
+        <View style={styles.placeholderCliffOne} />
+        <View style={styles.placeholderCliffTwo} />
+        <View style={styles.placeholderTree} />
+        <View style={styles.placeholderMountainOne} />
+        <View style={styles.placeholderMountainTwo} />
+        <LinearGradient colors={['rgba(255,255,255,0)', BACKGROUND]} style={styles.nameScenicBottomFade} />
+      </View>
+
+      <View style={styles.nameBottomContent}>
+        <View style={styles.nameInfoCard}>
+          <View style={styles.nameInfoIconCircle}>
+            <PersonIcon size={25} />
+          </View>
+          <View style={styles.nameInfoCopy}>
+            <Text style={styles.nameInfoTitle}>We keep it personal.</Text>
+            <Text style={styles.nameInfoText}>Your name helps us personalize your PT-OS experience.</Text>
+          </View>
+        </View>
+
+        <Pressable
+          onPress={onNext}
+          disabled={isDisabled}
+          style={[styles.nameNextButton, isDisabled && styles.nameNextButtonDisabled]}
+          accessibilityRole="button"
+        >
+          <View style={styles.nameNextIconCircle}>
+            <ArrowRightIcon />
+          </View>
+          <Text style={styles.nameNextText}>Next</Text>
+        </Pressable>
+
+        <Pressable onPress={onSkip} accessibilityRole="button" style={styles.nameSkipButton}>
+          <Text style={styles.nameSkipText}>Skip for now</Text>
+        </Pressable>
+      </View>
     </View>
   );
 }
-
 
 function GoalsStep({
   goals,
@@ -424,6 +557,13 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     paddingHorizontal: 24,
+  },
+  nameSafeArea: {
+    backgroundColor: '#F8F8F6',
+  },
+  nameContainer: {
+    backgroundColor: BACKGROUND,
+    paddingHorizontal: 0,
   },
   progressHeader: {
     alignItems: 'center',
@@ -710,6 +850,321 @@ const styles = StyleSheet.create({
     color: CARD,
     fontSize: 13,
     fontWeight: '800',
+  },
+
+  nameScreen: {
+    backgroundColor: BACKGROUND,
+    flex: 1,
+    overflow: 'hidden',
+  },
+  nameTopNav: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    paddingHorizontal: 40,
+    paddingTop: 8,
+  },
+  nameBackButton: {
+    alignItems: 'center',
+    backgroundColor: CARD,
+    borderRadius: 22,
+    height: 44,
+    justifyContent: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.08,
+    shadowRadius: 18,
+    elevation: 4,
+    width: 44,
+  },
+  nameBackButtonText: {
+    color: PRIMARY,
+    fontSize: 40,
+    fontWeight: '500',
+    lineHeight: 42,
+    marginTop: -3,
+  },
+  nameNavSpacer: {
+    height: 44,
+    width: 44,
+  },
+  nameDots: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    gap: 16,
+  },
+  nameDot: {
+    backgroundColor: '#D1D5DB',
+    borderRadius: 7,
+    height: 14,
+    opacity: 0.9,
+    width: 14,
+  },
+  nameDotActive: {
+    backgroundColor: PRIMARY,
+    opacity: 1,
+  },
+  nameIntro: {
+    alignItems: 'center',
+    paddingHorizontal: 40,
+    paddingTop: 69,
+    zIndex: 3,
+  },
+  nameLogoRow: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    gap: 20,
+    justifyContent: 'center',
+    marginBottom: 40,
+  },
+  nameLogoText: {
+    color: PRIMARY,
+    fontSize: 34,
+    fontWeight: '900',
+    letterSpacing: 4,
+  },
+  nameHeadlineGroup: {
+    alignItems: 'center',
+    marginBottom: 20,
+  },
+  nameHeadlineDark: {
+    color: TEXT,
+    fontSize: 40,
+    fontWeight: '800',
+    letterSpacing: -0.8,
+    lineHeight: 44,
+    textAlign: 'center',
+  },
+  nameHeadlineGreen: {
+    color: PRIMARY,
+    fontSize: 40,
+    fontWeight: '800',
+    letterSpacing: -0.8,
+    lineHeight: 44,
+    textAlign: 'center',
+  },
+  nameSubtext: {
+    color: TEXT_SECONDARY,
+    fontSize: 15,
+    lineHeight: 22,
+    maxWidth: 300,
+    textAlign: 'center',
+  },
+  floatingNameInput: {
+    alignItems: 'center',
+    alignSelf: 'center',
+    backgroundColor: CARD,
+    borderColor: INPUT_BORDER,
+    borderRadius: 16,
+    borderWidth: 1.5,
+    flexDirection: 'row',
+    height: 80,
+    justifyContent: 'space-between',
+    marginTop: 70,
+    paddingHorizontal: 16,
+    paddingTop: 10,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.03,
+    shadowRadius: 10,
+    width: '82%',
+    zIndex: 4,
+  },
+  floatingNameInputFocused: {
+    borderColor: PRIMARY,
+  },
+  nameFieldCopy: {
+    flex: 1,
+    justifyContent: 'center',
+    paddingRight: 14,
+  },
+  floatingNameLabel: {
+    color: TEXT_SECONDARY,
+    fontSize: 12,
+    fontWeight: '500',
+    marginBottom: 5,
+  },
+  floatingNameTextInput: {
+    color: TEXT,
+    fontSize: 20,
+    fontWeight: '500',
+    height: 38,
+    margin: 0,
+    padding: 0,
+  },
+  nameScreenError: {
+    alignSelf: 'center',
+    color: '#DC2626',
+    fontSize: 13,
+    fontWeight: '600',
+    marginTop: 8,
+    width: '82%',
+    zIndex: 4,
+  },
+  nameScenicBlock: {
+    backgroundColor: '#E8F0EE',
+    height: 330,
+    left: 0,
+    overflow: 'hidden',
+    position: 'absolute',
+    right: 0,
+    top: 475,
+    zIndex: 1,
+  },
+  nameScenicGradient: {
+    height: 135,
+    left: 0,
+    position: 'absolute',
+    right: 0,
+    top: 0,
+    zIndex: 5,
+  },
+  nameScenicBottomFade: {
+    bottom: 0,
+    height: 80,
+    left: 0,
+    position: 'absolute',
+    right: 0,
+    zIndex: 5,
+  },
+  placeholderSun: {
+    backgroundColor: 'rgba(255,255,255,0.55)',
+    borderRadius: 130,
+    height: 260,
+    left: -80,
+    position: 'absolute',
+    top: 0,
+    width: 260,
+  },
+  placeholderMountainOne: {
+    backgroundColor: 'rgba(149, 182, 193, 0.42)',
+    height: 160,
+    left: -38,
+    position: 'absolute',
+    top: 172,
+    transform: [{ rotate: '22deg' }],
+    width: 260,
+  },
+  placeholderMountainTwo: {
+    backgroundColor: 'rgba(122, 164, 177, 0.32)',
+    height: 190,
+    left: 190,
+    position: 'absolute',
+    top: 150,
+    transform: [{ rotate: '-25deg' }],
+    width: 290,
+  },
+  placeholderCliffOne: {
+    backgroundColor: 'rgba(255,255,255,0.86)',
+    borderTopLeftRadius: 14,
+    height: 205,
+    position: 'absolute',
+    right: 0,
+    top: 74,
+    width: 170,
+  },
+  placeholderCliffTwo: {
+    backgroundColor: 'rgba(255,255,255,0.94)',
+    borderTopLeftRadius: 18,
+    bottom: 20,
+    height: 115,
+    position: 'absolute',
+    right: 90,
+    width: 170,
+  },
+  placeholderTree: {
+    backgroundColor: 'rgba(89, 105, 69, 0.34)',
+    borderRadius: 42,
+    height: 150,
+    position: 'absolute',
+    right: -25,
+    top: 136,
+    transform: [{ rotate: '-13deg' }],
+    width: 72,
+    zIndex: 4,
+  },
+  nameBottomContent: {
+    bottom: 22,
+    left: 0,
+    paddingHorizontal: 40,
+    position: 'absolute',
+    right: 0,
+    zIndex: 6,
+  },
+  nameInfoCard: {
+    alignItems: 'center',
+    backgroundColor: CARD,
+    borderRadius: 16,
+    flexDirection: 'row',
+    gap: 16,
+    marginBottom: 45,
+    padding: 16,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.07,
+    shadowRadius: 22,
+    elevation: 4,
+  },
+  nameInfoIconCircle: {
+    alignItems: 'center',
+    backgroundColor: '#F3F4F6',
+    borderRadius: 20,
+    height: 40,
+    justifyContent: 'center',
+    width: 40,
+  },
+  nameInfoCopy: {
+    flex: 1,
+    gap: 5,
+  },
+  nameInfoTitle: {
+    color: TEXT,
+    fontSize: 14,
+    fontWeight: '800',
+  },
+  nameInfoText: {
+    color: TEXT_SECONDARY,
+    fontSize: 13,
+    lineHeight: 20,
+  },
+  nameNextButton: {
+    alignItems: 'center',
+    backgroundColor: PRIMARY,
+    borderRadius: 30,
+    height: 60,
+    justifyContent: 'center',
+    shadowColor: PRIMARY,
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.18,
+    shadowRadius: 18,
+    width: '100%',
+  },
+  nameNextButtonDisabled: {
+    opacity: 0.5,
+  },
+  nameNextIconCircle: {
+    alignItems: 'center',
+    backgroundColor: CARD,
+    borderRadius: 24,
+    height: 48,
+    justifyContent: 'center',
+    left: 10,
+    position: 'absolute',
+    width: 48,
+  },
+  nameNextText: {
+    color: CARD,
+    fontSize: 20,
+    fontWeight: '500',
+  },
+  nameSkipButton: {
+    alignItems: 'center',
+    paddingTop: 23,
+  },
+  nameSkipText: {
+    color: PRIMARY,
+    fontSize: 17,
+    fontWeight: '700',
   },
   nameStep: {
     alignItems: 'center',
