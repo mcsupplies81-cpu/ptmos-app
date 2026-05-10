@@ -11,19 +11,19 @@ import {
   TextInput,
   View,
 } from 'react-native';
-import Svg, { Rect } from 'react-native-svg';
+import Svg, { Circle, Line, Path, Rect } from 'react-native-svg';
 
-const ACCENT = '#2563EB';
-const BACKGROUND = '#FFFFFF';
+const ACCENT = '#1B4332';
+const BACKGROUND = '#F8F8F6';
 const TEXT = '#0A0A0F';
 const TEXT_SECONDARY = '#6B7280';
 const TEXT_TERTIARY = '#9CA3AF';
-const BORDER = '#F3F4F6';
+const BORDER = '#E5E7EB';
 const INPUT_BORDER = '#E5E7EB';
 const CARD = '#FFFFFF';
 const TOTAL_STEPS = 7;
 
-const GOALS = ['Fat loss', 'Recovery', 'Muscle gain', 'Sleep', 'Energy', 'Longevity', 'Research', 'Custom'];
+const GOALS = ['Fat loss', 'Muscle gain', 'Recovery', 'Sleep', 'Energy', 'Longevity', 'Research', 'Custom'];
 
 const EXPERIENCE_LEVELS = [
   { id: 'new', label: 'New', desc: "I'm new to peptide tracking and want a guided start." },
@@ -44,7 +44,8 @@ export default function OnboardingScreen() {
   const [step, setStep] = useState(0);
   const [name, setName] = useState('');
   const [nameError, setNameError] = useState('');
-  const [goals, setGoals] = useState<string[]>([]);
+  const goals = useOnboardingStore((state) => state.goals);
+  const setGoals = useOnboardingStore((state) => state.setGoals);
   const [goalsError, setGoalsError] = useState('');
   const [experience, setExperience] = useState('');
   const [experienceError, setExperienceError] = useState('');
@@ -72,11 +73,6 @@ export default function OnboardingScreen() {
     }
 
     if (step === 5) {
-      if (goals.length === 0) {
-        setGoalsError('Select at least one goal.');
-        return;
-      }
-
       setGoalsError('');
       setStep(6);
       return;
@@ -100,30 +96,38 @@ export default function OnboardingScreen() {
   };
 
   return (
-    <SafeAreaView style={styles.safeArea}>
+    <SafeAreaView style={[styles.safeArea, step === 5 && styles.goalsSafeArea]}>
       <KeyboardAvoidingView
         style={styles.container}
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       >
-        <View style={styles.progressHeader}>
+        <View style={[styles.progressHeader, step === 5 && styles.goalsProgressHeader]}>
           {step > 0 ? (
-            <Pressable onPress={goBack} style={styles.backButton} accessibilityRole="button">
-              <Text style={styles.backButtonText}>←</Text>
+            <Pressable onPress={goBack} style={[styles.backButton, step === 5 && styles.goalsBackButton]} accessibilityRole="button">
+              <Text style={[styles.backButtonText, step === 5 && styles.goalsBackButtonText]}>{step === 5 ? '‹' : '←'}</Text>
             </Pressable>
           ) : (
             <View style={styles.backButtonPlaceholder} />
           )}
 
           <View style={styles.dots}>
-            {Array.from({ length: TOTAL_STEPS }, (_, dot) => dot).map((dot) => (
-              <View key={dot} style={[styles.dot, dot === step && styles.dotActive]} />
+            {Array.from({ length: step === 5 ? 5 : TOTAL_STEPS }, (_, dot) => dot).map((dot) => (
+              <View
+                key={dot}
+                style={[
+                  styles.dot,
+                  step === 5 && styles.goalsDot,
+                  (step === 5 ? dot === 4 : dot === step) && styles.dotActive,
+                  step === 5 && dot === 4 && styles.goalsDotActive,
+                ]}
+              />
             ))}
           </View>
 
           <View style={styles.backButtonPlaceholder} />
         </View>
 
-        <View style={styles.content}>
+        <View style={[styles.content, step === 5 && styles.goalsContent]}>
           {renderStep(
             step,
             name,
@@ -141,9 +145,14 @@ export default function OnboardingScreen() {
           )}
         </View>
 
-        <View style={styles.footer}>
-          <Pressable style={styles.primaryButton} onPress={goNext} accessibilityRole="button">
-            <Text style={styles.primaryButtonText}>{step === 0 ? 'Get started' : 'Next'}</Text>
+        <View style={[styles.footer, step === 5 && styles.goalsFooter]}>
+          <Pressable style={[styles.primaryButton, step === 5 && styles.goalsPrimaryButton]} onPress={goNext} accessibilityRole="button">
+            {step === 5 ? (
+              <View style={styles.goalsButtonArrowCircle}>
+                <Text style={styles.goalsButtonArrow}>→</Text>
+              </View>
+            ) : null}
+            <Text style={[styles.primaryButtonText, step === 5 && styles.goalsPrimaryButtonText]}>{step === 0 ? 'Get started' : 'Next'}</Text>
           </Pressable>
           {step === 0 ? (
             <Pressable onPress={() => router.push('/(auth)/sign-in')} accessibilityRole="button">
@@ -204,7 +213,6 @@ function renderStep(
               : [...goals, goal];
 
             setGoals(nextGoals);
-            useOnboardingStore.getState().setGoals(nextGoals);
             if (goalsError) setGoalsError('');
           }}
         />
@@ -339,9 +347,22 @@ function GoalsStep({
   onToggleGoal: (goal: string) => void;
 }) {
   return (
-    <View style={styles.selectionStep}>
-      <Text style={styles.featureTitle}>What are you{`\n`}focused on?</Text>
-      <Text style={styles.featureSubtitle}>We'll tailor PT-OS around your goals.</Text>
+    <View style={styles.goalsStep}>
+      <View style={styles.goalsLogoRow}>
+        <Svg width={38} height={38} viewBox="0 0 38 38" fill="none">
+          <Rect x={8} y={13} width={5} height={16} rx={2.5} fill={ACCENT} />
+          <Rect x={17} y={6} width={5} height={25} rx={2.5} fill={ACCENT} />
+          <Rect x={26} y={16} width={5} height={18} rx={2.5} fill={ACCENT} />
+        </Svg>
+        <Text style={styles.goalsLogoText}>PT-OS</Text>
+      </View>
+
+      <View style={styles.goalsHeaderCopy}>
+        <Text style={styles.goalsTitle}>What are you</Text>
+        <Text style={[styles.goalsTitle, styles.goalsTitleAccent]}>focused on?</Text>
+        <Text style={styles.goalsSubtitle}>We'll tailor PT-OS around your goals.</Text>
+      </View>
+
       <View style={styles.goalsGrid}>
         {GOALS.map((goal) => {
           const selected = goals.includes(goal);
@@ -350,22 +371,121 @@ function GoalsStep({
             <Pressable
               key={goal}
               onPress={() => onToggleGoal(goal)}
-              style={[styles.goalCard, selected && styles.selectableCardSelected]}
+              style={[styles.goalCard, selected && styles.goalCardSelected]}
               accessibilityRole="button"
+              accessibilityState={{ selected }}
             >
-              <Text style={styles.goalLabel}>{goal}</Text>
-              {selected ? (
-                <View style={styles.checkCircle}>
-                  <Text style={styles.checkText}>✓</Text>
+              <View style={styles.goalCardTopRow}>
+                <View style={styles.goalIconCircle}>
+                  <GoalIcon goal={goal} />
                 </View>
-              ) : null}
+                <View style={[styles.goalSelectionCircle, selected && styles.goalSelectionCircleSelected]}>
+                  {selected ? <Text style={styles.checkText}>✓</Text> : null}
+                </View>
+              </View>
+              <Text style={styles.goalLabel}>{goal}</Text>
             </Pressable>
           );
         })}
       </View>
+
+      <View style={styles.goalsInfoCard}>
+        <View style={styles.goalsInfoIconCircle}>
+          <GoalIcon goal="Fat loss" size={24} />
+        </View>
+        <View style={styles.goalsInfoCopy}>
+          <Text style={styles.goalsInfoTitle}>You can always change this later.</Text>
+          <Text style={styles.goalsInfoText}>PT-OS adapts as your goals and protocols evolve.</Text>
+        </View>
+      </View>
+
       {goalsError ? <Text style={styles.errorText}>{goalsError}</Text> : null}
     </View>
   );
+}
+
+function GoalIcon({ goal, size = 24 }: { goal: string; size?: number }) {
+  const common = {
+    stroke: ACCENT,
+    strokeWidth: 1.8,
+    strokeLinecap: 'round' as const,
+    strokeLinejoin: 'round' as const,
+    fill: 'none',
+  };
+
+  switch (goal) {
+    case 'Fat loss':
+      return (
+        <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
+          <Circle cx={11} cy={13} r={7} {...common} />
+          <Circle cx={11} cy={13} r={3.5} {...common} />
+          <Line x1={11} y1={13} x2={20} y2={4} {...common} />
+          <Path d="M17 4h3v3" {...common} />
+          <Path d="M20 4l-3 3" {...common} />
+        </Svg>
+      );
+    case 'Muscle gain':
+      return (
+        <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
+          <Path d="M7 14c1-4 2.5-7 5-8l1.2 2.6-1.6 2.2h3.2c2 0 3.7 1.6 3.7 3.7v3H13l-1.4-2.3L9 19H5.5v-3.2c0-1 .6-1.7 1.5-1.8Z" {...common} />
+          <Path d="M14 6c.5-1.2 1.5-2 3-2" {...common} />
+          <Path d="M18.5 17.5h2" {...common} />
+        </Svg>
+      );
+    case 'Recovery':
+      return (
+        <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
+          <Path d="M19 9a7 7 0 0 0-12-3l-2 2" {...common} />
+          <Path d="M5 4v4h4" {...common} />
+          <Path d="M5 15a7 7 0 0 0 12 3l2-2" {...common} />
+          <Path d="M19 20v-4h-4" {...common} />
+        </Svg>
+      );
+    case 'Sleep':
+      return (
+        <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
+          <Path d="M18.5 15.5A8 8 0 0 1 8.5 5.5a8 8 0 1 0 10 10Z" {...common} />
+          <Path d="M17 6h3l-3 4h3" {...common} />
+          <Path d="M12.5 8h2l-2 3h2" {...common} />
+        </Svg>
+      );
+    case 'Energy':
+      return (
+        <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
+          <Path d="M13 2 5 13h6l-1 9 8-12h-6l1-8Z" {...common} />
+        </Svg>
+      );
+    case 'Longevity':
+      return (
+        <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
+          <Path d="M7 3h10" {...common} />
+          <Path d="M7 21h10" {...common} />
+          <Path d="M8 3v4.5L12 12l4-4.5V3" {...common} />
+          <Path d="M8 21v-4.5L12 12l4 4.5V21" {...common} />
+          <Path d="M10 7h4" {...common} />
+          <Path d="M10 17h4" {...common} />
+        </Svg>
+      );
+    case 'Research':
+      return (
+        <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
+          <Path d="M9 3h6" {...common} />
+          <Path d="M10 3v6l-4.6 8.2A2.6 2.6 0 0 0 7.7 21h8.6a2.6 2.6 0 0 0 2.3-3.8L14 9V3" {...common} />
+          <Path d="M8.5 16h7" {...common} />
+          <Circle cx={10} cy={18} r={0.8} fill={ACCENT} />
+          <Circle cx={14} cy={14.5} r={0.8} fill={ACCENT} />
+        </Svg>
+      );
+    default:
+      return (
+        <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
+          <Path d="M4 17.5V21h3.5L18.8 9.7l-3.5-3.5L4 17.5Z" {...common} />
+          <Path d="m14 7.5 3.5 3.5" {...common} />
+          <Path d="M19.5 8.5 16.5 5.5l1.2-1.2a2 2 0 0 1 2.8 2.8l-1 1.4Z" {...common} />
+          <Line x1={4} y1={22} x2={14} y2={22} {...common} />
+        </Svg>
+      );
+  }
 }
 
 function ExperienceStep({
@@ -421,6 +541,9 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: BACKGROUND,
   },
+  goalsSafeArea: {
+    backgroundColor: '#F8F8F6',
+  },
   container: {
     flex: 1,
     paddingHorizontal: 24,
@@ -431,11 +554,23 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     paddingTop: 12,
   },
+  goalsProgressHeader: {
+    paddingTop: 10,
+  },
   backButton: {
     alignItems: 'center',
     height: 44,
     justifyContent: 'center',
     width: 44,
+  },
+  goalsBackButton: {
+    backgroundColor: CARD,
+    borderRadius: 22,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.08,
+    shadowRadius: 18,
+    elevation: 4,
   },
   backButtonPlaceholder: {
     height: 44,
@@ -445,6 +580,13 @@ const styles = StyleSheet.create({
     color: TEXT,
     fontSize: 22,
     fontWeight: '700',
+  },
+  goalsBackButtonText: {
+    color: ACCENT,
+    fontSize: 40,
+    fontWeight: '600',
+    lineHeight: 42,
+    marginTop: -3,
   },
   dots: {
     alignItems: 'center',
@@ -461,14 +603,31 @@ const styles = StyleSheet.create({
     backgroundColor: ACCENT,
     width: 24,
   },
+  goalsDot: {
+    backgroundColor: '#D1D5DB',
+    borderRadius: 7,
+    height: 14,
+    width: 14,
+  },
+  goalsDotActive: {
+    backgroundColor: ACCENT,
+    width: 14,
+  },
   content: {
     flex: 1,
     justifyContent: 'center',
+  },
+  goalsContent: {
+    justifyContent: 'flex-start',
   },
   footer: {
     gap: 14,
     paddingBottom: 28,
     paddingTop: 16,
+  },
+  goalsFooter: {
+    paddingBottom: 18,
+    paddingTop: 8,
   },
   primaryButton: {
     alignItems: 'center',
@@ -478,10 +637,40 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     width: '100%',
   },
+  goalsPrimaryButton: {
+    borderRadius: 30,
+    height: 60,
+    position: 'relative',
+    shadowColor: ACCENT,
+    shadowOffset: { width: 0, height: 12 },
+    shadowOpacity: 0.18,
+    shadowRadius: 18,
+    elevation: 5,
+  },
+  goalsButtonArrowCircle: {
+    alignItems: 'center',
+    backgroundColor: CARD,
+    borderRadius: 25,
+    height: 50,
+    justifyContent: 'center',
+    left: 5,
+    position: 'absolute',
+    width: 50,
+  },
+  goalsButtonArrow: {
+    color: ACCENT,
+    fontSize: 30,
+    fontWeight: '800',
+    lineHeight: 32,
+  },
   primaryButtonText: {
     color: CARD,
     fontSize: 17,
     fontWeight: '700',
+  },
+  goalsPrimaryButtonText: {
+    fontSize: 20,
+    fontWeight: '600',
   },
   signInText: {
     color: TEXT_SECONDARY,
@@ -719,34 +908,99 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 16,
   },
+  goalsStep: {
+    alignItems: 'center',
+    flex: 1,
+    paddingTop: 26,
+    width: '100%',
+  },
+  goalsLogoRow: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    gap: 10,
+    justifyContent: 'center',
+    marginBottom: 18,
+  },
+  goalsLogoText: {
+    color: ACCENT,
+    fontSize: 28,
+    fontWeight: '900',
+    letterSpacing: 2,
+  },
+  goalsHeaderCopy: {
+    alignItems: 'center',
+    marginBottom: 24,
+  },
+  goalsTitle: {
+    color: TEXT,
+    fontSize: 38,
+    fontWeight: '800',
+    letterSpacing: -0.6,
+    lineHeight: 42,
+    textAlign: 'center',
+  },
+  goalsTitleAccent: {
+    color: ACCENT,
+  },
+  goalsSubtitle: {
+    color: TEXT_SECONDARY,
+    fontSize: 15,
+    lineHeight: 22,
+    marginTop: 12,
+    textAlign: 'center',
+  },
   goalsGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
     gap: 12,
     justifyContent: 'space-between',
-    marginTop: 6,
     width: '100%',
   },
   goalCard: {
-    alignItems: 'center',
     backgroundColor: CARD,
     borderColor: INPUT_BORDER,
-    borderRadius: 14,
-    borderWidth: 1.5,
-    flexDirection: 'row',
-    height: 52,
+    borderRadius: 16,
+    borderWidth: 1,
+    height: 102,
     justifyContent: 'space-between',
-    paddingHorizontal: 16,
+    padding: 16,
     width: '48%',
   },
-  selectableCardSelected: {
-    backgroundColor: '#EFF6FF',
+  goalCardSelected: {
+    borderColor: ACCENT,
+    borderWidth: 2,
+    padding: 15,
+  },
+  goalCardTopRow: {
+    alignItems: 'flex-start',
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+  },
+  goalIconCircle: {
+    alignItems: 'center',
+    backgroundColor: '#F1F3F1',
+    borderRadius: 24,
+    height: 48,
+    justifyContent: 'center',
+    width: 48,
+  },
+  goalSelectionCircle: {
+    alignItems: 'center',
+    borderColor: '#D1D5DB',
+    borderRadius: 11,
+    borderWidth: 1.5,
+    height: 22,
+    justifyContent: 'center',
+    width: 22,
+  },
+  goalSelectionCircleSelected: {
+    backgroundColor: ACCENT,
     borderColor: ACCENT,
   },
   goalLabel: {
     color: TEXT,
-    fontSize: 14,
-    fontWeight: '700',
+    fontSize: 15,
+    fontWeight: '600',
   },
   checkCircle: {
     alignItems: 'center',
@@ -758,8 +1012,45 @@ const styles = StyleSheet.create({
   },
   checkText: {
     color: CARD,
-    fontSize: 14,
+    fontSize: 15,
     fontWeight: '900',
+    lineHeight: 18,
+  },
+  goalsInfoCard: {
+    alignItems: 'center',
+    backgroundColor: CARD,
+    borderRadius: 16,
+    flexDirection: 'row',
+    gap: 14,
+    marginTop: 24,
+    padding: 16,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.05,
+    shadowRadius: 18,
+    elevation: 3,
+    width: '100%',
+  },
+  goalsInfoIconCircle: {
+    alignItems: 'center',
+    backgroundColor: '#F1F3F1',
+    borderRadius: 20,
+    height: 40,
+    justifyContent: 'center',
+    width: 40,
+  },
+  goalsInfoCopy: {
+    flex: 1,
+    gap: 3,
+  },
+  goalsInfoTitle: {
+    color: TEXT,
+    fontSize: 14,
+    fontWeight: '800',
+  },
+  goalsInfoText: {
+    color: TEXT_SECONDARY,
+    fontSize: 13,
     lineHeight: 18,
   },
   experienceList: {
