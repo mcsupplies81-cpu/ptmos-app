@@ -52,9 +52,14 @@ export default function RootLayout() {
       return;
     }
 
-    // Onboarding gates removed for beta — route all authed users straight to tabs
-    if (inAuth) {
-      router.replace('/(tabs)');
+    if (inAuth || inOnboarding) {
+      // Wait for profile to load before routing
+      if (profile === undefined) return; // still loading
+      if (profile && profile.onboarding_complete === false) {
+        router.replace('/onboarding/paywall');
+        return;
+      }
+      if (inAuth) router.replace('/(tabs)');
     }
   }, [loading, session, profile, segments]);
 

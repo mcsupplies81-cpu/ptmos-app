@@ -1,224 +1,141 @@
-import { useRouter } from 'expo-router';
-import { useState } from 'react';
-import { ActivityIndicator, Alert, Platform, Pressable, StyleSheet, Text, View } from 'react-native';
+import { router } from 'expo-router';
+import { Pressable, SafeAreaView, StyleSheet, Text, View } from 'react-native';
+import Svg, { Rect } from 'react-native-svg';
 
-import Colors from '@/constants/Colors';
-import { signInWithProvider } from '@/utils/oauth';
+const ACCENT = '#2563EB';
+const BACKGROUND = '#FFFFFF';
+const TEXT = '#0A0A0F';
+const TEXT_SECONDARY = '#6B7280';
 
 export default function WelcomeScreen() {
-  const router = useRouter();
-  const [oauthLoading, setOauthLoading] = useState<'google' | 'apple' | null>(null);
-
-  const handleOAuth = async (provider: 'google' | 'apple') => {
-    setOauthLoading(provider);
-    const err = await signInWithProvider(provider);
-    setOauthLoading(null);
-    if (err) Alert.alert('Sign in failed', err);
-    // On success, authStore session listener fires → _layout.tsx routes to (tabs)
-  };
-
   return (
-    <View style={styles.container}>
-      <View style={styles.topSection}>
-        <View style={styles.logoContainer}>
-          <Text style={styles.logoText}>P</Text>
-        </View>
-        <Text style={styles.brandText}>PT-OS</Text>
-        <Text style={styles.subtitleText}>All-in-one peptide{`\n`}tracking and optimization platform.</Text>
-      </View>
-
-      <View style={styles.bottomSection}>
-        {/* Primary CTA */}
-        <Pressable style={styles.primaryButton} onPress={() => router.replace('/(auth)/sign-up')}>
-          <Text style={styles.primaryButtonText}>Create Account</Text>
-        </Pressable>
-
-        {/* Divider */}
-        <View style={styles.dividerRow}>
-          <View style={styles.dividerLine} />
-          <Text style={styles.dividerText}>or continue with</Text>
-          <View style={styles.dividerLine} />
+    <SafeAreaView style={styles.safeArea}>
+      <View style={styles.container}>
+        <View style={styles.logoRow}>
+          <Svg width={25} height={22} viewBox="0 0 25 22" fill="none">
+            <Rect x={2} y={8} width={4} height={12} rx={2} fill={ACCENT} />
+            <Rect x={9} y={2} width={4} height={18} rx={2} fill={ACCENT} />
+            <Rect x={16} y={6} width={4} height={14} rx={2} fill={ACCENT} />
+          </Svg>
+          <Text style={styles.logoText}>PT-OS</Text>
         </View>
 
-        {/* Social buttons */}
-        <View style={styles.socialRow}>
-          <Pressable
-            style={[styles.socialButton, oauthLoading === 'google' && styles.socialButtonLoading]}
-            onPress={() => handleOAuth('google')}
-            disabled={oauthLoading !== null}
-          >
-            {oauthLoading === 'google' ? (
-              <ActivityIndicator size="small" color={Colors.text} />
-            ) : (
-              <>
-                <Text style={styles.socialIcon}>G</Text>
-                <Text style={styles.socialButtonText}>Google</Text>
-              </>
-            )}
+        <View style={styles.vialRow}>
+          {['#2563EB', '#22C55E', '#A855F7', '#EC4899', '#F97316'].map((color, index) => (
+            <View key={color} style={[styles.vial, { borderColor: color, transform: [{ translateY: index % 2 === 0 ? 0 : -8 }] }]}>
+              <View style={[styles.vialCap, { backgroundColor: color }]} />
+            </View>
+          ))}
+        </View>
+
+        <Text style={styles.heading}>Track peptides{`\n`}with <Text style={styles.headingAccent}>clarity.</Text></Text>
+        <Text style={styles.subtitle}>Log doses, monitor protocols, and understand your routine in one place.</Text>
+
+        <View style={styles.footer}>
+          <Pressable style={styles.primaryButton} onPress={() => router.push('/onboarding')} accessibilityRole="button">
+            <Text style={styles.primaryButtonText}>Get started</Text>
           </Pressable>
-
-          {Platform.OS === 'ios' && (
-            <Pressable
-              style={[styles.socialButton, styles.appleButton, oauthLoading === 'apple' && styles.socialButtonLoading]}
-              onPress={() => handleOAuth('apple')}
-              disabled={oauthLoading !== null}
-            >
-              {oauthLoading === 'apple' ? (
-                <ActivityIndicator size="small" color="#fff" />
-              ) : (
-                <>
-                  <Text style={styles.appleIcon}></Text>
-                  <Text style={styles.appleButtonText}>Apple</Text>
-                </>
-              )}
-            </Pressable>
-          )}
+          <Pressable onPress={() => router.push('/(auth)/sign-in')} accessibilityRole="button">
+            <Text style={styles.signInText}>Already have an account? <Text style={styles.signInLink}>Sign in</Text></Text>
+          </Pressable>
         </View>
-
-        {/* Sign in link */}
-        <Pressable onPress={() => router.replace('/(auth)/sign-in')} style={styles.signInRow}>
-          <Text style={styles.signInText}>Already have an account? <Text style={styles.signInLink}>Sign In</Text></Text>
-        </Pressable>
-
-        <Text style={styles.legalText}>By continuing you agree to our Terms & Privacy Policy.</Text>
       </View>
-    </View>
+    </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
+  safeArea: {
     flex: 1,
+    backgroundColor: BACKGROUND,
   },
-  topSection: {
-    flex: 1.3,
-    backgroundColor: '#1B3A2F',
-    justifyContent: 'center',
+  container: {
     alignItems: 'center',
+    flex: 1,
+    justifyContent: 'center',
+    paddingHorizontal: 28,
+    paddingTop: 56,
   },
-  logoContainer: {
-    width: 80,
-    height: 80,
-    backgroundColor: '#2D6A4F',
-    borderRadius: 20,
-    justifyContent: 'center',
+  logoRow: {
     alignItems: 'center',
+    flexDirection: 'row',
+    gap: 8,
+    justifyContent: 'center',
   },
   logoText: {
-    fontSize: 48,
+    color: TEXT,
+    fontSize: 18,
     fontWeight: '900',
-    color: '#FFFFFF',
+    letterSpacing: 0.4,
   },
-  brandText: {
-    marginTop: 12,
-    fontSize: 28,
-    fontWeight: '800',
-    color: '#FFFFFF',
-    letterSpacing: 0.5,
+  vialRow: {
+    alignItems: 'flex-end',
+    flexDirection: 'row',
+    gap: 10,
+    height: 150,
+    marginTop: 54,
   },
-  subtitleText: {
-    marginTop: 10,
-    fontSize: 14,
-    color: 'rgba(255,255,255,0.72)',
-    textAlign: 'center',
-    lineHeight: 21,
-    maxWidth: 240,
-  },
-  bottomSection: {
-    flex: 1,
+  vial: {
+    alignItems: 'center',
     backgroundColor: '#FFFFFF',
-    borderTopLeftRadius: 28,
-    borderTopRightRadius: 28,
-    padding: 28,
-    paddingTop: 36,
+    borderRadius: 9,
+    borderWidth: 2,
+    height: 88,
+    justifyContent: 'flex-start',
+    width: 36,
+  },
+  vialCap: {
+    borderRadius: 4,
+    height: 12,
+    marginTop: -10,
+    width: 24,
+  },
+  heading: {
+    color: TEXT,
+    fontSize: 34,
+    fontWeight: '900',
+    letterSpacing: -0.8,
+    lineHeight: 40,
+    marginTop: 34,
+    textAlign: 'center',
+  },
+  headingAccent: {
+    color: ACCENT,
+  },
+  subtitle: {
+    color: TEXT_SECONDARY,
+    fontSize: 15,
+    lineHeight: 22,
+    marginTop: 14,
+    maxWidth: 290,
+    textAlign: 'center',
+  },
+  footer: {
+    marginTop: 'auto',
+    paddingBottom: 28,
+    width: '100%',
   },
   primaryButton: {
-    width: '100%',
-    backgroundColor: Colors.accent,
-    borderRadius: 14,
-    height: 52,
-    justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: 20,
+    backgroundColor: ACCENT,
+    borderRadius: 16,
+    height: 56,
+    justifyContent: 'center',
+    width: '100%',
   },
   primaryButtonText: {
     color: '#FFFFFF',
     fontSize: 16,
     fontWeight: '700',
   },
-  dividerRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 16,
-  },
-  dividerLine: {
-    flex: 1,
-    height: 1,
-    backgroundColor: Colors.border,
-  },
-  dividerText: {
-    color: Colors.textSecondary,
-    fontSize: 13,
-    marginHorizontal: 12,
-  },
-  socialRow: {
-    flexDirection: 'row',
-    gap: 12,
-    marginBottom: 20,
-  },
-  socialButton: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    height: 48,
-    borderRadius: 12,
-    borderWidth: 1.5,
-    borderColor: Colors.border,
-    backgroundColor: '#FFFFFF',
-    gap: 8,
-  },
-  socialButtonLoading: {
-    opacity: 0.7,
-  },
-  socialIcon: {
-    fontSize: 16,
-    fontWeight: '800',
-    color: '#4285F4',
-  },
-  socialButtonText: {
-    fontSize: 15,
-    fontWeight: '600',
-    color: Colors.text,
-  },
-  appleButton: {
-    backgroundColor: '#000000',
-    borderColor: '#000000',
-  },
-  appleIcon: {
-    fontSize: 16,
-    color: '#FFFFFF',
-  },
-  appleButtonText: {
-    fontSize: 15,
-    fontWeight: '600',
-    color: '#FFFFFF',
-  },
-  signInRow: {
-    alignItems: 'center',
-    marginBottom: 12,
-  },
   signInText: {
+    color: TEXT_SECONDARY,
     fontSize: 14,
-    color: Colors.textSecondary,
+    marginTop: 16,
+    textAlign: 'center',
   },
   signInLink: {
-    color: Colors.accent,
+    color: ACCENT,
     fontWeight: '700',
-  },
-  legalText: {
-    fontSize: 11,
-    color: Colors.textSecondary,
-    textAlign: 'center',
   },
 });
