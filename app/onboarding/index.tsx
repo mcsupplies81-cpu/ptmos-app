@@ -11,10 +11,12 @@ import {
   TextInput,
   View,
 } from 'react-native';
-import Svg, { Rect } from 'react-native-svg';
+import Svg, { Circle, Path, Rect } from 'react-native-svg';
 
 const ACCENT = '#2563EB';
+const PRIMARY = '#1B4332';
 const BACKGROUND = '#FFFFFF';
+const ONBOARDING_BACKGROUND = '#F8F8F6';
 const TEXT = '#0A0A0F';
 const TEXT_SECONDARY = '#6B7280';
 const TEXT_TERTIARY = '#9CA3AF';
@@ -46,7 +48,8 @@ export default function OnboardingScreen() {
   const [nameError, setNameError] = useState('');
   const [goals, setGoals] = useState<string[]>([]);
   const [goalsError, setGoalsError] = useState('');
-  const [experience, setExperience] = useState('');
+  const experience = useOnboardingStore((state) => state.experience);
+  const setExperience = useOnboardingStore((state) => state.setExperience);
   const [experienceError, setExperienceError] = useState('');
 
   const goBack = () => {
@@ -83,11 +86,6 @@ export default function OnboardingScreen() {
     }
 
     if (step === 6) {
-      if (!experience) {
-        setExperienceError('Select your experience level.');
-        return;
-      }
-
       setExperienceError('');
       router.push('/onboarding/create-account');
       return;
@@ -100,30 +98,38 @@ export default function OnboardingScreen() {
   };
 
   return (
-    <SafeAreaView style={styles.safeArea}>
+    <SafeAreaView style={[styles.safeArea, step === 6 && styles.experienceSafeArea]}>
       <KeyboardAvoidingView
-        style={styles.container}
+        style={[styles.container, step === 6 && styles.experienceContainer]}
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       >
         <View style={styles.progressHeader}>
           {step > 0 ? (
             <Pressable onPress={goBack} style={styles.backButton} accessibilityRole="button">
-              <Text style={styles.backButtonText}>←</Text>
+              <Text style={styles.backButtonText}>‹</Text>
             </Pressable>
           ) : (
             <View style={styles.backButtonPlaceholder} />
           )}
 
           <View style={styles.dots}>
-            {Array.from({ length: TOTAL_STEPS }, (_, dot) => dot).map((dot) => (
-              <View key={dot} style={[styles.dot, dot === step && styles.dotActive]} />
+            {Array.from({ length: step === 6 ? 6 : TOTAL_STEPS }, (_, dot) => dot).map((dot) => (
+              <View
+                key={dot}
+                style={[
+                  styles.dot,
+                  step === 6 && styles.experienceDot,
+                  dot === (step === 6 ? 5 : step) && styles.dotActive,
+                  step === 6 && dot === 5 && styles.experienceDotActive,
+                ]}
+              />
             ))}
           </View>
 
           <View style={styles.backButtonPlaceholder} />
         </View>
 
-        <View style={styles.content}>
+        <View style={[styles.content, step === 6 && styles.experienceContent]}>
           {renderStep(
             step,
             name,
@@ -141,10 +147,19 @@ export default function OnboardingScreen() {
           )}
         </View>
 
-        <View style={styles.footer}>
-          <Pressable style={styles.primaryButton} onPress={goNext} accessibilityRole="button">
-            <Text style={styles.primaryButtonText}>{step === 0 ? 'Get started' : 'Next'}</Text>
-          </Pressable>
+        <View style={[styles.footer, step === 6 && styles.experienceFooter]}>
+          {step === 6 ? (
+            <Pressable style={styles.experienceNextButton} onPress={goNext} accessibilityRole="button">
+              <View style={styles.experienceNextIcon}>
+                <Text style={styles.experienceNextArrow}>→</Text>
+              </View>
+              <Text style={styles.experienceNextText}>Next</Text>
+            </Pressable>
+          ) : (
+            <Pressable style={styles.primaryButton} onPress={goNext} accessibilityRole="button">
+              <Text style={styles.primaryButtonText}>{step === 0 ? 'Get started' : 'Next'}</Text>
+            </Pressable>
+          )}
           {step === 0 ? (
             <Pressable onPress={() => router.push('/(auth)/sign-in')} accessibilityRole="button">
               <Text style={styles.signInText}>
@@ -216,7 +231,6 @@ function renderStep(
           experienceError={experienceError}
           onSelectExperience={(value) => {
             setExperience(value);
-            useOnboardingStore.getState().setExperience(value);
             if (experienceError) setExperienceError('');
           }}
         />
@@ -378,9 +392,23 @@ function ExperienceStep({
   onSelectExperience: (experience: string) => void;
 }) {
   return (
-    <View style={styles.selectionStep}>
-      <Text style={styles.featureTitle}>How experienced{`\n`}are you?</Text>
-      <Text style={styles.featureSubtitle}>This helps us customize your setup and guidance.</Text>
+    <View style={styles.experienceStep}>
+      <View style={styles.experienceLogoRow}>
+        <Svg width={46} height={40} viewBox="0 0 46 40" fill="none">
+          <Rect x={3} y={12} width={7} height={24} rx={3.5} fill={PRIMARY} />
+          <Rect x={17} y={3} width={7} height={34} rx={3.5} fill={PRIMARY} />
+          <Rect x={31} y={10} width={7} height={26} rx={3.5} fill={PRIMARY} />
+          <Circle cx={42} cy={17} r={4} fill={PRIMARY} />
+        </Svg>
+        <Text style={styles.experienceLogoText}>PT-OS</Text>
+      </View>
+
+      <View style={styles.experienceHeaderCopy}>
+        <Text style={styles.experienceTitle}>How experienced</Text>
+        <Text style={styles.experienceTitleAccent}>are you?</Text>
+        <Text style={styles.experienceSubtitle}>This helps us customize your setup and guidance.</Text>
+      </View>
+
       <View style={styles.experienceList}>
         {EXPERIENCE_LEVELS.map((option) => {
           const selected = experience === option.id;
@@ -389,10 +417,13 @@ function ExperienceStep({
             <Pressable
               key={option.id}
               onPress={() => onSelectExperience(option.id)}
-              style={[styles.experienceCard, selected && styles.selectableCardSelected]}
-              accessibilityRole="button"
+              style={[styles.experienceCard, selected && styles.experienceCardSelected]}
+              accessibilityRole="radio"
+              accessibilityState={{ selected }}
             >
-              <View style={styles.radioCircle}>{selected ? <View style={styles.radioDot} /> : null}</View>
+              <View style={[styles.radioCircle, selected && styles.radioCircleSelected]}>
+                {selected ? <View style={styles.radioDot} /> : null}
+              </View>
               <View style={styles.experienceCopy}>
                 <Text style={styles.experienceLabel}>{option.label}</Text>
                 <Text style={styles.experienceDesc}>{option.desc}</Text>
@@ -402,6 +433,31 @@ function ExperienceStep({
         })}
       </View>
       {experienceError ? <Text style={styles.errorText}>{experienceError}</Text> : null}
+
+      <View style={styles.experienceInfoCard}>
+        <View style={styles.experienceInfoIconCircle}>
+          <Svg width={28} height={28} viewBox="0 0 28 28" fill="none">
+            <Path
+              d="M14 3.5L23 7.2V13.4C23 19.1 19.2 23.7 14 25.2C8.8 23.7 5 19.1 5 13.4V7.2L14 3.5Z"
+              stroke={PRIMARY}
+              strokeWidth={2.3}
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
+            <Path
+              d="M10 14.1L12.8 16.9L18.5 11.2"
+              stroke={PRIMARY}
+              strokeWidth={2.3}
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
+          </Svg>
+        </View>
+        <View style={styles.experienceInfoCopy}>
+          <Text style={styles.experienceInfoTitle}>We adapt to you.</Text>
+          <Text style={styles.experienceInfoText}>You can always update this later in your settings.</Text>
+        </View>
+      </View>
     </View>
   );
 }
@@ -421,9 +477,15 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: BACKGROUND,
   },
+  experienceSafeArea: {
+    backgroundColor: ONBOARDING_BACKGROUND,
+  },
   container: {
     flex: 1,
     paddingHorizontal: 24,
+  },
+  experienceContainer: {
+    paddingHorizontal: 32,
   },
   progressHeader: {
     alignItems: 'center',
@@ -433,18 +495,27 @@ const styles = StyleSheet.create({
   },
   backButton: {
     alignItems: 'center',
+    backgroundColor: CARD,
+    borderRadius: 22,
     height: 44,
     justifyContent: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.08,
+    shadowRadius: 18,
     width: 44,
+    elevation: 4,
   },
   backButtonPlaceholder: {
     height: 44,
     width: 44,
   },
   backButtonText: {
-    color: TEXT,
-    fontSize: 22,
+    color: PRIMARY,
+    fontSize: 38,
     fontWeight: '700',
+    lineHeight: 40,
+    marginTop: -2,
   },
   dots: {
     alignItems: 'center',
@@ -461,14 +532,30 @@ const styles = StyleSheet.create({
     backgroundColor: ACCENT,
     width: 24,
   },
+  experienceDot: {
+    backgroundColor: '#D1D5DB',
+    height: 8,
+    width: 8,
+  },
+  experienceDotActive: {
+    backgroundColor: PRIMARY,
+    width: 8,
+  },
   content: {
     flex: 1,
     justifyContent: 'center',
+  },
+  experienceContent: {
+    justifyContent: 'flex-start',
   },
   footer: {
     gap: 14,
     paddingBottom: 28,
     paddingTop: 16,
+  },
+  experienceFooter: {
+    paddingBottom: 28,
+    paddingTop: 12,
   },
   primaryButton: {
     alignItems: 'center',
@@ -762,50 +849,173 @@ const styles = StyleSheet.create({
     fontWeight: '900',
     lineHeight: 18,
   },
+  experienceStep: {
+    alignItems: 'center',
+    flex: 1,
+    paddingTop: 42,
+    width: '100%',
+  },
+  experienceLogoRow: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    gap: 13,
+    justifyContent: 'center',
+    marginBottom: 34,
+  },
+  experienceLogoText: {
+    color: PRIMARY,
+    fontSize: 28,
+    fontWeight: '900',
+    letterSpacing: 3,
+  },
+  experienceHeaderCopy: {
+    alignItems: 'center',
+    marginBottom: 24,
+    width: '100%',
+  },
+  experienceTitle: {
+    color: TEXT,
+    fontSize: 38,
+    fontWeight: '800',
+    letterSpacing: -0.9,
+    lineHeight: 42,
+    textAlign: 'center',
+  },
+  experienceTitleAccent: {
+    color: PRIMARY,
+    fontSize: 38,
+    fontWeight: '800',
+    letterSpacing: -0.9,
+    lineHeight: 42,
+    textAlign: 'center',
+  },
+  experienceSubtitle: {
+    color: TEXT_SECONDARY,
+    fontSize: 15,
+    lineHeight: 22,
+    marginTop: 16,
+    maxWidth: 270,
+    textAlign: 'center',
+  },
   experienceList: {
     gap: 12,
-    marginTop: 6,
     width: '100%',
   },
   experienceCard: {
-    alignItems: 'center',
+    alignItems: 'flex-start',
     backgroundColor: CARD,
-    borderColor: INPUT_BORDER,
-    borderRadius: 14,
-    borderWidth: 1.5,
+    borderColor: 'transparent',
+    borderRadius: 16,
+    borderWidth: 2,
     flexDirection: 'row',
-    gap: 14,
-    padding: 16,
+    gap: 16,
+    padding: 20,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.04,
+    shadowRadius: 10,
     width: '100%',
+    elevation: 2,
+  },
+  experienceCardSelected: {
+    backgroundColor: CARD,
+    borderColor: PRIMARY,
   },
   radioCircle: {
     alignItems: 'center',
-    borderColor: INPUT_BORDER,
-    borderRadius: 11,
-    borderWidth: 1.5,
-    height: 22,
+    borderColor: '#D1D5DB',
+    borderRadius: 12,
+    borderWidth: 2,
+    height: 24,
     justifyContent: 'center',
-    width: 22,
+    marginTop: 2,
+    width: 24,
+  },
+  radioCircleSelected: {
+    borderColor: PRIMARY,
   },
   radioDot: {
-    backgroundColor: ACCENT,
-    borderRadius: 5,
-    height: 10,
-    width: 10,
+    backgroundColor: PRIMARY,
+    borderRadius: 6,
+    height: 12,
+    width: 12,
   },
   experienceCopy: {
     flex: 1,
-    gap: 4,
   },
   experienceLabel: {
     color: TEXT,
     fontSize: 16,
-    fontWeight: '700',
+    fontWeight: '800',
   },
   experienceDesc: {
     color: TEXT_SECONDARY,
+    fontSize: 14,
+    lineHeight: 20,
+    marginTop: 4,
+  },
+  experienceInfoCard: {
+    alignItems: 'center',
+    backgroundColor: '#F9FAFB',
+    borderRadius: 16,
+    flexDirection: 'row',
+    gap: 14,
+    marginTop: 20,
+    padding: 16,
+    width: '100%',
+  },
+  experienceInfoIconCircle: {
+    alignItems: 'center',
+    backgroundColor: CARD,
+    borderRadius: 28,
+    height: 56,
+    justifyContent: 'center',
+    width: 56,
+  },
+  experienceInfoCopy: {
+    flex: 1,
+  },
+  experienceInfoTitle: {
+    color: TEXT,
+    fontSize: 14,
+    fontWeight: '800',
+  },
+  experienceInfoText: {
+    color: TEXT_SECONDARY,
     fontSize: 13,
-    lineHeight: 18,
+    lineHeight: 19,
+    marginTop: 3,
+  },
+  experienceNextButton: {
+    alignItems: 'center',
+    backgroundColor: PRIMARY,
+    borderRadius: 30,
+    flexDirection: 'row',
+    height: 60,
+    justifyContent: 'center',
+    position: 'relative',
+    width: '100%',
+  },
+  experienceNextIcon: {
+    alignItems: 'center',
+    backgroundColor: CARD,
+    borderRadius: 24,
+    height: 48,
+    justifyContent: 'center',
+    left: 6,
+    position: 'absolute',
+    width: 48,
+  },
+  experienceNextArrow: {
+    color: PRIMARY,
+    fontSize: 30,
+    fontWeight: '700',
+    lineHeight: 32,
+  },
+  experienceNextText: {
+    color: CARD,
+    fontSize: 20,
+    fontWeight: '500',
   },
   nameInput: {
     backgroundColor: CARD,
