@@ -11,10 +11,11 @@ import {
   TextInput,
   View,
 } from 'react-native';
-import Svg, { Rect } from 'react-native-svg';
+import { LinearGradient } from 'expo-linear-gradient';
+import Svg, { Circle, Path, Rect } from 'react-native-svg';
 
-const ACCENT = '#2563EB';
-const BACKGROUND = '#FFFFFF';
+const ACCENT = '#1B4332';
+const BACKGROUND = '#F8F8F6';
 const TEXT = '#0A0A0F';
 const TEXT_SECONDARY = '#6B7280';
 const TEXT_TERTIARY = '#9CA3AF';
@@ -22,6 +23,8 @@ const BORDER = '#F3F4F6';
 const INPUT_BORDER = '#E5E7EB';
 const CARD = '#FFFFFF';
 const TOTAL_STEPS = 7;
+const SHOWCASE_DOTS = 5;
+const FEATURE_TRACK_STEP = 1;
 
 const GOALS = ['Fat loss', 'Recovery', 'Muscle gain', 'Sleep', 'Energy', 'Longevity', 'Research', 'Custom'];
 
@@ -108,22 +111,22 @@ export default function OnboardingScreen() {
         <View style={styles.progressHeader}>
           {step > 0 ? (
             <Pressable onPress={goBack} style={styles.backButton} accessibilityRole="button">
-              <Text style={styles.backButtonText}>←</Text>
+              <Text style={styles.backButtonText}>‹</Text>
             </Pressable>
           ) : (
             <View style={styles.backButtonPlaceholder} />
           )}
 
           <View style={styles.dots}>
-            {Array.from({ length: TOTAL_STEPS }, (_, dot) => dot).map((dot) => (
-              <View key={dot} style={[styles.dot, dot === step && styles.dotActive]} />
+            {Array.from({ length: SHOWCASE_DOTS }, (_, dot) => dot).map((dot) => (
+              <View key={dot} style={[styles.dot, dot === Math.min(step, SHOWCASE_DOTS - 1) && styles.dotActive]} />
             ))}
           </View>
 
           <View style={styles.backButtonPlaceholder} />
         </View>
 
-        <View style={styles.content}>
+        <View style={[styles.content, step === FEATURE_TRACK_STEP && styles.trackDoseContent]}>
           {renderStep(
             step,
             name,
@@ -141,10 +144,20 @@ export default function OnboardingScreen() {
           )}
         </View>
 
-        <View style={styles.footer}>
-          <Pressable style={styles.primaryButton} onPress={goNext} accessibilityRole="button">
-            <Text style={styles.primaryButtonText}>{step === 0 ? 'Get started' : 'Next'}</Text>
-          </Pressable>
+        <View style={[styles.footer, step === FEATURE_TRACK_STEP && styles.trackDoseFooter]}>
+          {step === FEATURE_TRACK_STEP ? (
+            <Pressable style={styles.trackNextButton} onPress={goNext} accessibilityRole="button">
+              <View style={styles.trackNextIcon}>
+                <Text style={styles.trackNextArrow}>→</Text>
+              </View>
+              <Text style={styles.trackNextText}>Next</Text>
+              <View style={styles.trackNextSpacer} />
+            </Pressable>
+          ) : (
+            <Pressable style={styles.primaryButton} onPress={goNext} accessibilityRole="button">
+              <Text style={styles.primaryButtonText}>{step === 0 ? 'Get started' : 'Next'}</Text>
+            </Pressable>
+          )}
           {step === 0 ? (
             <Pressable onPress={() => router.push('/(auth)/sign-in')} accessibilityRole="button">
               <Text style={styles.signInText}>
@@ -230,11 +243,7 @@ function WelcomeStep() {
   return (
     <View style={styles.welcomeStep}>
       <View style={styles.logoRow}>
-        <Svg width={25} height={22} viewBox="0 0 25 22" fill="none">
-          <Rect x={2} y={8} width={4} height={12} rx={2} fill={ACCENT} />
-          <Rect x={9} y={2} width={4} height={18} rx={2} fill={ACCENT} />
-          <Rect x={16} y={6} width={4} height={14} rx={2} fill={ACCENT} />
-        </Svg>
+        <BarLogo />
         <Text style={styles.logoText}>PT-OS</Text>
       </View>
       <Text style={styles.heroEyebrow}>Your peptide operating system</Text>
@@ -246,19 +255,91 @@ function WelcomeStep() {
 
 function TrackDoseStep() {
   return (
-    <FeatureShell title="Track every dose." subtitle="Track protocols, log doses, and stay consistent.">
-      <View style={[styles.premiumCard, styles.scheduleCard]}>
-        {SCHEDULE_ROWS.map((row, index) => (
-          <View
-            key={row.compound}
-            style={[styles.scheduleRow, index === SCHEDULE_ROWS.length - 1 && styles.scheduleRowLast]}
-          >
-            <Text style={styles.scheduleCompound}>{row.compound}</Text>
-            <Text style={styles.scheduleTime}>{row.time}</Text>
-          </View>
-        ))}
+    <View style={styles.trackDoseStep}>
+      <View style={styles.protocolCardsSection}>
+        <ProtocolCard compound="BPC-157" detail="500 mcg  •  8:00 AM" rotate="-3deg" />
+        <ProtocolCard compound="TB-500" detail="2 mg  •  12:00 PM" rotate="-3deg" />
+        <ProtocolCard compound="Retatrutide" detail="4 mg  •  9:00 PM" logged rotate="-4deg" />
       </View>
-    </FeatureShell>
+
+      <View style={styles.trackHeroSection}>
+        <View style={styles.santoriniFallback}>
+          <LinearGradient
+            colors={[BACKGROUND, 'rgba(248, 248, 246, 0.82)', 'rgba(232, 240, 238, 0.28)', '#F8F8F6']}
+            locations={[0, 0.24, 0.55, 1]}
+            style={StyleSheet.absoluteFill}
+          />
+          <View style={styles.seaHorizon} />
+          <View style={styles.islandLeft} />
+          <View style={styles.islandRight} />
+          <View style={styles.terrace} />
+          <View style={styles.villaBlockTall} />
+          <View style={styles.villaBlockShort} />
+        </View>
+
+        <View style={styles.trackHeroCopy}>
+          <View style={styles.trackLogoRow}>
+            <BarLogo size={32} />
+            <Text style={styles.trackLogoText}>PT-OS</Text>
+          </View>
+          <Text style={styles.trackHeroTitle}>
+            <Text style={styles.trackHeroTitleDark}>Track your{`\n`}</Text>
+            <Text style={styles.trackHeroTitleGreen}>protocols</Text>
+          </Text>
+          <Text style={styles.trackHeroSubtitle}>Log injections, set schedules, and never miss a dose again.</Text>
+        </View>
+      </View>
+    </View>
+  );
+}
+
+function ProtocolCard({
+  compound,
+  detail,
+  logged = false,
+  rotate,
+}: {
+  compound: string;
+  detail: string;
+  logged?: boolean;
+  rotate: string;
+}) {
+  return (
+    <View style={[styles.protocolCard, { transform: [{ rotate }] }]}>
+      <View style={[styles.protocolIconRing, logged && styles.protocolIconRingLogged]}>
+        <View style={[styles.protocolIconCircle, logged && styles.protocolIconCircleLogged]}>
+          {logged ? <Text style={styles.protocolCheck}>✓</Text> : <ClockIcon />}
+        </View>
+      </View>
+      <View style={styles.protocolCopy}>
+        <Text style={styles.protocolCompound}>{compound}</Text>
+        <Text style={styles.protocolDetail}>{detail}</Text>
+      </View>
+      <View style={[styles.protocolStatusPill, logged && styles.protocolStatusPillLogged]}>
+        <Text style={[styles.protocolStatusText, logged && styles.protocolStatusTextLogged]}>
+          {logged ? 'Logged' : 'Log Dose'}
+        </Text>
+      </View>
+    </View>
+  );
+}
+
+function ClockIcon() {
+  return (
+    <Svg width={25} height={25} viewBox="0 0 25 25" fill="none">
+      <Circle cx={12.5} cy={12.5} r={9} stroke={ACCENT} strokeWidth={2.6} />
+      <Path d="M12.5 7.2v5.8l4 2.4" stroke={ACCENT} strokeWidth={2.6} strokeLinecap="round" strokeLinejoin="round" />
+    </Svg>
+  );
+}
+
+function BarLogo({ size = 25 }: { size?: number }) {
+  return (
+    <Svg width={size} height={size} viewBox="0 0 25 25" fill="none">
+      <Rect x={2} y={10} width={4} height={12} rx={2} fill={ACCENT} />
+      <Rect x={10} y={3} width={4} height={19} rx={2} fill={ACCENT} />
+      <Rect x={18} y={8} width={4} height={14} rx={2} fill={ACCENT} />
+    </Svg>
   );
 }
 
@@ -429,12 +510,22 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     flexDirection: 'row',
     justifyContent: 'space-between',
+    minHeight: 58,
     paddingTop: 12,
+    position: 'relative',
+    zIndex: 3,
   },
   backButton: {
     alignItems: 'center',
+    backgroundColor: CARD,
+    borderRadius: 22,
     height: 44,
     justifyContent: 'center',
+    shadowColor: '#0F172A',
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.08,
+    shadowRadius: 18,
+    elevation: 4,
     width: 44,
   },
   backButtonPlaceholder: {
@@ -442,24 +533,30 @@ const styles = StyleSheet.create({
     width: 44,
   },
   backButtonText: {
-    color: TEXT,
-    fontSize: 22,
-    fontWeight: '700',
+    color: ACCENT,
+    fontSize: 42,
+    fontWeight: '500',
+    lineHeight: 42,
+    marginTop: -3,
   },
   dots: {
     alignItems: 'center',
     flexDirection: 'row',
-    gap: 8,
+    gap: 16,
+    left: 0,
+    justifyContent: 'center',
+    position: 'absolute',
+    right: 0,
+    top: 30,
   },
   dot: {
     backgroundColor: '#D1D5DB',
-    borderRadius: 4,
-    height: 8,
-    width: 8,
+    borderRadius: 5,
+    height: 10,
+    width: 10,
   },
   dotActive: {
     backgroundColor: ACCENT,
-    width: 24,
   },
   content: {
     flex: 1,
@@ -534,6 +631,247 @@ const styles = StyleSheet.create({
     lineHeight: 25,
     maxWidth: 310,
     textAlign: 'center',
+  },
+
+  trackDoseContent: {
+    justifyContent: 'flex-start',
+    marginHorizontal: -24,
+  },
+  trackDoseStep: {
+    flex: 1,
+  },
+  protocolCardsSection: {
+    gap: 16,
+    paddingHorizontal: 34,
+    paddingTop: 42,
+    zIndex: 2,
+  },
+  protocolCard: {
+    alignItems: 'center',
+    backgroundColor: CARD,
+    borderRadius: 16,
+    flexDirection: 'row',
+    gap: 15,
+    minHeight: 92,
+    paddingHorizontal: 20,
+    shadowColor: '#0F172A',
+    shadowOffset: { width: 0, height: 16 },
+    shadowOpacity: 0.1,
+    shadowRadius: 24,
+    elevation: 6,
+    width: '100%',
+  },
+  protocolIconRing: {
+    alignItems: 'center',
+    backgroundColor: '#E8EFEC',
+    borderRadius: 30,
+    height: 60,
+    justifyContent: 'center',
+    width: 60,
+  },
+  protocolIconRingLogged: {
+    backgroundColor: '#DFE9E4',
+  },
+  protocolIconCircle: {
+    alignItems: 'center',
+    backgroundColor: CARD,
+    borderRadius: 23,
+    height: 46,
+    justifyContent: 'center',
+    width: 46,
+  },
+  protocolIconCircleLogged: {
+    backgroundColor: ACCENT,
+  },
+  protocolCheck: {
+    color: CARD,
+    fontSize: 34,
+    fontWeight: '500',
+    lineHeight: 38,
+  },
+  protocolCopy: {
+    flex: 1,
+    gap: 5,
+  },
+  protocolCompound: {
+    color: '#080F22',
+    fontSize: 24,
+    fontWeight: '800',
+    letterSpacing: -0.6,
+  },
+  protocolDetail: {
+    color: TEXT_SECONDARY,
+    fontSize: 17,
+    fontWeight: '500',
+  },
+  protocolStatusPill: {
+    alignItems: 'center',
+    backgroundColor: ACCENT,
+    borderRadius: 18,
+    height: 50,
+    justifyContent: 'center',
+    minWidth: 118,
+    paddingHorizontal: 19,
+  },
+  protocolStatusPillLogged: {
+    backgroundColor: '#D1FAE5',
+  },
+  protocolStatusText: {
+    color: CARD,
+    fontSize: 16,
+    fontWeight: '700',
+  },
+  protocolStatusTextLogged: {
+    color: ACCENT,
+  },
+  trackHeroSection: {
+    flex: 1,
+    marginTop: -12,
+    minHeight: 360,
+    overflow: 'hidden',
+  },
+  santoriniFallback: {
+    backgroundColor: '#E8F0EE',
+    height: 360,
+    left: 0,
+    overflow: 'hidden',
+    position: 'absolute',
+    right: 0,
+    top: 0,
+  },
+  seaHorizon: {
+    backgroundColor: '#B9D7EA',
+    height: 142,
+    left: 0,
+    opacity: 0.75,
+    position: 'absolute',
+    right: 0,
+    top: 154,
+  },
+  islandLeft: {
+    backgroundColor: '#9AB8C9',
+    borderTopLeftRadius: 90,
+    borderTopRightRadius: 120,
+    height: 40,
+    left: 28,
+    opacity: 0.45,
+    position: 'absolute',
+    top: 218,
+    width: 132,
+  },
+  islandRight: {
+    backgroundColor: '#7D9CAA',
+    borderTopLeftRadius: 150,
+    borderTopRightRadius: 120,
+    height: 62,
+    opacity: 0.48,
+    position: 'absolute',
+    right: 8,
+    top: 190,
+    width: 178,
+  },
+  terrace: {
+    backgroundColor: 'rgba(255,255,255,0.92)',
+    bottom: 0,
+    height: 98,
+    left: -18,
+    position: 'absolute',
+    right: -18,
+    transform: [{ rotate: '-4deg' }],
+  },
+  villaBlockTall: {
+    backgroundColor: 'rgba(255,255,255,0.96)',
+    borderRadius: 4,
+    height: 98,
+    position: 'absolute',
+    right: 0,
+    top: 160,
+    width: 56,
+  },
+  villaBlockShort: {
+    backgroundColor: 'rgba(255,255,255,0.96)',
+    borderRadius: 4,
+    height: 68,
+    position: 'absolute',
+    right: 46,
+    top: 204,
+    width: 48,
+  },
+  trackHeroCopy: {
+    alignItems: 'center',
+    paddingHorizontal: 28,
+    paddingTop: 230,
+  },
+  trackLogoRow: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    gap: 14,
+    justifyContent: 'center',
+    marginBottom: 26,
+  },
+  trackLogoText: {
+    color: ACCENT,
+    fontSize: 27,
+    fontWeight: '900',
+    letterSpacing: 4,
+  },
+  trackHeroTitle: {
+    fontSize: 44,
+    fontWeight: '800',
+    letterSpacing: -1.25,
+    lineHeight: 47,
+    textAlign: 'center',
+  },
+  trackHeroTitleDark: {
+    color: TEXT,
+  },
+  trackHeroTitleGreen: {
+    color: ACCENT,
+  },
+  trackHeroSubtitle: {
+    color: TEXT_SECONDARY,
+    fontSize: 15,
+    lineHeight: 22,
+    marginTop: 14,
+    maxWidth: 305,
+    textAlign: 'center',
+  },
+  trackDoseFooter: {
+    paddingTop: 10,
+  },
+  trackNextButton: {
+    alignItems: 'center',
+    backgroundColor: ACCENT,
+    borderRadius: 30,
+    flexDirection: 'row',
+    height: 60,
+    paddingHorizontal: 8,
+    width: '100%',
+  },
+  trackNextIcon: {
+    alignItems: 'center',
+    backgroundColor: CARD,
+    borderRadius: 22,
+    height: 44,
+    justifyContent: 'center',
+    width: 44,
+  },
+  trackNextArrow: {
+    color: ACCENT,
+    fontSize: 32,
+    fontWeight: '500',
+    lineHeight: 34,
+  },
+  trackNextText: {
+    color: CARD,
+    flex: 1,
+    fontSize: 22,
+    fontWeight: '600',
+    marginLeft: 44,
+    textAlign: 'center',
+  },
+  trackNextSpacer: {
+    width: 44,
   },
   featureStep: {
     alignItems: 'center',
