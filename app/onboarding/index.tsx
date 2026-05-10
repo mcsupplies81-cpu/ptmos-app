@@ -11,10 +11,12 @@ import {
   TextInput,
   View,
 } from 'react-native';
-import Svg, { Rect } from 'react-native-svg';
+import Svg, { Circle, Path, Rect } from 'react-native-svg';
 
 const ACCENT = '#2563EB';
+const COPILOT_GREEN = '#1B4332';
 const BACKGROUND = '#FFFFFF';
+const ONBOARDING_BG = '#F8F8F6';
 const TEXT = '#0A0A0F';
 const TEXT_SECONDARY = '#6B7280';
 const TEXT_TERTIARY = '#9CA3AF';
@@ -22,6 +24,8 @@ const BORDER = '#F3F4F6';
 const INPUT_BORDER = '#E5E7EB';
 const CARD = '#FFFFFF';
 const TOTAL_STEPS = 7;
+const COPILOT_STEP = 3;
+const COPILOT_DOTS = 4;
 
 const GOALS = ['Fat loss', 'Recovery', 'Muscle gain', 'Sleep', 'Energy', 'Longevity', 'Research', 'Custom'];
 
@@ -100,23 +104,37 @@ export default function OnboardingScreen() {
   };
 
   return (
-    <SafeAreaView style={styles.safeArea}>
+    <SafeAreaView style={[styles.safeArea, step === COPILOT_STEP && styles.copilotSafeArea]}>
       <KeyboardAvoidingView
         style={styles.container}
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       >
         <View style={styles.progressHeader}>
           {step > 0 ? (
-            <Pressable onPress={goBack} style={styles.backButton} accessibilityRole="button">
-              <Text style={styles.backButtonText}>←</Text>
+            <Pressable
+              onPress={goBack}
+              style={[styles.backButton, step === COPILOT_STEP && styles.copilotBackButton]}
+              accessibilityRole="button"
+            >
+              <Text style={[styles.backButtonText, step === COPILOT_STEP && styles.copilotBackButtonText]}>
+                {step === COPILOT_STEP ? '‹' : '←'}
+              </Text>
             </Pressable>
           ) : (
             <View style={styles.backButtonPlaceholder} />
           )}
 
           <View style={styles.dots}>
-            {Array.from({ length: TOTAL_STEPS }, (_, dot) => dot).map((dot) => (
-              <View key={dot} style={[styles.dot, dot === step && styles.dotActive]} />
+            {Array.from({ length: step === COPILOT_STEP ? COPILOT_DOTS : TOTAL_STEPS }, (_, dot) => dot).map((dot) => (
+              <View
+                key={dot}
+                style={[
+                  styles.dot,
+                  dot === (step === COPILOT_STEP ? COPILOT_DOTS - 1 : step) && styles.dotActive,
+                  step === COPILOT_STEP && styles.copilotDot,
+                  step === COPILOT_STEP && dot === COPILOT_DOTS - 1 && styles.copilotDotActive,
+                ]}
+              />
             ))}
           </View>
 
@@ -142,8 +160,15 @@ export default function OnboardingScreen() {
         </View>
 
         <View style={styles.footer}>
-          <Pressable style={styles.primaryButton} onPress={goNext} accessibilityRole="button">
-            <Text style={styles.primaryButtonText}>{step === 0 ? 'Get started' : 'Next'}</Text>
+          <Pressable
+            style={[styles.primaryButton, step === COPILOT_STEP && styles.copilotNextButton]}
+            onPress={goNext}
+            accessibilityRole="button"
+          >
+            {step === COPILOT_STEP ? <View style={styles.nextArrowCircle}><Text style={styles.nextArrowText}>→</Text></View> : null}
+            <Text style={[styles.primaryButtonText, step === COPILOT_STEP && styles.copilotNextButtonText]}>
+              {step === 0 ? 'Get started' : 'Next'}
+            </Text>
           </Pressable>
           {step === 0 ? (
             <Pressable onPress={() => router.push('/(auth)/sign-in')} accessibilityRole="button">
@@ -282,21 +307,111 @@ function VisualizeDoseStep() {
 }
 
 function ReminderStep() {
+  const detailRows = [
+    { label: 'Peptide', value: 'BPC-157' },
+    { label: 'Dose', value: '300 mcg' },
+    { label: 'Route', value: 'Injection (SubQ)' },
+    { label: 'Site', value: 'Right Arm' },
+    { label: 'Time', value: 'Today 9:41 AM' },
+  ];
+
   return (
-    <FeatureShell title="Chat with your peptide copilot" subtitle="Ask questions, log actions, and get guided support in natural language.">
+    <View style={styles.copilotStep}>
+      <View style={styles.mediterraneanBackground} />
+      <View style={styles.copilotLogoBlock}>
+        <View style={styles.logoRow}>
+          <BarChartLogo color={COPILOT_GREEN} />
+          <Text style={[styles.logoText, styles.copilotLogoText]}>PT-OS</Text>
+        </View>
+        <Text style={styles.copilotTitle}>
+          Chat with your{`
+`}
+          <Text style={styles.copilotTitleAccent}>peptide copilot</Text>
+        </Text>
+        <Text style={styles.copilotSubtitle}>
+          Ask questions, log actions, and get guided support in natural language.
+        </Text>
+      </View>
+
       <View style={[styles.premiumCard, styles.copilotCard]}>
         <View style={styles.chatBubbleUser}>
           <Text style={styles.chatBubbleUserText}>I just took 300 mcg BPC in my right arm.</Text>
         </View>
-        <View style={styles.chatBubbleAssistant}>
-          <Text style={styles.chatBubbleAssistantTitle}>Got it — here's what I'll log:</Text>
-          <Text style={styles.chatBubbleAssistantText}>Peptide BPC-157 · Dose 300 mcg · Site Right Arm</Text>
+
+        <View style={styles.aiRow}>
+          <BarChartLogo color={COPILOT_GREEN} size="small" />
+          <Text style={styles.aiRowText}>Got it — here's what I'll log.</Text>
         </View>
+
+        <View style={styles.logDetailCard}>
+          <View style={styles.logDetailHeader}>
+            <View style={styles.vialPlaceholder} />
+            <Text style={styles.logPeptideName}>BPC-157</Text>
+          </View>
+
+          {detailRows.map((row, index) => (
+            <View
+              key={row.label}
+              style={[styles.logDetailRow, index < detailRows.length - 1 && styles.logDetailRowDivider]}
+            >
+              <DetailRowIcon />
+              <Text style={styles.logDetailLabel}>{row.label}</Text>
+              <Text style={styles.logDetailValue}>{row.value}</Text>
+            </View>
+          ))}
+        </View>
+
         <View style={styles.confirmButton}>
           <Text style={styles.confirmButtonText}>Confirm & Log</Text>
         </View>
+
+        <View style={styles.fakeInputBar}>
+          <Text style={styles.fakeInputPlaceholder}>Ask anything or log a dose...</Text>
+          <View style={styles.sendButton}>
+            <Text style={styles.sendButtonText}>↑</Text>
+          </View>
+        </View>
       </View>
-    </FeatureShell>
+
+      <View style={styles.privacyCard}>
+        <ShieldCheckIcon />
+        <View style={styles.privacyCopy}>
+          <Text style={styles.privacyTitle}>Your data stays private</Text>
+          <Text style={styles.privacyBody}>Encrypted health logs stay under your control and are never shared without permission.</Text>
+        </View>
+      </View>
+    </View>
+  );
+}
+
+function BarChartLogo({ color, size = 'regular' }: { color: string; size?: 'regular' | 'small' }) {
+  const width = size === 'small' ? 19 : 25;
+  const height = size === 'small' ? 17 : 22;
+
+  return (
+    <Svg width={width} height={height} viewBox="0 0 25 22" fill="none">
+      <Rect x={2} y={8} width={4} height={12} rx={2} fill={color} />
+      <Rect x={9} y={2} width={4} height={18} rx={2} fill={color} />
+      <Rect x={16} y={6} width={4} height={14} rx={2} fill={color} />
+    </Svg>
+  );
+}
+
+function DetailRowIcon() {
+  return (
+    <Svg width={16} height={16} viewBox="0 0 16 16" fill="none">
+      <Circle cx={8} cy={8} r={7} fill={COPILOT_GREEN} />
+      <Path d="M5 8.2 7.1 10.3 11.2 5.9" stroke="#FFFFFF" strokeWidth={1.6} strokeLinecap="round" strokeLinejoin="round" />
+    </Svg>
+  );
+}
+
+function ShieldCheckIcon() {
+  return (
+    <Svg width={28} height={28} viewBox="0 0 28 28" fill="none">
+      <Path d="M14 3.5 23 7.3v6.6c0 5.4-3.7 9.2-9 10.6-5.3-1.4-9-5.2-9-10.6V7.3l9-3.8Z" fill={COPILOT_GREEN} />
+      <Path d="M9.4 14.2 12.5 17.3 18.8 10.8" stroke="#FFFFFF" strokeWidth={2.1} strokeLinecap="round" strokeLinejoin="round" />
+    </Svg>
   );
 }
 
@@ -421,6 +536,9 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: BACKGROUND,
   },
+  copilotSafeArea: {
+    backgroundColor: ONBOARDING_BG,
+  },
   container: {
     flex: 1,
     paddingHorizontal: 24,
@@ -437,6 +555,15 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     width: 44,
   },
+  copilotBackButton: {
+    backgroundColor: CARD,
+    borderRadius: 22,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.06,
+    shadowRadius: 8,
+    elevation: 2,
+  },
   backButtonPlaceholder: {
     height: 44,
     width: 44,
@@ -445,6 +572,12 @@ const styles = StyleSheet.create({
     color: TEXT,
     fontSize: 22,
     fontWeight: '700',
+  },
+  copilotBackButtonText: {
+    color: COPILOT_GREEN,
+    fontSize: 32,
+    fontWeight: '800',
+    lineHeight: 34,
   },
   dots: {
     alignItems: 'center',
@@ -460,6 +593,14 @@ const styles = StyleSheet.create({
   dotActive: {
     backgroundColor: ACCENT,
     width: 24,
+  },
+  copilotDot: {
+    backgroundColor: '#D1D5DB',
+    width: 8,
+  },
+  copilotDotActive: {
+    backgroundColor: COPILOT_GREEN,
+    width: 8,
   },
   content: {
     flex: 1,
@@ -478,10 +619,36 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     width: '100%',
   },
+  copilotNextButton: {
+    backgroundColor: COPILOT_GREEN,
+    borderRadius: 28,
+    flexDirection: 'row',
+    position: 'relative',
+  },
+  nextArrowCircle: {
+    alignItems: 'center',
+    backgroundColor: CARD,
+    borderRadius: 20,
+    height: 40,
+    justifyContent: 'center',
+    left: 8,
+    position: 'absolute',
+    width: 40,
+  },
   primaryButtonText: {
     color: CARD,
     fontSize: 17,
     fontWeight: '700',
+  },
+  copilotNextButtonText: {
+    fontSize: 18,
+    fontWeight: '800',
+  },
+  nextArrowText: {
+    color: COPILOT_GREEN,
+    fontSize: 22,
+    fontWeight: '900',
+    lineHeight: 24,
   },
   signInText: {
     color: TEXT_SECONDARY,
@@ -663,53 +830,186 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '600',
   },
+  copilotStep: {
+    alignItems: 'center',
+    gap: 16,
+  },
+  mediterraneanBackground: {
+    backgroundColor: '#E8F0EE',
+    borderBottomLeftRadius: 32,
+    borderBottomRightRadius: 32,
+    height: 210,
+    left: -24,
+    position: 'absolute',
+    right: -24,
+    top: -28,
+  },
+  copilotLogoBlock: {
+    alignItems: 'center',
+    gap: 10,
+    paddingTop: 4,
+  },
+  copilotLogoText: {
+    color: COPILOT_GREEN,
+  },
+  copilotTitle: {
+    color: TEXT,
+    fontSize: 40,
+    fontWeight: '800',
+    letterSpacing: -1,
+    lineHeight: 43,
+    textAlign: 'center',
+  },
+  copilotTitleAccent: {
+    color: COPILOT_GREEN,
+  },
+  copilotSubtitle: {
+    color: TEXT_SECONDARY,
+    fontSize: 15,
+    lineHeight: 22,
+    maxWidth: 320,
+    textAlign: 'center',
+  },
   copilotCard: {
+    borderRadius: 20,
     gap: 12,
-    padding: 18,
+    padding: 20,
     width: '100%',
   },
   chatBubbleUser: {
     alignSelf: 'flex-end',
-    backgroundColor: '#065F46',
-    borderRadius: 14,
-    maxWidth: '82%',
-    padding: 12,
+    backgroundColor: COPILOT_GREEN,
+    borderRadius: 999,
+    maxWidth: '88%',
+    paddingHorizontal: 14,
+    paddingVertical: 11,
   },
   chatBubbleUserText: {
     color: CARD,
-    fontSize: 13,
-    fontWeight: '600',
-    lineHeight: 18,
+    fontSize: 12,
+    fontWeight: '700',
+    lineHeight: 17,
   },
-  chatBubbleAssistant: {
-    backgroundColor: '#F8FAFC',
+  aiRow: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    gap: 8,
+  },
+  aiRowText: {
+    color: TEXT,
+    fontSize: 14,
+    fontWeight: '800',
+  },
+  logDetailCard: {
     borderColor: INPUT_BORDER,
     borderRadius: 14,
     borderWidth: 1,
-    gap: 6,
-    padding: 12,
+    padding: 14,
   },
-  chatBubbleAssistantTitle: {
+  logDetailHeader: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    gap: 12,
+    marginBottom: 8,
+  },
+  vialPlaceholder: {
+    backgroundColor: '#D1D5DB',
+    borderRadius: 6,
+    height: 44,
+    width: 30,
+  },
+  logPeptideName: {
+    color: COPILOT_GREEN,
+    fontSize: 17,
+    fontWeight: '800',
+  },
+  logDetailRow: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    gap: 10,
+    minHeight: 34,
+  },
+  logDetailRowDivider: {
+    borderBottomColor: INPUT_BORDER,
+    borderBottomWidth: 1,
+  },
+  logDetailLabel: {
+    color: TEXT_SECONDARY,
+    flex: 1,
+    fontSize: 13,
+    fontWeight: '700',
+  },
+  logDetailValue: {
     color: TEXT,
     fontSize: 13,
     fontWeight: '800',
-  },
-  chatBubbleAssistantText: {
-    color: TEXT_SECONDARY,
-    fontSize: 12,
-    lineHeight: 17,
+    textAlign: 'right',
   },
   confirmButton: {
     alignItems: 'center',
-    backgroundColor: '#065F46',
+    backgroundColor: COPILOT_GREEN,
     borderRadius: 10,
-    height: 42,
+    height: 44,
     justifyContent: 'center',
+    width: '100%',
   },
   confirmButtonText: {
     color: CARD,
-    fontSize: 13,
+    fontSize: 14,
     fontWeight: '800',
+  },
+  fakeInputBar: {
+    alignItems: 'center',
+    backgroundColor: BORDER,
+    borderRadius: 14,
+    flexDirection: 'row',
+    height: 48,
+    justifyContent: 'space-between',
+    paddingLeft: 14,
+    paddingRight: 6,
+  },
+  fakeInputPlaceholder: {
+    color: TEXT_SECONDARY,
+    fontSize: 13,
+    fontWeight: '600',
+  },
+  sendButton: {
+    alignItems: 'center',
+    backgroundColor: COPILOT_GREEN,
+    borderRadius: 18,
+    height: 36,
+    justifyContent: 'center',
+    width: 36,
+  },
+  sendButtonText: {
+    color: CARD,
+    fontSize: 18,
+    fontWeight: '900',
+    lineHeight: 20,
+  },
+  privacyCard: {
+    alignItems: 'center',
+    backgroundColor: '#F9FAFB',
+    borderRadius: 18,
+    flexDirection: 'row',
+    gap: 12,
+    padding: 16,
+    width: '100%',
+  },
+  privacyCopy: {
+    flex: 1,
+    gap: 3,
+  },
+  privacyTitle: {
+    color: TEXT,
+    fontSize: 15,
+    fontWeight: '800',
+  },
+  privacyBody: {
+    color: TEXT_SECONDARY,
+    fontSize: 12,
+    fontWeight: '600',
+    lineHeight: 17,
   },
   nameStep: {
     alignItems: 'center',
