@@ -1,14 +1,14 @@
-import { Stack, useRouter, useSegments } from 'expo-router';
-import { useEffect, useRef } from 'react';
-import { supabase } from '@/lib/supabase';
-import { useAuthStore } from '@/stores/authStore';
-import { useProfileStore } from '@/stores/profileStore';
-import { useSubscriptionStore } from '@/stores/subscriptionStore';
-import { initPurchases } from '@/lib/purchases';
-import { scheduleDoseReminders } from '@/lib/notifications';
-import { useProtocolStore } from '@/stores/protocolStore';
-import ErrorBoundary from '@/components/ErrorBoundary';
-import OfflineBanner from '@/components/OfflineBanner';
+import { Stack, useRouter, useSegments } from "expo-router";
+import { useEffect, useRef } from "react";
+import { supabase } from "@/lib/supabase";
+import { useAuthStore } from "@/stores/authStore";
+import { useProfileStore } from "@/stores/profileStore";
+import { useSubscriptionStore } from "@/stores/subscriptionStore";
+import { initPurchases } from "@/lib/purchases";
+import { scheduleDoseReminders } from "@/lib/notifications";
+import { useProtocolStore } from "@/stores/protocolStore";
+import ErrorBoundary from "@/components/ErrorBoundary";
+import OfflineBanner from "@/components/OfflineBanner";
 
 export default function RootLayout() {
   const router = useRouter();
@@ -26,7 +26,9 @@ export default function RootLayout() {
       setLoading(false);
     });
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((_event, session) => {
       setSession(session);
     });
 
@@ -44,17 +46,25 @@ export default function RootLayout() {
     // Don't redirect until we know auth state
     if (loading) return;
 
-    const inAuth = segments[0] === '(auth)';
-    const inOnboarding = segments[0] === 'onboarding';
+    const inAuth = segments[0] === "(auth)";
+    const inOnboarding = segments[0] === "onboarding";
 
     if (!session) {
-      if (!inAuth && !inOnboarding) router.replace('/(auth)/welcome');
+      if (!inAuth && !inOnboarding) router.replace("/onboarding");
       return;
     }
 
-    // Onboarding gates removed for beta — route all authed users straight to tabs
+    if (
+      profile?.onboarding_complete &&
+      (inAuth || inOnboarding || segments.length === 0)
+    ) {
+      router.replace("/(tabs)");
+      return;
+    }
+
+    // Onboarding gates removed for beta — route all authed users straight to tabs from auth screens
     if (inAuth) {
-      router.replace('/(tabs)');
+      router.replace("/(tabs)");
     }
   }, [loading, session, profile, segments]);
 
@@ -79,12 +89,30 @@ export default function RootLayout() {
       <ErrorBoundary>
         <Stack screenOptions={{ headerShown: false }}>
           <Stack.Screen name="onboarding" options={{ headerShown: false }} />
-          <Stack.Screen name="log/sleep" options={{ presentation: 'modal', animation: 'slide_from_bottom' }} />
-          <Stack.Screen name="log/water" options={{ presentation: 'modal', animation: 'slide_from_bottom' }} />
-          <Stack.Screen name="log/workout" options={{ presentation: 'modal', animation: 'slide_from_bottom' }} />
-          <Stack.Screen name="providers/index" options={{ headerShown: false }} />
-          <Stack.Screen name="providers/[id]" options={{ headerShown: false }} />
-          <Stack.Screen name="paywall" options={{ presentation: 'modal', animation: 'slide_from_bottom' }} />
+          <Stack.Screen
+            name="log/sleep"
+            options={{ presentation: "modal", animation: "slide_from_bottom" }}
+          />
+          <Stack.Screen
+            name="log/water"
+            options={{ presentation: "modal", animation: "slide_from_bottom" }}
+          />
+          <Stack.Screen
+            name="log/workout"
+            options={{ presentation: "modal", animation: "slide_from_bottom" }}
+          />
+          <Stack.Screen
+            name="providers/index"
+            options={{ headerShown: false }}
+          />
+          <Stack.Screen
+            name="providers/[id]"
+            options={{ headerShown: false }}
+          />
+          <Stack.Screen
+            name="paywall"
+            options={{ presentation: "modal", animation: "slide_from_bottom" }}
+          />
         </Stack>
       </ErrorBoundary>
     </>

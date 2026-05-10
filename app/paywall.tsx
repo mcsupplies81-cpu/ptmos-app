@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
@@ -9,30 +9,40 @@ import {
   StyleSheet,
   Text,
   View,
-} from 'react-native';
-import { router, useLocalSearchParams } from 'expo-router';
-import { PurchasesOfferings, PurchasesPackage } from 'react-native-purchases';
+} from "react-native";
+import { router, useLocalSearchParams } from "expo-router";
+import { PurchasesOfferings, PurchasesPackage } from "react-native-purchases";
 
-import Colors from '@/constants/Colors';
-import { getOfferings, purchasePackage, restorePurchases, isPro } from '@/lib/purchases';
-import { useSubscriptionStore } from '@/stores/subscriptionStore';
+import Colors from "@/constants/Colors";
+import {
+  getOfferings,
+  purchasePackage,
+  restorePurchases,
+  isPro,
+} from "@/lib/purchases";
+import { supabase } from "@/lib/supabase";
+import { useAuthStore } from "@/stores/authStore";
+import { useProfileStore } from "@/stores/profileStore";
+import { useSubscriptionStore } from "@/stores/subscriptionStore";
 
-const ACCENT = '#2563EB';
-const BACKGROUND = '#FFFFFF';
-const TEXT = '#0A0A0F';
-const TEXT_SECONDARY = '#6B7280';
-const BORDER = '#E5E7EB';
-const SELECTED_BACKGROUND = '#EFF6FF';
-const BADGE_BACKGROUND = '#DBEAFE';
-const SUCCESS = '#16A34A';
-const FINE_PRINT = '#9CA3AF';
+const ACCENT = "#2563EB";
+const BACKGROUND = "#FFFFFF";
+const TEXT = "#0A0A0F";
+const TEXT_SECONDARY = "#6B7280";
+const BORDER = "#E5E7EB";
+const SELECTED_BACKGROUND = "#EFF6FF";
+const BADGE_BACKGROUND = "#DBEAFE";
+const SUCCESS = "#16A34A";
+const FINE_PRINT = "#9CA3AF";
 
 export default function PaywallScreen() {
+  const user = useAuthStore((s) => s.user);
+  const fetchProfile = useProfileStore((s) => s.fetchProfile);
   const setIsPro = useSubscriptionStore((s) => s.setIsPro);
   const refresh = useSubscriptionStore((s) => s.refresh);
   const params = useLocalSearchParams<{ name?: string | string[] }>();
   const firstName = Array.isArray(params.name) ? params.name[0] : params.name;
-  const displayName = firstName?.trim() || 'there';
+  const displayName = firstName?.trim() || "there";
 
   const [offerings, setOfferings] = useState<PurchasesOfferings | null>(null);
   const [selectedPkg, setSelectedPkg] = useState<PurchasesPackage | null>(null);
@@ -45,39 +55,65 @@ export default function PaywallScreen() {
       const o = await getOfferings();
       setOfferings(o);
       // Pre-select annual (best value) if available
-      const annual = o?.current?.annual ?? o?.current?.availablePackages.find((p) => p.packageType === 'ANNUAL');
+      const annual =
+        o?.current?.annual ??
+        o?.current?.availablePackages.find((p) => p.packageType === "ANNUAL");
       const monthly = o?.current?.monthly ?? o?.current?.availablePackages[0];
       setSelectedPkg(annual ?? monthly ?? null);
       setLoading(false);
     })();
   }, []);
 
-  const monthlyPkg = offerings?.current?.monthly ?? offerings?.current?.availablePackages.find((p) => p.packageType === 'MONTHLY');
-  const annualPkg = offerings?.current?.annual ?? offerings?.current?.availablePackages.find((p) => p.packageType === 'ANNUAL');
+  const monthlyPkg =
+    offerings?.current?.monthly ??
+    offerings?.current?.availablePackages.find(
+      (p) => p.packageType === "MONTHLY",
+    );
+  const annualPkg =
+    offerings?.current?.annual ??
+    offerings?.current?.availablePackages.find(
+      (p) => p.packageType === "ANNUAL",
+    );
 
-  const monthlyPrice = monthlyPkg?.product.priceString ?? '$6.99';
-  const annualPrice = annualPkg?.product.priceString ?? '$39.99';
+  const monthlyPrice = monthlyPkg?.product.priceString ?? "$6.99";
+  const annualPrice = annualPkg?.product.priceString ?? "$39.99";
 
-  const introPrice = selectedPkg?.product.introductoryPrice;
-  const hasTrial = introPrice != null && (introPrice.price === 0 || introPrice.priceString === '$0.00');
-  const trialDays = hasTrial ? (introPrice.periodNumberOfUnits ?? 7) : 0;
+  const completeOnboarding = async (pro: boolean) => {
+    if (user?.id) {
+      const { error } = await supabase.from("profiles").upsert({
+        id: user.id,
+        onboarding_complete: true,
+      });
+
+      if (error) {
+        Alert.alert("Save failed", error.message);
+        return;
+      }
+
+      await fetchProfile(user.id);
+    }
+
+    if (pro) setIsPro(true);
+    router.replace("/(tabs)");
+  };
 
   const handleSubscribe = async () => {
-    if (!selectedPkg) {
-      Alert.alert('Not available', 'Subscriptions are not available right now. Please try again later.');
-      return;
-    }
     setPurchasing(true);
     try {
-      const info = await purchasePackage(selectedPkg);
-      if (isPro(info)) {
-        setIsPro(true);
-        router.back();
+      if (!selectedPkg) {
+        await completeOnboarding(false);
+        return;
       }
+
+      const info = await purchasePackage(selectedPkg);
+      await completeOnboarding(isPro(info));
     } catch (e: unknown) {
       const err = e as { userCancelled?: boolean; message?: string };
       if (!err.userCancelled) {
-        Alert.alert('Purchase failed', err.message ?? 'Something went wrong. Please try again.');
+        Alert.alert(
+          "Purchase failed",
+          err.message ?? "Something went wrong. Please try again.",
+        );
       }
     } finally {
       setPurchasing(false);
@@ -91,22 +127,36 @@ export default function PaywallScreen() {
     if (isPro(info)) {
       setIsPro(true);
       await refresh();
-      router.back();
+      router.replace("/(tabs)");
     } else {
-      Alert.alert('No active subscription', "We couldn't find an active Pro subscription tied to your account.");
+      Alert.alert(
+        "No active subscription",
+        "We couldn't find an active Pro subscription tied to your account.",
+      );
     }
   };
 
   return (
     <SafeAreaView style={styles.safe}>
-      <ScrollView contentContainerStyle={styles.scroll} bounces={false} showsVerticalScrollIndicator={false}>
-        <Pressable style={styles.backButton} onPress={() => router.back()} accessibilityRole="button">
+      <ScrollView
+        contentContainerStyle={styles.scroll}
+        bounces={false}
+        showsVerticalScrollIndicator={false}
+      >
+        <Pressable
+          style={styles.backButton}
+          onPress={() => router.back()}
+          accessibilityRole="button"
+        >
           <Text style={styles.backButtonText}>‹</Text>
         </Pressable>
 
         <View style={styles.dots}>
           {[0, 1, 2, 3, 4].map((dot) => (
-            <View key={dot} style={[styles.dot, dot === 4 && styles.dotActive]} />
+            <View
+              key={dot}
+              style={[styles.dot, dot === 4 && styles.dotActive]}
+            />
           ))}
         </View>
 
@@ -114,11 +164,17 @@ export default function PaywallScreen() {
           <Text style={styles.headingPrimary}>Hey {displayName},</Text>
           <Text style={styles.headingAccent}>start your 7-day</Text>
           <Text style={styles.headingAccent}>free trial</Text>
-          <Text style={styles.subtitle}>Full access. No payment due today.</Text>
+          <Text style={styles.subtitle}>
+            Full access. No payment due today.
+          </Text>
         </View>
 
         {loading ? (
-          <ActivityIndicator size="large" color={ACCENT} style={styles.loader} />
+          <ActivityIndicator
+            size="large"
+            color={ACCENT}
+            style={styles.loader}
+          />
         ) : (
           <View style={styles.planList}>
             <PlanRow
@@ -136,29 +192,49 @@ export default function PaywallScreen() {
           </View>
         )}
 
-        {selectedPkg === annualPkg ? <Text style={styles.noPayment}>✓ No payment due today</Text> : null}
+        {selectedPkg === annualPkg ? (
+          <Text style={styles.noPayment}>✓ No payment due today</Text>
+        ) : null}
 
         <Pressable
-          style={[styles.ctaBtn, (purchasing || !selectedPkg) && styles.ctaBtnDisabled]}
+          style={[styles.ctaBtn, purchasing && styles.ctaBtnDisabled]}
           onPress={() => void handleSubscribe()}
-          disabled={purchasing || !selectedPkg}
+          disabled={purchasing}
           accessibilityRole="button"
         >
           {purchasing ? (
             <ActivityIndicator color={Colors.white} />
           ) : (
-            <Text style={styles.ctaText}>Start Free Trial</Text>
+            <Text style={styles.ctaText}>Start my 7-day free trial</Text>
           )}
         </Pressable>
 
-        <Text style={styles.finePrint}>7 days free, then $39.99/year or $6.99/month. Cancel anytime.</Text>
+        <Text style={styles.finePrint}>
+          7 days free, then $39.99/year or $6.99/month. Cancel anytime.
+        </Text>
+
+        <Pressable
+          style={styles.limitedButton}
+          onPress={() => void completeOnboarding(false)}
+          accessibilityRole="button"
+        >
+          <Text style={styles.limitedButtonText}>
+            Continue with limited free plan
+          </Text>
+        </Pressable>
 
         <View style={styles.legalRow}>
-          <Pressable onPress={() => void Linking.openURL('https://ptmos.app/privacy')} accessibilityRole="link">
+          <Pressable
+            onPress={() => void Linking.openURL("https://ptmos.app/privacy")}
+            accessibilityRole="link"
+          >
             <Text style={styles.legalLink}>Privacy Policy</Text>
           </Pressable>
           <Text style={styles.legalLink}> · </Text>
-          <Pressable onPress={() => void Linking.openURL('https://ptmos.app/terms')} accessibilityRole="link">
+          <Pressable
+            onPress={() => void Linking.openURL("https://ptmos.app/terms")}
+            accessibilityRole="link"
+          >
             <Text style={styles.legalLink}>Terms of Use</Text>
           </Pressable>
         </View>
@@ -204,22 +280,27 @@ const styles = StyleSheet.create({
   scroll: { paddingBottom: 32, paddingHorizontal: 24 },
 
   backButton: {
-    alignItems: 'center',
+    alignItems: "center",
     height: 44,
-    justifyContent: 'center',
+    justifyContent: "center",
     marginTop: 8,
     width: 44,
   },
-  backButtonText: { color: TEXT, fontSize: 28, fontWeight: '400', lineHeight: 32 },
+  backButtonText: {
+    color: TEXT,
+    fontSize: 28,
+    fontWeight: "400",
+    lineHeight: 32,
+  },
 
   dots: {
-    alignSelf: 'center',
-    flexDirection: 'row',
+    alignSelf: "center",
+    flexDirection: "row",
     gap: 8,
     marginTop: 4,
   },
   dot: {
-    backgroundColor: '#CBD5E1',
+    backgroundColor: "#CBD5E1",
     borderRadius: 5,
     height: 10,
     width: 10,
@@ -230,31 +311,31 @@ const styles = StyleSheet.create({
   },
 
   headingBlock: {
-    alignItems: 'center',
+    alignItems: "center",
     marginTop: 46,
   },
   headingPrimary: {
     color: TEXT,
     fontSize: 34,
-    fontWeight: '800',
+    fontWeight: "800",
     letterSpacing: -0.8,
     lineHeight: 39,
-    textAlign: 'center',
+    textAlign: "center",
   },
   headingAccent: {
     color: ACCENT,
     fontSize: 34,
-    fontWeight: '800',
+    fontWeight: "800",
     letterSpacing: -0.8,
     lineHeight: 39,
-    textAlign: 'center',
+    textAlign: "center",
   },
   subtitle: {
     color: TEXT_SECONDARY,
     fontSize: 16,
     lineHeight: 22,
     marginTop: 8,
-    textAlign: 'center',
+    textAlign: "center",
   },
 
   loader: { marginVertical: 44 },
@@ -263,12 +344,12 @@ const styles = StyleSheet.create({
     marginTop: 44,
   },
   planCard: {
-    alignItems: 'center',
+    alignItems: "center",
     backgroundColor: BACKGROUND,
     borderColor: BORDER,
     borderRadius: 16,
     borderWidth: 1.5,
-    flexDirection: 'row',
+    flexDirection: "row",
     height: 72,
     paddingHorizontal: 18,
   },
@@ -277,12 +358,12 @@ const styles = StyleSheet.create({
     borderColor: ACCENT,
   },
   radio: {
-    alignItems: 'center',
+    alignItems: "center",
     borderColor: BORDER,
     borderRadius: 11,
     borderWidth: 2,
     height: 22,
-    justifyContent: 'center',
+    justifyContent: "center",
     width: 22,
   },
   radioSelected: {
@@ -301,7 +382,7 @@ const styles = StyleSheet.create({
   planName: {
     color: TEXT,
     fontSize: 16,
-    fontWeight: '700',
+    fontWeight: "700",
   },
   planPrice: {
     color: TEXT_SECONDARY,
@@ -317,44 +398,54 @@ const styles = StyleSheet.create({
   trialBadgeText: {
     color: ACCENT,
     fontSize: 11,
-    fontWeight: '700',
+    fontWeight: "700",
   },
   noPayment: {
     color: SUCCESS,
     fontSize: 13,
-    fontWeight: '600',
+    fontWeight: "600",
     marginTop: 14,
-    textAlign: 'center',
+    textAlign: "center",
   },
 
   ctaBtn: {
-    alignItems: 'center',
+    alignItems: "center",
     backgroundColor: ACCENT,
     borderRadius: 16,
     height: 56,
-    justifyContent: 'center',
+    justifyContent: "center",
     marginTop: 18,
-    width: '100%',
+    width: "100%",
   },
   ctaBtnDisabled: { opacity: 0.6 },
-  ctaText: { color: BACKGROUND, fontSize: 17, fontWeight: '700' },
+  ctaText: { color: BACKGROUND, fontSize: 17, fontWeight: "700" },
 
   finePrint: {
     color: FINE_PRINT,
     fontSize: 12,
     lineHeight: 18,
     marginTop: 14,
-    textAlign: 'center',
+    textAlign: "center",
+  },
+  limitedButton: {
+    alignItems: "center",
+    justifyContent: "center",
+    marginTop: 16,
+  },
+  limitedButtonText: {
+    color: ACCENT,
+    fontSize: 13,
+    fontWeight: "700",
   },
   legalRow: {
-    alignItems: 'center',
-    flexDirection: 'row',
-    justifyContent: 'center',
+    alignItems: "center",
+    flexDirection: "row",
+    justifyContent: "center",
     marginTop: 12,
   },
   legalLink: {
     color: FINE_PRINT,
     fontSize: 12,
-    textAlign: 'center',
+    textAlign: "center",
   },
 });
