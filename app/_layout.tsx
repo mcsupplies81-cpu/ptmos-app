@@ -48,13 +48,19 @@ export default function RootLayout() {
     const inOnboarding = segments[0] === 'onboarding';
 
     if (!session) {
-      if (!inAuth && !inOnboarding) router.replace('/(auth)/welcome');
+      if (!inOnboarding && !inAuth) router.replace('/onboarding');
       return;
     }
 
-    // Onboarding gates removed for beta — route all authed users straight to tabs
+    if (profile === undefined) return;
+
+    if (profile?.onboarding_complete) {
+      if (inAuth || inOnboarding) router.replace('/(tabs)');
+      return;
+    }
+
     if (inAuth) {
-      router.replace('/(tabs)');
+      router.replace('/onboarding/paywall');
     }
   }, [loading, session, profile, segments]);
 
@@ -79,6 +85,7 @@ export default function RootLayout() {
       <ErrorBoundary>
         <Stack screenOptions={{ headerShown: false }}>
           <Stack.Screen name="onboarding" options={{ headerShown: false }} />
+          <Stack.Screen name="onboarding/create-account" options={{ headerShown: false }} />
           <Stack.Screen name="log/sleep" options={{ presentation: 'modal', animation: 'slide_from_bottom' }} />
           <Stack.Screen name="log/water" options={{ presentation: 'modal', animation: 'slide_from_bottom' }} />
           <Stack.Screen name="log/workout" options={{ presentation: 'modal', animation: 'slide_from_bottom' }} />

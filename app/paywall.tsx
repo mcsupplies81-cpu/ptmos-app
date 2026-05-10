@@ -15,6 +15,9 @@ import { PurchasesOfferings, PurchasesPackage } from 'react-native-purchases';
 
 import Colors from '@/constants/Colors';
 import { getOfferings, purchasePackage, restorePurchases, isPro } from '@/lib/purchases';
+import { supabase } from '@/lib/supabase';
+import { useOnboardingStore } from '@/stores/onboardingStore';
+import { useProfileStore } from '@/stores/profileStore';
 import { useSubscriptionStore } from '@/stores/subscriptionStore';
 
 const ACCENT = '#2563EB';
@@ -30,15 +33,18 @@ const FINE_PRINT = '#9CA3AF';
 export default function PaywallScreen() {
   const setIsPro = useSubscriptionStore((s) => s.setIsPro);
   const refresh = useSubscriptionStore((s) => s.refresh);
+  const fetchProfile = useProfileStore((s) => s.fetchProfile);
   const params = useLocalSearchParams<{ name?: string | string[] }>();
   const firstName = Array.isArray(params.name) ? params.name[0] : params.name;
-  const displayName = firstName?.trim() || 'there';
+  const storeName = useOnboardingStore((s) => s.name);
+  const displayName = firstName?.trim() || storeName.trim() || 'there';
 
   const [offerings, setOfferings] = useState<PurchasesOfferings | null>(null);
   const [selectedPkg, setSelectedPkg] = useState<PurchasesPackage | null>(null);
   const [loading, setLoading] = useState(true);
   const [purchasing, setPurchasing] = useState(false);
   const [restoring, setRestoring] = useState(false);
+  const [selectedPlan, setSelectedPlan] = useState<'annual' | 'monthly'>('annual');
 
   useEffect(() => {
     void (async () => {
@@ -48,6 +54,7 @@ export default function PaywallScreen() {
       const annual = o?.current?.annual ?? o?.current?.availablePackages.find((p) => p.packageType === 'ANNUAL');
       const monthly = o?.current?.monthly ?? o?.current?.availablePackages[0];
       setSelectedPkg(annual ?? monthly ?? null);
+      setSelectedPlan(annual ? 'annual' : 'monthly');
       setLoading(false);
     })();
   }, []);
@@ -62,23 +69,43 @@ export default function PaywallScreen() {
   const hasTrial = introPrice != null && (introPrice.price === 0 || introPrice.priceString === '$0.00');
   const trialDays = hasTrial ? (introPrice.periodNumberOfUnits ?? 7) : 0;
 
-  const handleSubscribe = async () => {
-    if (!selectedPkg) {
-      Alert.alert('Not available', 'Subscriptions are not available right now. Please try again later.');
-      return;
+  const completeOnboarding = async () => {
+    const {
+      data: { session },
+    } = await supabase.auth.getSession();
+    const userId = session?.user.id;
+
+    if (userId) {
+      await supabase.from('profiles').upsert({ id: userId, onboarding_complete: true });
+      await fetchProfile(userId);
     }
+
+    router.replace('/(tabs)');
+  };
+
+  const handleSubscribe = async () => {
     setPurchasing(true);
     try {
-      const info = await purchasePackage(selectedPkg);
-      if (isPro(info)) {
-        setIsPro(true);
-        router.back();
+      if (selectedPkg) {
+        const info = await purchasePackage(selectedPkg);
+        if (isPro(info)) setIsPro(true);
       }
+
+      await completeOnboarding();
     } catch (e: unknown) {
       const err = e as { userCancelled?: boolean; message?: string };
       if (!err.userCancelled) {
         Alert.alert('Purchase failed', err.message ?? 'Something went wrong. Please try again.');
       }
+    } finally {
+      setPurchasing(false);
+    }
+  };
+
+  const handleLimitedPlan = async () => {
+    setPurchasing(true);
+    try {
+      await completeOnboarding();
     } finally {
       setPurchasing(false);
     }
@@ -122,36 +149,51 @@ export default function PaywallScreen() {
         ) : (
           <View style={styles.planList}>
             <PlanRow
-              selected={selectedPkg === annualPkg}
+              selected={selectedPlan === 'annual'}
               title="Yearly"
               price={`${annualPrice}/year`}
-              onPress={() => setSelectedPkg(annualPkg ?? null)}
+              onPress={() => {
+                setSelectedPlan('annual');
+                setSelectedPkg(annualPkg ?? null);
+              }}
             />
             <PlanRow
-              selected={selectedPkg === monthlyPkg}
+              selected={selectedPlan === 'monthly'}
               title="Monthly"
               price={`${monthlyPrice}/month`}
-              onPress={() => setSelectedPkg(monthlyPkg ?? null)}
+              onPress={() => {
+                setSelectedPlan('monthly');
+                setSelectedPkg(monthlyPkg ?? null);
+              }}
             />
           </View>
         )}
 
-        {selectedPkg === annualPkg ? <Text style={styles.noPayment}>✓ No payment due today</Text> : null}
+        {selectedPlan === 'annual' ? <Text style={styles.noPayment}>✓ No payment due today</Text> : null}
 
         <Pressable
-          style={[styles.ctaBtn, (purchasing || !selectedPkg) && styles.ctaBtnDisabled]}
+          style={[styles.ctaBtn, purchasing && styles.ctaBtnDisabled]}
           onPress={() => void handleSubscribe()}
-          disabled={purchasing || !selectedPkg}
+          disabled={purchasing}
           accessibilityRole="button"
         >
           {purchasing ? (
             <ActivityIndicator color={Colors.white} />
           ) : (
-            <Text style={styles.ctaText}>Start Free Trial</Text>
+            <Text style={styles.ctaText}>Start my 7-day free trial</Text>
           )}
         </Pressable>
 
         <Text style={styles.finePrint}>7 days free, then $39.99/year or $6.99/month. Cancel anytime.</Text>
+
+        <Pressable
+          style={styles.limitedButton}
+          onPress={() => void handleLimitedPlan()}
+          disabled={purchasing}
+          accessibilityRole="button"
+        >
+          <Text style={styles.limitedButtonText}>Continue with limited free plan</Text>
+        </Pressable>
 
         <View style={styles.legalRow}>
           <Pressable onPress={() => void Linking.openURL('https://ptmos.app/privacy')} accessibilityRole="link">
@@ -338,6 +380,18 @@ const styles = StyleSheet.create({
   },
   ctaBtnDisabled: { opacity: 0.6 },
   ctaText: { color: BACKGROUND, fontSize: 17, fontWeight: '700' },
+
+  limitedButton: {
+    alignItems: 'center',
+    height: 44,
+    justifyContent: 'center',
+    marginTop: 10,
+  },
+  limitedButtonText: {
+    color: ACCENT,
+    fontSize: 13,
+    fontWeight: '700',
+  },
 
   finePrint: {
     color: FINE_PRINT,
